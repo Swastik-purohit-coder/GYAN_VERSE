@@ -108,19 +108,14 @@ function ModuleManager() {
     setRoleLoading(true);
     fetchUserRole(user.id)
       .then((doc) => {
-        if (!active) return;
-<<<<<<< Updated upstream
-=======
-        const roleVal = typeof doc === "string" ? doc : doc?.role;
         if (roleVal === "unassigned") {
           router.replace("/role-select");
           return;
         }
         if (roleVal === "student") {
-          router.replace("/student/dashboard");
+          router.replace("/student");
           return;
         }
->>>>>>> Stashed changes
         setRoleDoc(doc);
       })
       .catch((err) => {
