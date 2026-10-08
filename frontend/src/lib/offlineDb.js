@@ -1,21 +1,66 @@
 import Dexie from "dexie";
 
-// Initialize Dexie IndexedDB for offline-first data storage
+/**
+ * Gyanaratna Production Offline Database (Dexie IndexedDB)
+ * Supports full offline capability for:
+ * - Application data caching (modules, subjects, quizzes)
+ * - Offline lesson progress tracking
+ * - Offline quiz submissions
+ * - Persistent idempotent sync queue with retry & backoff
+ * - Downloaded media metadata & storage management
+ * - Offline user profile & roles
+ */
 export const db = new Dexie("GyanaratnaOfflineDB");
 
-db.version(1).stores({
+db.version(2).stores({
+  // Cached API GET data (Stale-While-Revalidate & synthetic responses)
+  cachedApi: "&key, endpoint, timestamp, ttl",
+
   // Structured lesson progress
   lessonProgress: "&lessonId, studentId, completed, lastPosition, completedAt, updatedAt, syncStatus",
 
+  // Offline quiz attempts & submissions
+  quizAttempts: "++id, quizId, studentId, score, completedAt, syncStatus, idempotentKey",
+
   // Queue for offline sync operations (POST /api/sync)
-  syncQueue: "++id, action, entityType, entityId, timestamp, status, retryCount",
+  syncQueue: "++id, action, entityType, entityId, idempotentKey, timestamp, status, retryCount, lastAttempt, error",
 
-  // Local metadata registry for downloaded videos
-  downloadsMetadata: "&lessonId, videoUrl, title, moduleTitle, class, schoolId, downloadedAt",
+  // Local metadata registry for downloaded offline videos & audio
+  downloadsMetadata: "&id, lessonId, type, url, title, moduleTitle, class, schoolId, sizeBytes, downloadedAt",
 
-  // Placeholder for future Phase 8 offline quiz attempts
-  quizAttempts: "++id, quizId, studentId, score, attemptedAt, syncStatus",
+  // Cached User Profile & Session info for offline authorization
+  userProfile: "&userId, role, name, class, schoolId, updatedAt",
 });
+
+/**
+ * Helper to cache arbitrary API response JSON in IndexedDB
+ */
+export async function cacheApiResponse(key, data, ttlMs = 24 * 60 * 60 * 1000) {
+  try {
+    await db.cachedApi.put({
+      key,
+      data,
+      timestamp: Date.now(),
+      ttl: ttlMs,
+    });
+  } catch (e) {
+    console.warn("[IndexedDB] Failed to cache API response:", e);
+  }
+}
+
+/**
+ * Helper to retrieve cached API response JSON
+ */
+export async function getCachedApiResponse(key) {
+  try {
+    const record = await db.cachedApi.get(key);
+    if (!record) return null;
+    return record.data;
+  } catch (e) {
+    console.warn("[IndexedDB] Failed to read cached API response:", e);
+    return null;
+  }
+}
 
 /**
  * Saves or updates lesson progress in local IndexedDB.
@@ -50,6 +95,7 @@ export async function saveLocalLessonProgress({
     action: "UPDATE_LESSON_PROGRESS",
     entityType: "lesson_progress",
     entityId: lessonId,
+    idempotentKey: `prog_${record.studentId}_${lessonId}_${now.slice(0, 16)}`,
     payload: {
       lessonId,
       completed: isCompleted,
@@ -63,9 +109,57 @@ export async function saveLocalLessonProgress({
 }
 
 /**
- * Adds an operation to the syncQueue.
+ * Saves an offline quiz response/attempt in IndexedDB and queues for sync.
  */
-export async function enqueueSyncOperation({ action, entityType, entityId, payload }) {
+export async function saveOfflineQuizAttempt({
+  quizId,
+  studentId = "current",
+  answers = {},
+  score = 0,
+  correctAnswers = 0,
+  totalQuestions = 0,
+  timeSpent = 0,
+  subject = "General",
+}) {
+  const now = new Date().toISOString();
+  const idempotentKey = `quiz_${studentId}_${quizId}_${Date.now()}`;
+
+  const attemptDoc = {
+    quizId,
+    studentId,
+    answers,
+    score,
+    correctAnswers,
+    totalQuestions,
+    timeSpent,
+    subject,
+    completedAt: now,
+    syncStatus: "pending",
+    idempotentKey,
+  };
+
+  const id = await db.quizAttempts.add(attemptDoc);
+
+  await enqueueSyncOperation({
+    action: "SUBMIT_QUIZ_RESPONSE",
+    entityType: "quiz_response",
+    entityId: quizId,
+    idempotentKey,
+    payload: {
+      ...attemptDoc,
+      attemptId: id,
+    },
+  });
+
+  return { id, ...attemptDoc };
+}
+
+/**
+ * Adds an operation to the syncQueue with deduplication and idempotency.
+ */
+export async function enqueueSyncOperation({ action, entityType, entityId, idempotentKey, payload }) {
+  const key = idempotentKey || `${action}_${entityType}_${entityId}`;
+
   // Check if identical pending sync item already exists in queue to avoid duplicates
   const pendingItems = await db.syncQueue
     .where("entityId")
@@ -74,10 +168,12 @@ export async function enqueueSyncOperation({ action, entityType, entityId, paylo
     .toArray();
 
   if (pendingItems.length > 0) {
-    // Update existing pending queue item payload
+    // Update existing pending queue item payload with latest data
     await db.syncQueue.update(pendingItems[0].id, {
       payload,
+      idempotentKey: key,
       timestamp: Date.now(),
+      error: null,
     });
     return pendingItems[0].id;
   }
@@ -86,10 +182,13 @@ export async function enqueueSyncOperation({ action, entityType, entityId, paylo
     action,
     entityType,
     entityId,
+    idempotentKey: key,
     payload,
     timestamp: Date.now(),
     status: "pending",
     retryCount: 0,
+    lastAttempt: null,
+    error: null,
   });
 }
 
@@ -109,3 +208,15 @@ export async function getLocalProgressMap() {
     return {};
   }
 }
+
+/**
+ * Counts total pending synchronization operations.
+ */
+export async function getPendingSyncCount() {
+  try {
+    return await db.syncQueue.where("status").equals("pending").count();
+  } catch (e) {
+    return 0;
+  }
+}
+

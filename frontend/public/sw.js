@@ -209,6 +209,7 @@ self.addEventListener('install', (event) => {
       const cache = await caches.open(APP_SHELL_CACHE);
       try {
         await Promise.allSettled(CORE_ASSETS.map((asset) => cache.add(asset)));
+        console.log('[SW] Core app shell cached.');
       } catch (err) {
         console.warn('[SW] Core asset precache issue:', err);
       }
@@ -529,20 +530,48 @@ self.addEventListener('message', (event) => {
     return;
   }
   if (data.type === 'warm-cache' && Array.isArray(data.urls)) {
-    const urls = data.urls;
+    const urls = [...new Set(data.urls)];
+    const total = urls.length;
     event.waitUntil(
       (async () => {
         const shell = await caches.open(APP_SHELL_CACHE);
         const staticCache = await caches.open(STATIC_CACHE);
-        await Promise.all(urls.map(async (u) => {
+        const clients = await self.clients.matchAll({ includeUncontrolled: true });
+
+        let completed = 0;
+        for (const u of urls) {
           try {
             const res = await fetch(u, { cache: 'no-store' });
             if (res.ok) {
-              const dest = (u.endsWith('.js') || u.endsWith('.css') || u.endsWith('.woff2')) ? staticCache : shell;
-              dest.put(u, res.clone());
+              const dest = (u.endsWith('.js') || u.endsWith('.css') || u.endsWith('.woff2') || u.endsWith('.png') || u.endsWith('.webp')) ? staticCache : shell;
+              await dest.put(u, res.clone());
             }
-          } catch {}
-        }));
+          } catch (e) {
+            // ignore individual asset failure
+          }
+          completed++;
+
+          // Report progress to UI every 2 items or on completion
+          if (completed % 2 === 0 || completed === total) {
+            const pct = Math.round((completed / total) * 100);
+            clients.forEach((client) => {
+              client.postMessage({
+                type: 'cache-progress',
+                completed,
+                total,
+                percent: pct,
+                url: u,
+              });
+            });
+          }
+
+          // Gentle delay to keep main thread and server completely responsive
+          await new Promise((resolve) => setTimeout(resolve, 35));
+        }
+
+        clients.forEach((client) => {
+          client.postMessage({ type: 'cache-complete', total });
+        });
       })()
     );
     return;
