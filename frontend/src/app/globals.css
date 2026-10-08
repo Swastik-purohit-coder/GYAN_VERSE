@@ -121,3 +121,17 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
 .light input, .light textarea, .light select { color: #000000 !important; }
 .light input::placeholder, .light textarea::placeholder { color: #000000cc !important; }
 .light .border-gray-200 { border-color: #bfeebf !important; }
+
+/* Subtle Architectural Grid and Dot Backgrounds for Eye-Friendly Cream Theme */
+.bg-grid-cream {
+  background-size: 28px 28px;
+  background-image: 
+    linear-gradient(to right, rgba(120, 113, 108, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 113, 108, 0.08) 1px, transparent 1px);
+}
+
+.bg-dot-cream {
+  background-size: 24px 24px;
+  background-image: radial-gradient(circle, rgba(120, 113, 108, 0.12) 1px, transparent 1px);
+}
+

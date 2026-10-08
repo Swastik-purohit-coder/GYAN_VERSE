@@ -6,31 +6,38 @@ import { useUser } from "@clerk/nextjs";
 import { saveUserRole } from "@/lib/users";
 import {
   GraduationCap,
-  Users,
-  ShieldCheck,
-  Building2,
   BookOpen,
-  Sparkles,
+  Building2,
+  ShieldCheck,
+  Check,
   ArrowRight,
   ArrowLeft,
-  CheckCircle2,
-  Check,
   ChevronRight,
-  Tag,
-  Award,
+  Cpu,
+  Code,
+  Calculator,
+  FlaskConical,
+  Palette,
+  Trophy,
+  TrendingUp,
+  Mic,
+  Sparkles,
+  User,
+  School,
+  Compass,
 } from "lucide-react";
 
 const schoolClasses = Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`);
 
-const studentInterestTags = [
-  "🤖 AI & Prompt Engineering",
-  "💻 Python & Web Coding",
-  "📐 Math Olympiad Prep",
-  "🔬 Science & Robotics",
-  "🎨 UI/UX & Design",
-  "🏆 Monthly Hackathons",
-  "📈 Financial Literacy",
-  "🗣️ Public Speaking & Debate",
+const studentInterestOptions = [
+  { id: "ai", label: "AI & Prompt Engineering", icon: Cpu },
+  { id: "coding", label: "Python & Web Coding", icon: Code },
+  { id: "math", label: "Math Olympiad Prep", icon: Calculator },
+  { id: "science", label: "Science & Robotics", icon: FlaskConical },
+  { id: "design", label: "UI/UX & Design", icon: Palette },
+  { id: "hackathon", label: "Monthly Hackathons", icon: Trophy },
+  { id: "finance", label: "Financial Literacy", icon: TrendingUp },
+  { id: "debate", label: "Public Speaking & Debate", icon: Mic },
 ];
 
 const teacherDepartments = [
@@ -64,7 +71,7 @@ export default function RoleSelectPage() {
   // Optional fields
   const [section, setSection] = useState("");
   const [rollNumber, setRollNumber] = useState("");
-  const [selectedInterests, setSelectedInterests] = useState(["🤖 AI & Prompt Engineering", "📐 Math Olympiad Prep"]);
+  const [selectedInterests, setSelectedInterests] = useState(["AI & Prompt Engineering", "Math Olympiad Prep"]);
   const [primaryGoal, setPrimaryGoal] = useState("Olympiad & Skill Development");
   const [parentContact, setParentContact] = useState("");
   const [experienceYears, setExperienceYears] = useState("5");
@@ -79,9 +86,9 @@ export default function RoleSelectPage() {
     }
   }, [isLoaded, user, router, name]);
 
-  const toggleInterest = (tag) => {
+  const toggleInterest = (label) => {
     setSelectedInterests((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(label) ? prev.filter((t) => t !== label) : [...prev, label]
     );
   };
 
@@ -142,7 +149,9 @@ export default function RoleSelectPage() {
         ...profileMetadata,
       });
 
-      router.replace(role === "student" ? "/student" : "/teacher");
+      router.replace(
+        role === "student" ? "/student" : role === "principal" ? "/principal" : "/teacher"
+      );
     } catch (err) {
       console.error("Onboarding error:", err);
       alert(err.message || "Failed to save profile");
@@ -152,10 +161,10 @@ export default function RoleSelectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-stone-800 flex items-center justify-center p-4 md:p-8 font-sans selection:bg-amber-100">
+    <div className="min-h-screen bg-[#FAF8F5] bg-grid-cream text-stone-800 flex items-center justify-center p-4 md:p-8 font-sans selection:bg-stone-200">
       <div className="w-full max-w-3xl bg-[#FFFFFF] border border-[#E8E3DA] rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all">
         
-        {/* Clean Header */}
+        {/* Minimal Clean Header */}
         <div className="px-6 py-5 md:px-8 bg-[#FAF8F5] border-b border-[#EAE5DC]">
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex items-center gap-2.5">
@@ -199,11 +208,11 @@ export default function RoleSelectPage() {
           </p>
         </div>
 
-        {/* Step 1: Role Selection */}
+        {/* Step 1: Role Selection with Matching Vector Icons */}
         {step === 1 && (
           <div className="p-6 md:p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Student */}
+              {/* Student Card */}
               <div
                 role="button"
                 tabIndex={0}
@@ -215,8 +224,8 @@ export default function RoleSelectPage() {
                 }`}
               >
                 <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#EFECE6] text-stone-800 flex items-center justify-center text-xl font-bold">
-                    🎓
+                  <div className="w-10 h-10 rounded-lg bg-[#EFECE6] border border-[#DFD9CE] text-stone-800 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5 text-stone-800" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-stone-900 flex items-center justify-between">
@@ -224,7 +233,7 @@ export default function RoleSelectPage() {
                       {role === "student" && <Check className="w-4 h-4 text-stone-900" />}
                     </h3>
                     <p className="text-xs text-stone-600 mt-1.5 leading-relaxed">
-                      Interactive modules, practice quizzes, skill courses, peer study squads, and monthly competitions.
+                      Interactive curriculum modules, practice quizzes, skill micro-courses, peer squads, and competitions.
                     </p>
                   </div>
                 </div>
@@ -233,7 +242,7 @@ export default function RoleSelectPage() {
                 </div>
               </div>
 
-              {/* Teacher */}
+              {/* Teacher Card */}
               <div
                 role="button"
                 tabIndex={0}
@@ -245,8 +254,8 @@ export default function RoleSelectPage() {
                 }`}
               >
                 <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#EFECE6] text-stone-800 flex items-center justify-center text-xl font-bold">
-                    👨‍🏫
+                  <div className="w-10 h-10 rounded-lg bg-[#EFECE6] border border-[#DFD9CE] text-stone-800 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-stone-800" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-stone-900 flex items-center justify-between">
@@ -263,7 +272,7 @@ export default function RoleSelectPage() {
                 </div>
               </div>
 
-              {/* Principal */}
+              {/* Principal Card */}
               <div
                 role="button"
                 tabIndex={0}
@@ -275,8 +284,8 @@ export default function RoleSelectPage() {
                 }`}
               >
                 <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#EFECE6] text-stone-800 flex items-center justify-center text-xl font-bold">
-                    🏛️
+                  <div className="w-10 h-10 rounded-lg bg-[#EFECE6] border border-[#DFD9CE] text-stone-800 flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-stone-800" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-stone-900 flex items-center justify-between">
@@ -324,7 +333,7 @@ export default function RoleSelectPage() {
                 />
               </div>
 
-              {/* Student */}
+              {/* Student Fields */}
               {role === "student" && (
                 <>
                   <div className="space-y-1.5">
@@ -367,7 +376,7 @@ export default function RoleSelectPage() {
                 </>
               )}
 
-              {/* Teacher */}
+              {/* Teacher Fields */}
               {role === "teacher" && (
                 <>
                   <div className="space-y-1.5">
@@ -417,7 +426,7 @@ export default function RoleSelectPage() {
                 </>
               )}
 
-              {/* Principal */}
+              {/* Principal Fields */}
               {role === "principal" && (
                 <>
                   <div className="space-y-1.5 md:col-span-2">
@@ -492,15 +501,15 @@ export default function RoleSelectPage() {
           </div>
         )}
 
-        {/* Step 3: Optional Enrichment */}
+        {/* Step 3: Optional Details with Matching Vector Icon Chips */}
         {step === 3 && (
           <div className="p-6 md:p-8 space-y-6">
             <div className="flex items-center justify-between p-3 rounded-lg bg-[#F5F2EC] border border-[#E5DFD5] text-xs text-stone-600">
-              <span>All fields below are <strong>optional</strong> and can be filled or changed later in your profile settings.</span>
+              <span>All fields below are <strong>optional</strong> and can be edited anytime in your profile settings.</span>
               <span className="text-[10px] bg-[#EAE5DC] text-stone-700 px-2 py-0.5 rounded font-semibold uppercase">Optional</span>
             </div>
 
-            {/* Student */}
+            {/* Student Optionals */}
             {role === "student" && (
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -508,20 +517,21 @@ export default function RoleSelectPage() {
                     Favorite Learning Tracks & Skill Interests
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {studentInterestTags.map((tag) => {
-                      const active = selectedInterests.includes(tag);
+                    {studentInterestOptions.map(({ id, label, icon: IconComponent }) => {
+                      const active = selectedInterests.includes(label);
                       return (
                         <button
-                          key={tag}
+                          key={id}
                           type="button"
-                          onClick={() => toggleInterest(tag)}
-                          className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                          onClick={() => toggleInterest(label)}
+                          className={`text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all ${
                             active
                               ? "bg-stone-900 text-white border-stone-900 shadow-sm"
                               : "bg-[#FAF8F5] text-stone-600 border-[#E2DDD5] hover:border-stone-400 hover:bg-white"
                           }`}
                         >
-                          {tag}
+                          <IconComponent className={`w-3.5 h-3.5 ${active ? "text-white" : "text-stone-500"}`} />
+                          <span>{label}</span>
                         </button>
                       );
                     })}
@@ -557,7 +567,7 @@ export default function RoleSelectPage() {
                       className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none"
                       value={primaryGoal}
                       onChange={(e) => setPrimaryGoal(e.target.value)}
-                      placeholder="e.g. STEM Hackathon & Olympiad Prep"
+                      placeholder="e.g. STEM Hackathons & Olympiad Prep"
                     />
                   </div>
 
@@ -574,7 +584,7 @@ export default function RoleSelectPage() {
               </div>
             )}
 
-            {/* Teacher */}
+            {/* Teacher Optionals */}
             {role === "teacher" && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -601,7 +611,7 @@ export default function RoleSelectPage() {
               </div>
             )}
 
-            {/* Principal */}
+            {/* Principal Optionals */}
             {role === "principal" && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

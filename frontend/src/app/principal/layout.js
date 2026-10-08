@@ -1,7 +1,7 @@
 "use client";
 import TeacherSidebar from "@/teacher/components/TeacherSidebar";
 
-export default function TeacherLayout({ children }) {
+export default function PrincipalLayout({ children }) {
   return (
     <div className="min-h-screen w-full bg-[#FAF8F5] bg-grid-cream text-stone-900 selection:bg-stone-200">
       <div className="flex">

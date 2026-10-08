@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
+import { fetchUserRole } from "@/lib/users";
 import {
   LayoutDashboard,
   Bell,
@@ -28,7 +30,7 @@ const rawNavSections = [
     title: "Executive Leadership",
     higherBodyOnly: true,
     items: [
-      { href: "/teacher", label: "Executive Analytics", icon: LayoutDashboard },
+      { href: "/principal", label: "Executive Analytics", icon: LayoutDashboard },
       { href: "/teacher/noticeboard", label: "Noticeboard & Circulars", icon: Bell, badge: "Live" },
       { href: "/teacher/faculty", label: "Faculty Management", icon: UserCheck, higherBodyOnly: true },
       { href: "/teacher/reports", label: "Institutional Reports", icon: BarChart3, higherBodyOnly: true },
@@ -67,9 +69,28 @@ export default function TeacherSidebar() {
   const { user } = useUser();
   const { signOut } = useClerk();
 
-  // Determine current active user role
-  const userRole = user?.unsafeMetadata?.role || "principal";
-  const isHigherBody = ["principal", "admin", "higher_body"].includes(userRole);
+  // Role resolution with fallback hierarchy
+  const initialRole =
+    user?.unsafeMetadata?.role ||
+    (typeof window !== "undefined" ? localStorage.getItem("userRole") : null) ||
+    "principal";
+
+  const [resolvedRole, setResolvedRole] = useState(initialRole);
+
+  useEffect(() => {
+    if (user?.unsafeMetadata?.role) {
+      setResolvedRole(user.unsafeMetadata.role);
+    } else if (user?.id) {
+      fetchUserRole(user.id).then((doc) => {
+        const r = typeof doc === "string" ? doc : doc?.role;
+        if (r && r !== "unassigned") {
+          setResolvedRole(r);
+        }
+      });
+    }
+  }, [user]);
+
+  const isHigherBody = ["principal", "admin", "higher_body"].includes(resolvedRole);
 
   // Filter sections and items: HIDE ANY ITEM WHERE ACCESS IS DENIED FOR CURRENT ROLE
   const filteredNavSections = rawNavSections
@@ -110,11 +131,11 @@ export default function TeacherSidebar() {
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-violet-400" />
             <span className="text-xs font-semibold text-violet-200 uppercase tracking-wider">
-              {isHigherBody ? "Higher Authority" : "Faculty Lead"}
+              {isHigherBody ? "Principal / Higher Body" : "Faculty Lead"}
             </span>
           </div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">
-            Active Role
+            Active
           </span>
         </div>
       </div>
@@ -127,7 +148,11 @@ export default function TeacherSidebar() {
               {section.title}
             </div>
             {section.items.map(({ href, label, icon: Icon, badge }) => {
-              const active = pathname === href;
+              const active =
+                pathname === href ||
+                (href === "/principal" && pathname === "/principal") ||
+                (href === "/teacher" && pathname === "/teacher");
+
               return (
                 <Link
                   key={href}
