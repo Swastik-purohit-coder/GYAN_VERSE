@@ -5,6 +5,7 @@ const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ConnectionStatus from '@/components/ConnectionStatus';
+import SyncProgressLoader from '@/components/SyncProgressLoader';
 import './globals.css'; // your global styles
 import '@/student/styles/globals.css'; // student UI theme variables (bg/foreground, card, etc.)
 import ThemeProvider from '@/components/ThemeProvider';
@@ -67,6 +68,7 @@ export default function RootLayout({ children }) {
       <body className="flex flex-col min-h-screen">
         <ClerkProvider publishableKey={publishableKey}>
           <ThemeProvider>
+            <SyncProgressLoader />
             <ServiceWorkerRegister />
             <GoogleBannerSuppressor />
             <ConnectionStatus />
@@ -83,3 +85,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+

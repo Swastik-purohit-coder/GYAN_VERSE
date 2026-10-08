@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/api';
 import { saveLocalLessonProgress, getLocalProgressMap } from '@/lib/offlineDb';
 import { initSyncEngine, processSyncQueue } from '@/lib/syncEngine';
+import {
+  getOfflineLearningModules,
+  getOfflineSubjects,
+  getOfflineQuizzes,
+  getOfflineQuizQuestions,
+} from '@/lib/offline/offlineRepository';
 
 // Custom hook for subjects data
 export function useSubjects(options = {}) {
@@ -23,12 +29,11 @@ export function useSubjects(options = {}) {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getSubjects({ classFilter, schoolId });
+      const data = await getOfflineSubjects({ classFilter, schoolId });
       setSubjects(data);
     } catch (err) {
-      console.error('Failed to fetch subjects:', err);
+      console.warn('Failed to fetch subjects from network/offline:', err);
       setError(err.message);
-      // Fallback to empty array if backend is not available
       setSubjects([]);
     } finally {
       setLoading(false);
@@ -95,12 +100,11 @@ export function useQuizzes(filters = {}) {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getQuizzes({ subjectId, moduleId, createdBy, schoolId, class: classFilter });
+      const data = await getOfflineQuizzes({ subjectId, moduleId, createdBy, schoolId, class: classFilter });
       setQuizzes(data);
     } catch (err) {
-      console.error('Failed to fetch quizzes:', err);
+      console.warn('Failed to fetch quizzes from network/offline:', err);
       setError(err.message);
-      // Fallback to empty array if backend is not available
       setQuizzes([]);
     } finally {
       setLoading(false);
@@ -704,61 +708,14 @@ export function useStudentModules(options = {}) {
       setLoading(true);
       setError(null);
 
-      // Read local IndexedDB progress map
-      let localMap = {};
-      try {
-        localMap = await getLocalProgressMap();
-      } catch (e) {
-        console.warn('Failed to read local IndexedDB map:', e);
-      }
-
-      let serverRes = null;
-      try {
-        serverRes = await apiClient.getStudentModules();
-      } catch (err) {
-        console.warn('Network offline or error fetching server modules:', err.message);
-      }
-
-      const rawModules = serverRes?.modules || [];
-
-      // Merge server modules with local IndexedDB progress overrides
-      const mergedModules = rawModules.map((mod) => {
-        const lessons = (mod.lessons || []).map((les) => {
-          const localItem = localMap[les.id];
-          const isCompleted = localItem ? Boolean(localItem.completed) : Boolean(les.progress?.completed);
-          const isPendingSync = localItem?.syncStatus === "pending";
-
-          return {
-            ...les,
-            progress: {
-              completed: isCompleted,
-              lastPosition: localItem?.lastPosition || les.progress?.lastPosition || 0,
-              completedAt: localItem?.completedAt || les.progress?.completedAt || null,
-              syncStatus: isPendingSync ? "pending" : (les.progress?.syncStatus || "synced"),
-            },
-          };
-        });
-
-        const totalLessons = lessons.length;
-        const completedLessons = lessons.filter((l) => l.progress.completed).length;
-
-        return {
-          ...mod,
-          lessons,
-          stats: {
-            totalLessons,
-            completedLessons,
-            isCompleted: totalLessons > 0 && completedLessons === totalLessons,
-          },
-        };
-      });
-
+      const res = await getOfflineLearningModules();
       setData({
-        modules: mergedModules,
-        studentClass: serverRes?.studentClass || null,
-        schoolId: serverRes?.schoolId || null,
+        modules: res.modules || [],
+        studentClass: res.studentClass || null,
+        schoolId: res.schoolId || null,
       });
     } catch (err) {
+      console.warn('Failed to load learning modules from network/offline:', err.message);
       setError(err.message || 'Failed to load learning modules');
     } finally {
       setLoading(false);
