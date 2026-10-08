@@ -31,7 +31,9 @@ import {
   LineChart as LineChartIcon,
   TrendingUp,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
+import TeacherDoubtSessionsWidget from "./TeacherDoubtSessionsWidget";
 
 const StatCard = ({ icon: Icon, label, value }) => (
   <Card className="bg-white/95 border-slate-200 shadow-sm">
@@ -237,6 +239,11 @@ function DashboardContent() {
           <StatCard icon={BookOpen} label="Avg Progress" value={"80%"} />
           <StatCard icon={GraduationCap} label="STEM Classes" value={7} />
         </div>
+      </div>
+
+      {/* Student Doubt Sessions Widget */}
+      <div className="mt-6">
+        <TeacherDoubtSessionsWidget />
       </div>
 
       <div className="mt-6">

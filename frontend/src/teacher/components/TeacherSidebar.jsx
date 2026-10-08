@@ -48,6 +48,7 @@ const rawNavSections = [
   {
     title: "Academics & Classroom",
     items: [
+      { href: "/teacher/doubts", label: "Doubt Sessions", icon: MessageSquare, badge: "Doubts" },
       { href: "/teacher/classes", label: "Classes & Curriculum", icon: BookOpen },
       { href: "/teacher/students", label: "Student Progress", icon: Users },
       { href: "/teacher/modules", label: "Modules & Lessons", icon: Layers },

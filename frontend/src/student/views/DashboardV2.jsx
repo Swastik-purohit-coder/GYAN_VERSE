@@ -42,6 +42,9 @@ import { useTheme } from '@/components/ThemeProvider';
 import StudentLearningModules from '../components/StudentLearningModules';
 import SkillTrackCard from '../components/SkillTrackCard';
 import FloatingGyanBot from '../components/FloatingGyanBot';
+import MyDoubtSessionsSection from '../components/MyDoubtSessionsSection';
+import MyMentorCard from '../components/MyMentorCard';
+import MyGroupSection from '../components/MyGroupSection';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -629,6 +632,11 @@ export default function DashboardV2({ user = {} }) {
         </div>
 
         {/* =========================================
+            MY DOUBT SESSIONS (1-ON-1 WITH TEACHER)
+           ========================================= */}
+        <MyDoubtSessionsSection />
+
+        {/* =========================================
             CONTINUE LEARNING & INTERACTIVE MODULES
            ========================================= */}
         <div className="space-y-4">
@@ -756,6 +764,20 @@ export default function DashboardV2({ user = {} }) {
             </CardContent>
           </Card>
         </div>
+
+        {/* =========================================
+            MY DOUBT SESSIONS SECTION
+           ========================================= */}
+        <div className="pt-2">
+          <MyDoubtSessionsSection />
+        </div>
+
+        {/* =========================================
+            MY GROUP & PEER COLLABORATION
+           ========================================= */}
+        <div className="pt-2">
+          <MyGroupSection />
+        </div>
       </div>
 
       {/* =========================================
@@ -806,6 +828,11 @@ export default function DashboardV2({ user = {} }) {
         </Card>
 
         {/* =========================================
+            MY MENTOR CARD (ASSIGNED FACULTY GUIDE)
+           ========================================= */}
+        <MyMentorCard />
+
+        {/* =========================================
             2. LEVEL PROGRESSION CARD (CLEAN WHITE CARD)
            ========================================= */}
         <Card className="rounded-2xl border border-[#E2E8F0] shadow-xs bg-white p-5">
@@ -836,6 +863,11 @@ export default function DashboardV2({ user = {} }) {
             />
           </div>
         </Card>
+
+        {/* =========================================
+            MY GROUP (CLASS PEER CHAT & NOTES)
+           ========================================= */}
+        <MyGroupSection />
 
         {/* =========================================
             3. ACHIEVEMENTS & LEADERBOARD TWIN CARDS
