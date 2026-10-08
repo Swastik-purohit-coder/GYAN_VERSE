@@ -37,7 +37,8 @@ export async function GET(request, context) {
       return NextResponse.json({ error: "Learning module not found" }, { status: 404 });
     }
 
-    if (moduleDoc.school_id && teacher.school_id && moduleDoc.school_id !== teacher.school_id) {
+    const isExecutiveOrAdmin = ["admin", "principal", "higher_body"].includes(teacher.role);
+    if (!isExecutiveOrAdmin && moduleDoc.school_id && teacher.school_id && moduleDoc.school_id !== teacher.school_id && moduleDoc.school_id !== "default_school") {
       return NextResponse.json({ error: "Access denied for this school's content" }, { status: 403 });
     }
 
@@ -91,7 +92,8 @@ export async function PUT(request, context) {
       return NextResponse.json({ error: "Learning module not found" }, { status: 404 });
     }
 
-    if (existing.school_id && teacher.school_id && existing.school_id !== teacher.school_id) {
+    const isExecutiveOrAdmin = ["admin", "principal", "higher_body"].includes(teacher.role);
+    if (!isExecutiveOrAdmin && existing.school_id && teacher.school_id && existing.school_id !== teacher.school_id && existing.school_id !== "default_school") {
       return NextResponse.json({ error: "Cannot modify content for another school" }, { status: 403 });
     }
 
@@ -145,7 +147,8 @@ export async function DELETE(request, context) {
       return NextResponse.json({ error: "Module not found" }, { status: 404 });
     }
 
-    if (existing.school_id && teacher.school_id && existing.school_id !== teacher.school_id) {
+    const isExecutiveOrAdmin = ["admin", "principal", "higher_body"].includes(teacher.role);
+    if (!isExecutiveOrAdmin && existing.school_id && teacher.school_id && existing.school_id !== teacher.school_id && existing.school_id !== "default_school") {
       return NextResponse.json({ error: "Cannot delete content for another school" }, { status: 403 });
     }
 
