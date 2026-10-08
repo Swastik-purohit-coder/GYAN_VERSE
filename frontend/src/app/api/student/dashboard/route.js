@@ -53,10 +53,7 @@ export async function GET(request) {
       const numericClass = studentClass ? String(studentClass).replace(/\D/g, "") : "";
 
       subjects = (allSubjects || []).filter((s) => {
-        // School ID isolation check
-        if (schoolId && s.school_id && s.school_id !== schoolId) return false;
-
-        // Class matching check
+        // Class matching check (class-based student visibility)
         if (!s.class || s.class === "all" || s.class === "5-8" || s.class === "1-12") return true;
         if (!cleanClassFilter) return true;
         const subClass = String(s.class).trim().toLowerCase();

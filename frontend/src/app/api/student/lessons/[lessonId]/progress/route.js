@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabase, run, runSingle, nowIso, normalizeId } from "../../../../_utils/supabase";
+import { normalizeClass } from "../../../../_utils/quiz";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,7 @@ export async function POST(request, context) {
       return NextResponse.json({ error: "Lesson not found or unavailable" }, { status: 404 });
     }
 
-    // 2. Verify Student's authorized school_id and class
+    // 2. Verify Student's authorized class (school_id is NOT an access restriction)
     const roleDoc = await runSingle(
       supabase
         .from("user_roles")
@@ -41,6 +42,16 @@ export async function POST(request, context) {
         .eq("user_id", userId)
         .maybeSingle()
     );
+
+    const studentClass = roleDoc?.class || null;
+
+    // Student class is REQUIRED for authorization. Missing student class must never bypass authorization.
+    if (!studentClass) {
+      return NextResponse.json(
+        { error: "Forbidden: You must have an assigned class in your profile to record lesson progress." },
+        { status: 403 }
+      );
+    }
 
     const moduleDoc = await runSingle(
       supabase
@@ -50,13 +61,20 @@ export async function POST(request, context) {
         .maybeSingle()
     );
 
+    if (!moduleDoc) {
+      return NextResponse.json(
+        { error: "Module for this lesson was not found" },
+        { status: 404 }
+      );
+    }
+
+    // Compare normalized classes: module.class vs student.class
     if (
-      !moduleDoc ||
-      (moduleDoc.school_id && roleDoc?.school_id && moduleDoc.school_id !== roleDoc?.school_id) ||
-      (moduleDoc.class && roleDoc?.class && moduleDoc.class !== roleDoc?.class)
+      moduleDoc.class &&
+      normalizeClass(moduleDoc.class) !== normalizeClass(studentClass)
     ) {
       return NextResponse.json(
-        { error: "Forbidden: You are not enrolled in the school or class for this module" },
+        { error: `Forbidden: This module is for ${moduleDoc.class}. You are enrolled in ${studentClass}.` },
         { status: 403 }
       );
     }

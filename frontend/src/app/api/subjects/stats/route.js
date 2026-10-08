@@ -49,7 +49,13 @@ export async function GET(request) {
     }
 
     const enriched = subjects
-      .filter((subject) => !schoolId || !subject.school_id || subject.school_id === schoolId)
+      .filter((subject) => {
+        // Only apply schoolId filter if explicitly provided and NO class filter is present (e.g. teacher school stats)
+        if (schoolId && !classFilter && subject.school_id && subject.school_id !== schoolId) {
+          return false;
+        }
+        return true;
+      })
       .map((subject) => {
         const total = quizCountBySubject[subject.id] || 0;
         const attempted = attemptsBySubject[subject.id] || 0;
