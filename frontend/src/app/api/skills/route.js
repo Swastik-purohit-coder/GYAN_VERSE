@@ -7,6 +7,7 @@ import {
   nowIso,
   checkSupabaseConfigured,
 } from "../_utils/supabase";
+import { parseStudentGrade, isGradeUpTo6 } from "@/lib/resourceAccess";
 
 export const runtime = "nodejs";
 
@@ -17,8 +18,13 @@ const fallbackSkillCourses = [
     description: "Learn fundamental principles of Large Language Models, prompt techniques (zero-shot, few-shot, chain-of-thought), ethics in AI, and building intelligent agents.",
     category: "AI & Tech",
     level: "intermediate",
+    source_type: "alumni",
+    author_name: "Dr. K. S. Ramanathan (Class of '19)",
+    author_role: "Alumni | AI Research Scientist @ DeepMind",
     instructor_name: "Dr. K. S. Ramanathan",
     duration_hours: 12,
+    target_grade_min: 7,
+    target_grade_max: 12,
     badge_icon: "⚡",
     badge_name: "AI Prompt Architect",
     modules_count: 5,
@@ -35,12 +41,17 @@ const fallbackSkillCourses = [
   },
   {
     id: "skill_2",
-    title: "🎙️ Public Speaking, Debate & Masterful Storytelling",
+    title: "🎙️ Public Speaking, Debate & Masterful Storytelling (Junior & Senior)",
     description: "Develop persuasive communication skills, structure compelling arguments, conquer stage fear, and present ideas with impact.",
     category: "Public Speaking",
     level: "beginner",
+    source_type: "teacher",
+    author_name: "Ms. Shalini Roy",
+    author_role: "Head of English & Debating Society",
     instructor_name: "Ms. Shalini Roy",
     duration_hours: 8,
+    target_grade_min: 1,
+    target_grade_max: 12,
     badge_icon: "🎤",
     badge_name: "Oratory Leader",
     modules_count: 4,
@@ -60,8 +71,13 @@ const fallbackSkillCourses = [
     description: "Hands-on microcontrollers (Arduino/ESP32), sensor interfacing, circuit logic, and programming autonomous smart IoT devices.",
     category: "Robotics & IoT",
     level: "intermediate",
+    source_type: "community",
+    author_name: "OpenRobotics Guild",
+    author_role: "Verified Community Maker Lab",
     instructor_name: "Prof. Arvind Sharma",
     duration_hours: 15,
+    target_grade_min: 7,
+    target_grade_max: 12,
     badge_icon: "🔧",
     badge_name: "IoT Hardware Pioneer",
     modules_count: 6,
@@ -83,8 +99,13 @@ const fallbackSkillCourses = [
     description: "Master budgeting, compounding, inflation, equity markets, banking fundamentals, and financial decision-making for lifelong independence.",
     category: "Finance",
     level: "beginner",
+    source_type: "retired_teacher",
+    author_name: "CA Rajesh Goel (Retd. Commerce HoD)",
+    author_role: "Retired Veteran Faculty & Financial Consultant",
     instructor_name: "CA Rajesh Goel",
     duration_hours: 6,
+    target_grade_min: 7,
+    target_grade_max: 12,
     badge_icon: "📈",
     badge_name: "Finance Prodigy",
     modules_count: 4,
@@ -104,8 +125,13 @@ const fallbackSkillCourses = [
     description: "Design stunning digital interfaces, wireframing, color theory, typography, design systems, and user empathy testing.",
     category: "Design",
     level: "beginner",
+    source_type: "senior",
+    author_name: "Rohan Verma (Grade 12)",
+    author_role: "Senior Scholar | Design Lead @ School Media Club",
     instructor_name: "Maya Fernandez",
     duration_hours: 10,
+    target_grade_min: 7,
+    target_grade_max: 12,
     badge_icon: "✨",
     badge_name: "Design Maestro",
     modules_count: 5,
@@ -120,6 +146,32 @@ const fallbackSkillCourses = [
     ],
     created_at: new Date(Date.now() - 3600000 * 300).toISOString(),
   },
+  {
+    id: "skill_6",
+    title: "🧩 Creative Thinking, Puzzles & Math Olympiad Foundations (Junior)",
+    description: "Logical reasoning, visual pattern recognition, arithmetic puzzles, and lateral thinking games designed specifically for Grades 1–6.",
+    category: "Math & Logic",
+    level: "beginner",
+    source_type: "teacher",
+    author_name: "Mr. V. K. Aggarwal",
+    author_role: "Junior Math Lead, Gyanaratna Academy",
+    instructor_name: "Mr. V. K. Aggarwal",
+    duration_hours: 8,
+    target_grade_min: 1,
+    target_grade_max: 6,
+    badge_icon: "🧩",
+    badge_name: "Junior Math Pioneer",
+    modules_count: 4,
+    enrolled_count: 110,
+    published: true,
+    curriculum: [
+      { id: "m1", title: "Number Patterns & Magic Squares", duration: "2h" },
+      { id: "m2", title: "Geometric Shapes & Symmetry Secrets", duration: "2h" },
+      { id: "m3", title: "Logical Deduction Riddles", duration: "2h" },
+      { id: "m4", title: "Junior Olympiad Problem Solving", duration: "2h" },
+    ],
+    created_at: new Date(Date.now() - 3600000 * 320).toISOString(),
+  },
 ];
 
 let inMemorySkills = [...fallbackSkillCourses];
@@ -129,6 +181,10 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
     const level = searchParams.get("level");
+    const sourceType = searchParams.get("sourceType");
+    const studentClass = searchParams.get("studentClass");
+
+    let courses = [];
 
     if (checkSupabaseConfigured()) {
       try {
@@ -139,25 +195,45 @@ export async function GET(request) {
 
         if (category && category !== "all") query = query.eq("category", category);
         if (level && level !== "all") query = query.eq("level", level);
+        if (sourceType && sourceType !== "all") query = query.eq("source_type", sourceType);
 
-        const courses = await run(query);
-        if (courses && courses.length > 0) {
-          return NextResponse.json(courses);
+        const dbCourses = await run(query);
+        if (dbCourses && dbCourses.length > 0) {
+          courses = dbCourses;
         }
       } catch (err) {
-        console.warn("Supabase skill_courses query failed:", err.message);
+        console.warn("Supabase skill_courses query failed, using inMemory:", err.message);
       }
     }
 
-    let filtered = [...inMemorySkills];
-    if (category && category !== "all") {
-      filtered = filtered.filter((c) => c.category === category);
-    }
-    if (level && level !== "all") {
-      filtered = filtered.filter((c) => c.level === level);
+    if (!courses.length) {
+      courses = [...inMemorySkills];
+      if (category && category !== "all") {
+        courses = courses.filter((c) => c.category === category);
+      }
+      if (level && level !== "all") {
+        courses = courses.filter((c) => c.level === level);
+      }
+      if (sourceType && sourceType !== "all") {
+        courses = courses.filter((c) => (c.source_type || "teacher") === sourceType);
+      }
     }
 
-    return NextResponse.json(filtered);
+    // Apply Grade 1-6 Access Control
+    if (studentClass) {
+      const isJunior = isGradeUpTo6(studentClass);
+      if (isJunior) {
+        courses = courses.map((course) => ({
+          ...course,
+          is_locked: (course.source_type || "teacher") !== "teacher",
+          lock_reason: (course.source_type || "teacher") !== "teacher"
+            ? "Class 1–6 can only access official teacher-provided skill courses. Community/alumni courses unlock in Class 7+."
+            : null,
+        }));
+      }
+    }
+
+    return NextResponse.json(courses);
   } catch (error) {
     return NextResponse.json(inMemorySkills);
   }
@@ -174,8 +250,13 @@ export async function POST(request) {
       description,
       category = "AI & Tech",
       level = "beginner",
-      instructor_name = "Lead Faculty",
+      source_type = "teacher",
+      author_name = "Lead Faculty",
+      author_role = "Teacher",
+      instructor_name,
       duration_hours = 10,
+      target_grade_min = 1,
+      target_grade_max = 12,
       badge_icon = "⭐",
       badge_name = "Skill Certificate",
       curriculum = [],
@@ -194,8 +275,13 @@ export async function POST(request) {
       description: description?.trim() || "",
       category,
       level,
-      instructor_name,
+      source_type,
+      author_name: author_name || instructor_name || "Faculty In-Charge",
+      author_role: author_role || "Educator",
+      instructor_name: instructor_name || author_name || "Lead Faculty",
       duration_hours: Number(duration_hours) || 10,
+      target_grade_min: Number(target_grade_min) || 1,
+      target_grade_max: Number(target_grade_max) || 12,
       badge_icon,
       badge_name,
       modules_count: curriculum.length || 4,

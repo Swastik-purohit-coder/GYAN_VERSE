@@ -94,8 +94,8 @@ export default function Welcome() {
         // common: autoplay prevented. We'll mute and try again.
         try {
           v.muted = true;
-          v.play().catch(() => {});
-        } catch (e) {}
+          v.play().catch(() => { });
+        } catch (e) { }
       });
     }
   }, [showGif]);
@@ -156,7 +156,7 @@ export default function Welcome() {
         defer
       />
       <div></div>
-      <section className="relative w-full max-w-7xl mx-auto text-center md:text-left min-h-[calc(100vh-80px)] flex items-center px-4 py-8">
+      <section className="relative w-full max-w-8xl mx-auto text-center md:text-left min-h-[calc(100vh-80px)] flex items-center px-4 py-8">
         <div className="relative z-10 max-w-6xl mx-auto px-4 w-full flex items-center">
           <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-8 w-full">
             {/* Left column: heading, paragraph, CTA */}

@@ -367,6 +367,34 @@ CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_messages_group ON group_messages(group_id);
 
 -- ============================================================================
+-- SCHOOL EDUCATIONAL CONTENT & VIDEO LECTURES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS school_content (
+  id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  type TEXT CHECK (type IN ('quiz', 'article', 'video', 'material', 'skill')) DEFAULT 'video',
+  source_type TEXT CHECK (source_type IN ('teacher', 'alumni', 'senior', 'retired_teacher', 'community')) DEFAULT 'teacher',
+  author_name TEXT NOT NULL,
+  author_role TEXT,
+  duration TEXT DEFAULT '20 mins',
+  target_grade_min INTEGER DEFAULT 1,
+  target_grade_max INTEGER DEFAULT 12,
+  title TEXT NOT NULL,
+  description TEXT,
+  url TEXT,
+  embed_html TEXT,
+  body TEXT,
+  tags TEXT[],
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_school_content_school ON school_content(school_id);
+CREATE INDEX IF NOT EXISTS idx_school_content_source ON school_content(source_type);
+CREATE INDEX IF NOT EXISTS idx_school_content_type ON school_content(type);
+
+-- ============================================================================
 -- SKILL DEVELOPMENT COURSES
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS skill_courses (
@@ -376,8 +404,13 @@ CREATE TABLE IF NOT EXISTS skill_courses (
   description TEXT,
   category TEXT NOT NULL, -- 'AI & Tech', 'Public Speaking', 'Robotics & IoT', 'Finance', 'Design', 'Leadership'
   level TEXT CHECK (level IN ('beginner', 'intermediate', 'advanced')) DEFAULT 'beginner',
+  source_type TEXT CHECK (source_type IN ('teacher', 'alumni', 'senior', 'retired_teacher', 'community')) DEFAULT 'teacher',
+  author_name TEXT,
+  author_role TEXT,
   instructor_name TEXT,
   duration_hours INTEGER DEFAULT 10,
+  target_grade_min INTEGER DEFAULT 1,
+  target_grade_max INTEGER DEFAULT 12,
   badge_icon TEXT,
   badge_name TEXT,
   modules_count INTEGER DEFAULT 4,

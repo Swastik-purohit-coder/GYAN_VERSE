@@ -1,4 +1,4 @@
-"use client"; // if you use hooks or state
+"use client";
 import headerStyles from './Header.module.css';
 
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
@@ -6,18 +6,21 @@ import ClientOnly from './ClientOnly';
 import Link from "next/link";
 import { openSignIn } from '@/lib/openSignIn';
 import { usePathname } from "next/navigation";
-// LanguageToggle replaced by Google Translate widget in PreHeader
-// import LanguageToggle from "@/components/LanguageToggle";
 import OnlineBadge from "@/components/OnlineBadge";
-import Image from "next/image";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/components/ThemeProvider";
-import { useState } from "react";
 import PreHeader from "@/components/PreHeader";
 
 export default function Header() {
   const pathname = usePathname();
   const { theme } = useTheme();
+
+  // Hide global root header on Teacher & Principal executive shells (they have dedicated full-height sidebar and navigation)
+  const isTeacherOrPrincipal = pathname?.startsWith("/teacher") || pathname?.startsWith("/principal");
+  if (isTeacherOrPrincipal) {
+    return null;
+  }
+
   const isLight = theme === "light";
   const isWelcome = pathname === "/";
   const isStudentShell = [
@@ -27,10 +30,8 @@ export default function Header() {
     "/progress",
     "/settings",
   ].some((p) => pathname?.startsWith(p));
-  const isTeacherShell = pathname?.startsWith("/teacher");
   const isRoleSelect = pathname === "/role-select";
-  // Reserve modest right padding on mobile for globe control only
-  const headerRightPad = (isStudentShell || isTeacherShell) ? "pr-14 sm:pr-4" : "";
+  const headerRightPad = isStudentShell ? "pr-14 sm:pr-4" : "";
 
   return (
     <header
@@ -56,29 +57,11 @@ export default function Header() {
               </li>
             </ul>
             <ThemeToggle />
-            </div>
-          ) : isStudentShell ? (
-          // Replace nav with language toggle + online badge + Clerk profile button on student pages
+          </div>
+        ) : isStudentShell ? (
           <ClientOnly fallback={<div className="flex items-center gap-3 flex-shrink-0"><OnlineBadge /><ThemeToggle /><PreHeader /></div>}>
             <div className="flex items-center gap-3 flex-shrink-0">
               <OnlineBadge />
-              {/* Google Translate dropdown appears in PreHeader */}
-              <ThemeToggle />
-              <PreHeader />
-              <SignedIn>
-                <div className={headerStyles.profilePicture}>
-                  <UserButton afterSignOutUrl="/" />
-                </div>
-              </SignedIn>
-              <SignedOut>
-                <button onClick={(e) => { e.preventDefault(); openSignIn('/sign-in'); }} className="text-sm text-blue-600 hover:underline">Sign in</button>
-              </SignedOut>
-            </div>
-          </ClientOnly>
-        ) : isTeacherShell ? (
-          // On teacher routes, remove the default nav links (Home/Student/Teacher/Contact)
-          <ClientOnly fallback={<div className="flex items-center gap-3 flex-shrink-0"><ThemeToggle /><PreHeader /></div>}>
-            <div className="flex items-center gap-3 flex-shrink-0">
               <ThemeToggle />
               <PreHeader />
               <SignedIn>
@@ -94,35 +77,35 @@ export default function Header() {
         ) : (
           <ClientOnly fallback={<div className="flex items-center gap-4 flex-shrink-0"><ThemeToggle /></div>}>
             <div className="flex items-center gap-4 flex-shrink-0">
-            <ul className="hidden md:flex space-x-4 items-center">
-              <li>
-                <Link href="/">Home</Link>
-              </li>
-              {!isRoleSelect && (
-                <>
-                  <li>
-                    <Link href="/student">Student</Link>
-                  </li>
-                  <li>
-                    <Link href="/teacher">Teacher</Link>
-                  </li>
-                </>
-              )}
-              <li>
-                <Link href="/contact">Contact</Link>
-              </li>
-            </ul>
-            <ThemeToggle />
-            <SignedIn>
-              <div className={headerStyles.profilePicture}>
-                <UserButton afterSignOutUrl="/" />
-              </div>
-            </SignedIn>
-            <SignedOut>
-              <button onClick={(e) => { e.preventDefault(); openSignIn('/sign-in'); }} className="text-sm text-blue-600 hover:underline">Sign in</button>
-            </SignedOut>
-          </div>
-        </ClientOnly>
+              <ul className="hidden md:flex space-x-4 items-center">
+                <li>
+                  <Link href="/">Home</Link>
+                </li>
+                {!isRoleSelect && (
+                  <>
+                    <li>
+                      <Link href="/student">Student</Link>
+                    </li>
+                    <li>
+                      <Link href="/teacher">Teacher</Link>
+                    </li>
+                  </>
+                )}
+                <li>
+                  <Link href="/contact">Contact</Link>
+                </li>
+              </ul>
+              <ThemeToggle />
+              <SignedIn>
+                <div className={headerStyles.profilePicture}>
+                  <UserButton afterSignOutUrl="/" />
+                </div>
+              </SignedIn>
+              <SignedOut>
+                <button onClick={(e) => { e.preventDefault(); openSignIn('/sign-in'); }} className="text-sm text-blue-600 hover:underline">Sign in</button>
+              </SignedOut>
+            </div>
+          </ClientOnly>
         )}
       </nav>
     </header>

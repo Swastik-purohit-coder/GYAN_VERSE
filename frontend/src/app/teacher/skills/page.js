@@ -42,7 +42,12 @@ import {
   Filter,
   Flame,
   ArrowUpRight,
+  GraduationCap,
+  ShieldCheck,
+  Globe,
+  Lock,
 } from "lucide-react";
+import { SOURCE_TYPES } from "@/lib/resourceAccess";
 
 export default function SkillCoursesPage() {
   const { user } = useUser();
@@ -50,6 +55,7 @@ export default function SkillCoursesPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedSource, setSelectedSource] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,6 +66,9 @@ export default function SkillCoursesPage() {
     description: "",
     category: "ai_tech",
     level: "Beginner",
+    source_type: "teacher",
+    author_name: "Prof. Arvind Sharma",
+    author_role: "Lead STEM Faculty",
     duration_weeks: 4,
     modules_count: 6,
     target_class: "Class 8–12",
@@ -78,7 +87,7 @@ export default function SkillCoursesPage() {
     try {
       await addCourse({
         ...formData,
-        instructor_name: user?.fullName || "Faculty In-Charge",
+        instructor_name: formData.author_name || user?.fullName || "Faculty In-Charge",
       });
       setIsDialogOpen(false);
       setFormData({
@@ -86,6 +95,9 @@ export default function SkillCoursesPage() {
         description: "",
         category: "ai_tech",
         level: "Beginner",
+        source_type: "teacher",
+        author_name: "Prof. Arvind Sharma",
+        author_role: "Lead STEM Faculty",
         duration_weeks: 4,
         modules_count: 6,
         target_class: "Class 8–12",
@@ -103,12 +115,16 @@ export default function SkillCoursesPage() {
       const matchesSearch =
         c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.instructor_name?.toLowerCase().includes(searchQuery.toLowerCase());
+        c.instructor_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.author_name?.toLowerCase().includes(searchQuery.toLowerCase());
+
       const matchesCat = selectedCategory === "all" || c.category === selectedCategory;
       const matchesLvl = selectedLevel === "all" || c.level === selectedLevel;
-      return matchesSearch && matchesCat && matchesLvl;
+      const matchesSrc = selectedSource === "all" || (c.source_type || "teacher") === selectedSource;
+
+      return matchesSearch && matchesCat && matchesLvl && matchesSrc;
     });
-  }, [courses, searchQuery, selectedCategory, selectedLevel]);
+  }, [courses, searchQuery, selectedCategory, selectedLevel, selectedSource]);
 
   const stats = useMemo(() => {
     const totalCourses = courses.length;
@@ -124,327 +140,341 @@ export default function SkillCoursesPage() {
   const getCategoryIcon = (cat) => {
     switch (cat) {
       case "ai_tech":
+      case "AI & Tech":
         return <Cpu className="w-4 h-4 text-violet-600" />;
       case "coding":
+      case "Robotics & IoT":
         return <Code className="w-4 h-4 text-indigo-600" />;
       case "design":
+      case "Design":
         return <Palette className="w-4 h-4 text-pink-600" />;
       case "leadership":
+      case "Public Speaking":
         return <Award className="w-4 h-4 text-amber-600" />;
       default:
         return <Sparkles className="w-4 h-4 text-emerald-600" />;
     }
   };
 
-  const getLevelBadge = (level) => {
-    switch (level) {
-      case "Advanced":
-        return <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px]">Advanced Track</Badge>;
-      case "Intermediate":
-        return <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]">Intermediate</Badge>;
-      default:
-        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]">Foundational / Beginner</Badge>;
-    }
-  };
-
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-indigo-950 via-violet-900 to-purple-950 text-white p-6 rounded-2xl shadow-xl border border-indigo-800/40">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-300" /> 21st-Century Skill Development Hub
-            </span>
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white border border-slate-800 shadow-xl relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 relative z-10">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-300" /> Multi-Source Skill Certification Hub
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Skill Micro-Courses &amp; Tracks</h1>
+            <p className="text-slate-300 text-sm max-w-2xl leading-relaxed">
+              Equip students with future-ready skills in AI, Public Speaking, Robotics, Finance, and Design from Faculty, Alumni Champions, and Senior Scholars.
+            </p>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Skill Micro-Courses & Certifications</h1>
-          <p className="text-slate-300 text-sm mt-1 max-w-2xl">
-            Empower students with practical competencies in AI, Robotics, Coding, UI Design, and Financial Literacy alongside academic curriculum.
-          </p>
+
+          <Button
+            onClick={() => setIsDialogOpen(true)}
+            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs h-10 px-5 rounded-xl shadow-lg shadow-violet-600/30 shrink-0 flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Create Skill Track
+          </Button>
         </div>
-
-        {/* Create Course Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold shadow-lg shadow-indigo-500/25 px-5 py-2.5 rounded-xl flex items-center gap-2 self-start md:self-auto">
-              <Plus className="w-4 h-4" /> Launch Skill Micro-Course
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent className="sm:max-w-2xl bg-white text-slate-900">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-600" /> Design New Skill Development Track
-              </DialogTitle>
-              <DialogDescription className="text-slate-500 text-xs">
-                Create a modular skill course with hands-on milestone projects and verifiable certificate badges.
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleCreateCourse} className="space-y-4 py-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Course Title *</label>
-                <Input
-                  placeholder="e.g., Applied Generative AI & Prompt Engineering"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange("title", e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Skill Domain</label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(val) => handleInputChange("category", val)}
-                  >
-                    <SelectTrigger className="text-xs">
-                      <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ai_tech">AI & Machine Learning</SelectItem>
-                      <SelectItem value="coding">Software & Web Coding</SelectItem>
-                      <SelectItem value="design">UI/UX & Creative Media</SelectItem>
-                      <SelectItem value="robotics">Robotics & IoT</SelectItem>
-                      <SelectItem value="leadership">Leadership & Public Speaking</SelectItem>
-                      <SelectItem value="finance">Financial Literacy</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Difficulty Level</label>
-                  <Select
-                    value={formData.level}
-                    onValueChange={(val) => handleInputChange("level", val)}
-                  >
-                    <SelectTrigger className="text-xs">
-                      <SelectValue placeholder="Level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Beginner">Beginner / Foundational</SelectItem>
-                      <SelectItem value="Intermediate">Intermediate</SelectItem>
-                      <SelectItem value="Advanced">Advanced Mastery</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Target Grade Span</label>
-                  <Input
-                    placeholder="Class 8–12"
-                    value={formData.target_class}
-                    onChange={(e) => handleInputChange("target_class", e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Duration (Weeks)</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={24}
-                    value={formData.duration_weeks}
-                    onChange={(e) => handleInputChange("duration_weeks", Number(e.target.value))}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Number of Modules</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={formData.modules_count}
-                    onChange={(e) => handleInputChange("modules_count", Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Course Overview & Learning Outcomes</label>
-                <Textarea
-                  placeholder="Outline key learning outcomes, hands-on lab projects, and certification criteria..."
-                  rows={4}
-                  value={formData.description}
-                  onChange={(e) => handleInputChange("description", e.target.value)}
-                />
-              </div>
-
-              <DialogFooter className="pt-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
-                >
-                  {isSubmitting ? "Publishing..." : "Launch Skill Track"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-white border-slate-200/80 shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
+      {/* KPI Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-white/95 border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-violet-50 text-violet-700 rounded-xl border border-violet-100">
+              <BookOpen className="w-5 h-5" />
+            </div>
             <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Skill Tracks</div>
-              <div className="text-2xl font-bold text-slate-900 mt-1">{stats.totalCourses}</div>
+              <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Active Skill Tracks</div>
+              <div className="text-2xl font-bold text-slate-900">{stats.totalCourses}</div>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-              <Layers className="w-5 h-5" />
-            </div>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="bg-white border-slate-200/80 shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Enrolled</div>
-              <div className="text-2xl font-bold text-violet-600 mt-1">{stats.totalEnrolled}</div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center font-bold">
+        <Card className="bg-white/95 border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100">
               <Users className="w-5 h-5" />
             </div>
-          </CardContent>
+            <div>
+              <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Enrolled</div>
+              <div className="text-2xl font-bold text-slate-900">{stats.totalEnrolled || 236}</div>
+            </div>
+          </div>
         </Card>
 
-        <Card className="bg-white border-slate-200/80 shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Certificates Issued</div>
-              <div className="text-2xl font-bold text-amber-600 mt-1">{stats.totalCertified}</div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+        <Card className="bg-white/95 border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
               <Award className="w-5 h-5" />
             </div>
-          </CardContent>
+            <div>
+              <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Certificates Awarded</div>
+              <div className="text-2xl font-bold text-slate-900">{stats.totalCertified || 89}</div>
+            </div>
+          </div>
         </Card>
 
-        <Card className="bg-white border-slate-200/80 shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avg Completion</div>
-              <div className="text-2xl font-bold text-emerald-600 mt-1">{stats.avgCompletion}%</div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+        <Card className="bg-white/95 border-slate-200 shadow-sm p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-50 text-amber-700 rounded-xl border border-amber-100">
               <TrendingUp className="w-5 h-5" />
             </div>
-          </CardContent>
+            <div>
+              <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Avg Completion Rate</div>
+              <div className="text-2xl font-bold text-slate-900">{stats.avgCompletion || 78}%</div>
+            </div>
+          </div>
         </Card>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <Input
-            placeholder="Search skill track, instructor, keywords..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 text-xs bg-slate-50 border-slate-200 focus:bg-white"
-          />
-        </div>
-
-        <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-            <Filter className="w-3.5 h-3.5" /> Filter By:
+      {/* Filter Tabs */}
+      <div className="bg-white/95 border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search skill courses, instructors, topics..."
+              className="pl-10 h-10 text-xs bg-slate-50 border-slate-200 rounded-lg"
+            />
           </div>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-44 text-xs h-8">
-              <SelectValue placeholder="Domain" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Domains</SelectItem>
-              <SelectItem value="ai_tech">AI & Machine Learning</SelectItem>
-              <SelectItem value="coding">Coding & Web Dev</SelectItem>
-              <SelectItem value="design">UI/UX & Design</SelectItem>
-              <SelectItem value="robotics">Robotics & IoT</SelectItem>
-            </SelectContent>
-          </Select>
 
-          <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-            <SelectTrigger className="w-32 text-xs h-8">
-              <SelectValue placeholder="Level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Levels</SelectItem>
-              <SelectItem value="Beginner">Beginner</SelectItem>
-              <SelectItem value="Intermediate">Intermediate</SelectItem>
-              <SelectItem value="Advanced">Advanced</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+            <Button
+              size="sm"
+              variant={selectedSource === "all" ? "default" : "outline"}
+              onClick={() => setSelectedSource("all")}
+              className={`text-xs h-8 ${selectedSource === "all" ? "bg-slate-900 text-white" : "border-slate-200 text-slate-700"}`}
+            >
+              All Sources
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "teacher" ? "default" : "outline"}
+              onClick={() => setSelectedSource("teacher")}
+              className={`text-xs h-8 ${selectedSource === "teacher" ? "bg-emerald-700 text-white" : "border-emerald-200 text-emerald-800 bg-emerald-50/50"}`}
+            >
+              Faculty
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "alumni" ? "default" : "outline"}
+              onClick={() => setSelectedSource("alumni")}
+              className={`text-xs h-8 ${selectedSource === "alumni" ? "bg-violet-700 text-white" : "border-violet-200 text-violet-800 bg-violet-50/50"}`}
+            >
+              Alumni
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "senior" ? "default" : "outline"}
+              onClick={() => setSelectedSource("senior")}
+              className={`text-xs h-8 ${selectedSource === "senior" ? "bg-indigo-700 text-white" : "border-indigo-200 text-indigo-800 bg-indigo-50/50"}`}
+            >
+              Senior Peers
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "retired_teacher" ? "default" : "outline"}
+              onClick={() => setSelectedSource("retired_teacher")}
+              className={`text-xs h-8 ${selectedSource === "retired_teacher" ? "bg-amber-700 text-white" : "border-amber-200 text-amber-800 bg-amber-50/50"}`}
+            >
+              Retired Faculty
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Courses Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCourses.map((course) => (
-          <Card key={course.id} className="bg-white border-slate-200/80 hover:shadow-lg transition-all duration-200 flex flex-col">
-            <CardContent className="p-5 flex-1 flex flex-col justify-between space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-bold">
-                    {getCategoryIcon(course.category)}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {getLevelBadge(course.level)}
-                  </div>
+      {/* Course Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filteredCourses.map((course) => {
+          const courseSource = course.source_type || "teacher";
+          const sourceDef = SOURCE_TYPES[courseSource] || SOURCE_TYPES.teacher;
+
+          return (
+            <Card key={course.id} className="bg-white/95 border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden">
+              <div className="p-5 pb-3">
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <Badge className={`text-[10px] font-bold uppercase tracking-wider border px-2 py-0.5 ${sourceDef.badgeColor}`}>
+                    {sourceDef.badgeText}
+                  </Badge>
+                  <span className="text-[11px] text-slate-500 font-semibold">{course.level || "Beginner"}</span>
                 </div>
 
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 leading-snug">{course.title}</h3>
-                  <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
-                    {course.description}
-                  </p>
-                </div>
+                <h3 className="font-bold text-slate-900 text-sm leading-snug line-clamp-2">
+                  {course.title}
+                </h3>
+                <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+                  {course.description}
+                </p>
               </div>
 
-              {/* Progress & Modules meta */}
-              <div className="space-y-2.5 pt-3 border-t border-slate-100">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Cohort Progress</span>
-                  <span className="font-bold text-slate-800">{course.completion_rate || 78}%</span>
+              <div className="p-5 pt-3 border-t border-slate-100 bg-slate-50/50">
+                <div className="flex items-center justify-between text-xs text-slate-600 mb-3 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" /> {course.duration_hours || 10} Hours
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-slate-400" /> {course.enrolled_count || 45} Students
+                  </span>
                 </div>
-                <Progress value={course.completion_rate || 78} className="h-1.5 bg-slate-100" />
 
-                <div className="grid grid-cols-3 gap-2 pt-2 text-center bg-slate-50 p-2 rounded-lg border border-slate-100 text-xs">
-                  <div>
-                    <div className="text-[10px] text-slate-400 font-semibold uppercase">Duration</div>
-                    <div className="font-bold text-slate-800 mt-0.5">{course.duration_weeks || 4}w</div>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+                  <div className="text-xs font-bold text-slate-900 truncate">
+                    {course.author_name || course.instructor_name}
                   </div>
-                  <div>
-                    <div className="text-[10px] text-slate-400 font-semibold uppercase">Modules</div>
-                    <div className="font-bold text-slate-800 mt-0.5">{course.modules_count || 6}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-400 font-semibold uppercase">Enrolled</div>
-                    <div className="font-bold text-indigo-600 mt-0.5">{course.enrolled_count || 40}</div>
-                  </div>
+                  <Badge variant="outline" className="ml-auto text-[10px] text-slate-600">
+                    Grade {course.target_grade_min || 1}–{course.target_grade_max || 12}
+                  </Badge>
                 </div>
               </div>
-
-              {/* Footer details */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                <span className="text-[11px] text-slate-500 truncate">
-                  Instructor: <span className="font-semibold text-slate-700">{course.instructor_name}</span>
-                </span>
-                <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded flex items-center gap-1">
-                  <Award className="w-3 h-3 text-amber-600" /> Certificate
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
+
+      {/* Create Course Modal */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl bg-white text-slate-900 p-6 rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Create New Skill Micro-Course Track
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600">
+              Launch a 21st-century skill course with contributor source attribution and target grade eligibility.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateCourse} className="space-y-4 mt-2">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Course Title *</label>
+              <Input
+                required
+                value={formData.title}
+                onChange={(e) => handleInputChange("title", e.target.value)}
+                placeholder="e.g. Applied AI & Prompt Engineering Masterclass"
+                className="text-xs bg-slate-50 border-slate-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Contributor Track *</label>
+                <select
+                  value={formData.source_type}
+                  onChange={(e) => handleInputChange("source_type", e.target.value)}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg h-9 px-3 text-slate-800 font-semibold"
+                >
+                  <option value="teacher">🏫 Official Faculty (Grades 1–12)</option>
+                  <option value="alumni">🎓 Alumni Mentor (Grade 7+)</option>
+                  <option value="senior">⭐ Senior Peer Scholar (Grade 7+)</option>
+                  <option value="retired_teacher">🎖️ Retired Veteran Faculty (Grade 7+)</option>
+                  <option value="community">🌐 Community Expert (Grade 7+)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Category Track</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => handleInputChange("category", e.target.value)}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg h-9 px-3 text-slate-800 font-medium"
+                >
+                  <option value="ai_tech">AI &amp; Technology</option>
+                  <option value="coding">Robotics &amp; IoT</option>
+                  <option value="leadership">Public Speaking &amp; Debate</option>
+                  <option value="finance">Financial Literacy</option>
+                  <option value="design">UI/UX &amp; Product Design</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Instructor / Contributor Name *</label>
+                <Input
+                  required
+                  value={formData.author_name}
+                  onChange={(e) => handleInputChange("author_name", e.target.value)}
+                  placeholder="e.g. Dr. K. S. Ramanathan"
+                  className="text-xs bg-slate-50 border-slate-200"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Instructor Role / Affiliation</label>
+                <Input
+                  value={formData.author_role}
+                  onChange={(e) => handleInputChange("author_role", e.target.value)}
+                  placeholder="e.g. Alumni | AI Research Scientist @ DeepMind"
+                  className="text-xs bg-slate-50 border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Skill Level</label>
+                <select
+                  value={formData.level}
+                  onChange={(e) => handleInputChange("level", e.target.value)}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg h-9 px-3 text-slate-800 font-medium"
+                >
+                  <option value="Beginner">Beginner / Foundational</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced Track</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Duration (Weeks / Hours)</label>
+                <Input
+                  value={formData.duration_weeks}
+                  onChange={(e) => handleInputChange("duration_weeks", e.target.value)}
+                  placeholder="4 weeks (12 hours)"
+                  className="text-xs bg-slate-50 border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Course Description &amp; Learning Outcomes</label>
+              <Textarea
+                rows={3}
+                value={formData.description}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                placeholder="Detail what students will master in this skill track..."
+                className="text-xs bg-slate-50 border-slate-200"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                className="text-xs text-slate-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="text-xs bg-violet-600 hover:bg-violet-700 text-white font-semibold"
+              >
+                {isSubmitting ? "Creating..." : "Launch Skill Track"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

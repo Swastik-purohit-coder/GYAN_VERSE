@@ -11,12 +11,13 @@ import {
   VolumeX,
   Maximize,
   Minimize,
-  Settings,
   RefreshCw,
   AlertCircle,
   Loader2,
   Wifi,
   WifiOff,
+  Zap,
+  Gauge,
 } from "lucide-react";
 import { parseYouTubeVideoId } from "@/lib/videoHelpers";
 
@@ -26,11 +27,12 @@ const POS_STORAGE_PREFIX = "gyan_vid_pos_";
  * Optimized Lesson Video Player designed for low-RAM mobile devices & slow networks.
  *
  * Key Optimizations:
- * 1. preload="metadata" — never buffers full file in advance.
- * 2. Zero Blob storage in memory — uses native HTML5 streaming or low-buffer HLS.
- * 3. Range-request friendly streaming.
- * 4. Debounced progress reporting (every 10-15s, pause, and exit).
- * 5. Automatic error recovery and resume from last watched position.
+ * 1. preload="metadata" / "none" in Low Data mode — never buffers full file in advance.
+ * 2. Zero Blob storage in memory — uses native HTML5 chunked streaming or low-buffer HLS.
+ * 3. Range-request friendly streaming with 512KB-2MB chunk windows.
+ * 4. Discards past played chunks from RAM (backBufferLength: 0 in data saver mode).
+ * 5. Debounced progress reporting (every 10s, pause, and exit).
+ * 6. Automatic error recovery and resume from last watched position.
  */
 export default function LessonVideoPlayer({
   src,
@@ -44,6 +46,7 @@ export default function LessonVideoPlayer({
   onComplete,
   className = "",
   autoPlay = false,
+  dataSaverMode: initialDataSaver = false,
 }) {
   const effectiveId = lessonId || videoId || "default";
   const videoRef = useRef(null);
@@ -65,6 +68,7 @@ export default function LessonVideoPlayer({
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [networkStatus, setNetworkStatus] = useState("online");
+  const [dataSaver, setDataSaver] = useState(initialDataSaver);
 
   const lastSavedPositionRef = useRef(0);
   const progressTimerRef = useRef(null);
@@ -79,7 +83,7 @@ export default function LessonVideoPlayer({
     if (!src && videoId) {
       return `/api/media/video/${encodeURIComponent(videoId)}`;
     }
-    if (src && !src.startsWith("http") && !src.startsWith("/") && !ytVideoId) {
+    if (src && !src.startsWith("http") && !src.startsWith("/") && !src.startsWith("blob:") && !ytVideoId) {
       return `/api/media/video/${encodeURIComponent(src)}`;
     }
     return src;
@@ -98,7 +102,7 @@ export default function LessonVideoPlayer({
     return initialPosition || 0;
   }, [effectiveId, initialPosition]);
 
-  // Save progress helper (debounced or on event)
+  // Save progress helper
   const saveProgress = useCallback(
     (pos, forceCompleted = false) => {
       if (typeof window === "undefined" || !effectiveId) return;
@@ -139,11 +143,16 @@ export default function LessonVideoPlayer({
   useEffect(() => {
     const handleOnline = () => setNetworkStatus("online");
     const handleOffline = () => setNetworkStatus("offline");
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    if (typeof window !== "undefined") {
+      setNetworkStatus(navigator.onLine ? "online" : "offline");
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+    }
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      }
     };
   }, []);
 
@@ -158,12 +167,13 @@ export default function LessonVideoPlayer({
     const isHlsSource = mediaUrl.includes(".m3u8");
 
     if (isHlsSource && Hls.isSupported()) {
-      // Memory-optimized HLS configuration for 3GB/4GB Android devices
+      // Memory-optimized HLS configuration for low-end devices
       const hls = new Hls({
-        maxBufferLength: 15, // buffer max 15 seconds ahead (prevents memory spikes)
-        maxMaxBufferLength: 30,
-        maxBufferSize: 15 * 1024 * 1024, // max 15MB buffer limit
-        startLevel: -1, // Auto adaptive bitrate
+        maxBufferLength: dataSaver ? 8 : 15, // ultra-compact chunk buffer
+        maxMaxBufferLength: dataSaver ? 15 : 30,
+        maxBufferSize: dataSaver ? 5 * 1024 * 1024 : 15 * 1024 * 1024,
+        backBufferLength: dataSaver ? 0 : 15, // discard past played chunks immediately in data saver
+        startLevel: dataSaver ? 0 : -1, // lowest bitrate if data saver is on
         enableWorker: true,
       });
 
@@ -200,7 +210,7 @@ export default function LessonVideoPlayer({
         }
       });
     } else {
-      // Native HTML5 Video Stream (HTTP Range Request powered)
+      // Native HTML5 Video Stream (HTTP Range Request / Cached Blob powered)
       video.src = mediaUrl;
       video.load();
     }
@@ -211,9 +221,9 @@ export default function LessonVideoPlayer({
         hlsRef.current = null;
       }
     };
-  }, [mediaUrl, ytVideoId, autoPlay, getSavedPosition]);
+  }, [mediaUrl, ytVideoId, autoPlay, dataSaver, getSavedPosition]);
 
-  // Periodic debounced progress timer (every 10-15 seconds)
+  // Periodic debounced progress timer (every 10 seconds)
   useEffect(() => {
     if (!isPlaying) {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
@@ -228,7 +238,7 @@ export default function LessonVideoPlayer({
           saveProgress(cur);
         }
       }
-    }, 10000); // 10 seconds
+    }, 10000);
 
     return () => {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
@@ -488,7 +498,7 @@ export default function LessonVideoPlayer({
       {networkStatus === "offline" && (
         <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600/90 text-white text-xs font-semibold backdrop-blur-md">
           <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline - Reconnecting...</span>
+          <span>Offline - Using Local Chunk Buffer</span>
         </div>
       )}
 
@@ -497,7 +507,7 @@ export default function LessonVideoPlayer({
         <div className="absolute inset-0 z-20 pointer-events-none flex flex-col items-center justify-center bg-black/40 backdrop-blur-xs">
           <Loader2 className="w-12 h-12 animate-spin text-indigo-400 drop-shadow-md" />
           <span className="mt-2 text-xs font-medium text-slate-200 tracking-wide">
-            {isLoading ? "Streaming Lesson..." : "Buffering..."}
+            {isLoading ? "Streaming Lesson..." : "Buffering Chunks..."}
           </span>
         </div>
       )}
@@ -620,6 +630,21 @@ export default function LessonVideoPlayer({
 
           {/* Right Controls */}
           <div className="flex items-center gap-2 relative">
+            {/* Low Data Mode Quick Toggle */}
+            <button
+              onClick={() => setDataSaver(!dataSaver)}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold transition-colors ${
+                dataSaver
+                  ? "bg-amber-500 text-slate-950 font-bold"
+                  : "bg-slate-800/80 hover:bg-slate-700 text-slate-300"
+              }`}
+              title="Toggle Chunk Saver Low Data Mode"
+              aria-label="Toggle low data mode"
+            >
+              <Gauge className="w-3 h-3" />
+              <span className="hidden xs:inline">{dataSaver ? "Data Saver" : "Standard"}</span>
+            </button>
+
             {/* Speed Selector Button */}
             <button
               onClick={() => setShowSpeedMenu(!showSpeedMenu)}
