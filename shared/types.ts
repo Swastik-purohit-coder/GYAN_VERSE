@@ -1,9 +1,6 @@
-/**
- * GyanVerse Shared TypeScript Types & Models
- * Shared across Next.js Web (`frontend/`) and React Native Mobile (`mobileapp/`).
- */
-
 import { SyncActionType, SyncStatusType, MediaType, DownloadStatusType, UserRole } from './constants';
+
+export type { SyncActionType, SyncStatusType, MediaType, DownloadStatusType, UserRole };
 
 export interface UserProfile {
   id: string;

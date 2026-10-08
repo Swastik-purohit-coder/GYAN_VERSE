@@ -12,6 +12,7 @@ import { colors, typography, spacing, radii } from '../../theme';
 import { LessonCard } from '../../components/student';
 import { Button, Badge } from '../../components/common';
 import { MEDIA_TYPES, DOWNLOAD_STATUS } from '../../../../shared/constants';
+import { MediaType, DownloadStatusType } from '../../../../shared/types';
 
 export const LessonsListScreen: React.FC<{ route: any; navigation: any }> = ({
   route,
@@ -22,7 +23,17 @@ export const LessonsListScreen: React.FC<{ route: any; navigation: any }> = ({
     subjectTitle: 'Computer Science',
   };
 
-  const [lessons, setLessons] = useState([
+  interface LessonItem {
+    id: string;
+    order: number;
+    title: string;
+    durationMinutes: number;
+    mediaType: MediaType;
+    isCompleted: boolean;
+    downloadStatus: DownloadStatusType;
+  }
+
+  const [lessons, setLessons] = useState<LessonItem[]>([
     {
       id: 'lesson-1',
       order: 1,
