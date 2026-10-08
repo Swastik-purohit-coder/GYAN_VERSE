@@ -1,11 +1,30 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { supabase, run } from "../../../_utils/supabase";
+import { supabase, run, runSingle } from "../../../_utils/supabase";
 
 export const runtime = "nodejs";
 
 export async function GET(request, context) {
   try {
     const { studentId } = await context.params;
+    let authUserId = null;
+    try {
+      const authObj = await auth();
+      authUserId = authObj?.userId;
+    } catch {}
+
+    if (authUserId && String(authUserId).trim() !== String(studentId).trim()) {
+      const caller = await runSingle(
+        supabase.from("user_roles").select("role").eq("user_id", authUserId).maybeSingle()
+      );
+      if (!caller || !["teacher", "admin"].includes(caller.role)) {
+        return NextResponse.json(
+          { error: "Forbidden: Cannot access another student's progress" },
+          { status: 403 }
+        );
+      }
+    }
+
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") ?? "50", 10);
 

@@ -1,8 +1,15 @@
+<<<<<<< Updated upstream
 import { NextResponse } from "next/server";
 import { supabase, run, runSingle, nowIso, checkSupabaseConfigured } from "../_utils/supabase";
+=======
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { supabase, runSingle } from "../_utils/supabase";
+>>>>>>> Stashed changes
 
 export const runtime = "nodejs";
 
+<<<<<<< Updated upstream
 // Server memory fallback store
 let globalStudentsRegistry = [];
 
@@ -195,4 +202,43 @@ export async function POST(request) {
     console.error("[/api/students POST] Exception:", error);
     return NextResponse.json({ error: error.message || "Failed to create student" }, { status: 500 });
   }
+=======
+// Get all students
+export async function GET() {
+  const authObj = await auth();
+  const userId = authObj?.userId;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const caller = await runSingle(
+    supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle()
+  );
+  if (!caller || !["teacher", "admin"].includes(caller.role)) {
+    return NextResponse.json(
+      { error: "Forbidden: Teacher privileges required" },
+      { status: 403 }
+    );
+  }
+  return NextResponse.json(students);
+}
+
+// Add a new student
+export async function POST(req) {
+  const authObj = await auth();
+  const userId = authObj?.userId;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const caller = await runSingle(
+    supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle()
+  );
+  if (!caller || !["teacher", "admin"].includes(caller.role)) {
+    return NextResponse.json(
+      { error: "Forbidden: Teacher privileges required" },
+      { status: 403 }
+    );
+  }
+  const data = await req.json();
+  const newStudent = { id: Date.now(), ...data };
+  students.push(newStudent);
+  return NextResponse.json(newStudent);
+>>>>>>> Stashed changes
 }

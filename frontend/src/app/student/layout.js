@@ -65,6 +65,26 @@ export default function StudentLayout({ children }) {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    import("@/lib/users")
+      .then(({ fetchUserRole }) => fetchUserRole(user.id))
+      .then((data) => {
+        if (!active) return;
+        const role = typeof data === "string" ? data : data?.role;
+        if (role === "teacher") {
+          router.replace("/teacher/dashboard");
+        } else if (role === "unassigned") {
+          router.replace("/role-select");
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user?.id, router]);
+
   const toggleDesktopSidebar = () => {
     setSidebarOpen((prev) => {
       const next = !prev;
