@@ -213,6 +213,21 @@ self.addEventListener('install', (event) => {
       } catch (err) {
         console.warn('[SW] Core asset precache issue:', err);
       }
+      // Pre-cache key app routes for better offline experience
+      try {
+        const routes = [...new Set(APP_ROUTES)];
+        await Promise.allSettled(routes.map((r) => cache.add(r)));
+        console.log('[SW] Pre-cached app routes');
+      } catch (e) {
+        console.log('[SW] Could not pre-cache routes (server may be down)');
+      }
+      try {
+        const staticCache = await caches.open(STATIC_CACHE);
+        await Promise.allSettled([...new Set(STATIC_WARM_ASSETS)].map((asset) => staticCache.add(asset)));
+        console.log('[SW] Pre-cached static assets');
+      } catch (e) {
+        console.log('[SW] Could not pre-cache static assets');
+      }
       await self.skipWaiting();
     })()
   );

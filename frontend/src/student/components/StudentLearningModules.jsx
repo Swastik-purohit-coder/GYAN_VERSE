@@ -384,42 +384,6 @@ export default function StudentLearningModules() {
                                 <span>{formatDuration(lesson.duration)}</span>
                               </div>
 
-                              {/* Video Type / Offline Download Controls */}
-                              {vType === "youtube" ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F1EEFF] text-[#635BFF] text-xs font-medium border border-[#E2E8F0]">
-                                  <span>Online Video</span>
-                                </span>
-                              ) : (lesson.video_url || lesson.video_path) && (
-                                dState?.isDownloading ? (
-                                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F1EEFF] text-[#635BFF] border border-[#635BFF]/30 text-xs font-medium">
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    <span>Downloading {dState.progress || 0}%</span>
-                                  </div>
-                                ) : dState?.isDownloaded ? (
-                                  <div className="flex items-center gap-1">
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#ECFDF3] border border-[#22C55E]/30 text-[#22C55E] text-xs font-medium">
-                                      <Check className="w-3.5 h-3.5 text-[#22C55E]" /> Available Offline
-                                    </span>
-                                    <button
-                                      onClick={(e) => handleRemoveDownload(e, lesson)}
-                                      title="Remove offline download"
-                                      className="p-1 rounded text-[#64748B] hover:text-red-500 hover:bg-slate-100 transition-colors"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={(e) => handleDownloadVideo(e, lesson, mod)}
-                                    className="text-[#64748B] border-[#E2E8F0] hover:bg-slate-100 text-xs gap-1"
-                                  >
-                                    <DownloadCloud className="w-3.5 h-3.5 text-[#635BFF]" /> Download for Offline
-                                  </Button>
-                                )
-                              )}
-
                               {/* Audio button if lesson has audio */}
                               {(lesson.audio_url || lesson.audio_path) && (
                                 <Button

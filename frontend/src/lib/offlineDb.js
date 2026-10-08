@@ -219,3 +219,4 @@ export async function getPendingSyncCount() {
     return 0;
   }
 }
+

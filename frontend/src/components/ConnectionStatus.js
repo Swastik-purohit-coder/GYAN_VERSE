@@ -8,3 +8,4 @@ import SyncStatusBadge from "./SyncStatusBadge";
 export default function ConnectionStatus() {
   return <SyncStatusBadge />;
 }
+
