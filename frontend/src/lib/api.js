@@ -468,6 +468,84 @@ class ApiClient {
       body: { fileName, fileType },
     });
   }
+
+  // Noticeboard
+  async getNotices(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/noticeboard${query ? `?${query}` : ''}`);
+  }
+
+  async createNotice(noticeData) {
+    return this.request('/noticeboard', {
+      method: 'POST',
+      body: noticeData,
+    });
+  }
+
+  async deleteNotice(id) {
+    return this.request(`/noticeboard/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Student Sub-Groups
+  async getGroups(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/groups${query ? `?${query}` : ''}`);
+  }
+
+  async createGroup(groupData) {
+    return this.request('/groups', {
+      method: 'POST',
+      body: groupData,
+    });
+  }
+
+  async getGroupMessages(groupId) {
+    return this.request(`/groups/${groupId}/messages`);
+  }
+
+  async sendGroupMessage(groupId, messageData) {
+    return this.request(`/groups/${groupId}/messages`, {
+      method: 'POST',
+      body: messageData,
+    });
+  }
+
+  // Skill Development Courses
+  async getSkillCourses(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/skills${query ? `?${query}` : ''}`);
+  }
+
+  async createSkillCourse(skillData) {
+    return this.request('/skills', {
+      method: 'POST',
+      body: skillData,
+    });
+  }
+
+  // Monthly Competitions
+  async getCompetitions(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/competitions${query ? `?${query}` : ''}`);
+  }
+
+  async createCompetition(compData) {
+    return this.request('/competitions', {
+      method: 'POST',
+      body: compData,
+    });
+  }
+
+  // Administrative Overview & Faculty Management
+  async getAdminOverview() {
+    return this.request('/admin/overview');
+  }
+
+  async getFacultyList() {
+    return this.request('/admin/faculty');
+  }
 }
 
 // Create singleton instance
@@ -516,4 +594,18 @@ export const createLesson = apiClient.createLesson.bind(apiClient);
 export const updateLesson = apiClient.updateLesson.bind(apiClient);
 export const deleteLesson = apiClient.deleteLesson.bind(apiClient);
 export const getSignedVideoUploadUrl = apiClient.getSignedVideoUploadUrl.bind(apiClient);
+export const getNotices = apiClient.getNotices.bind(apiClient);
+export const createNotice = apiClient.createNotice.bind(apiClient);
+export const deleteNotice = apiClient.deleteNotice.bind(apiClient);
+export const getGroups = apiClient.getGroups.bind(apiClient);
+export const createGroup = apiClient.createGroup.bind(apiClient);
+export const getGroupMessages = apiClient.getGroupMessages.bind(apiClient);
+export const sendGroupMessage = apiClient.sendGroupMessage.bind(apiClient);
+export const getSkillCourses = apiClient.getSkillCourses.bind(apiClient);
+export const createSkillCourse = apiClient.createSkillCourse.bind(apiClient);
+export const getCompetitions = apiClient.getCompetitions.bind(apiClient);
+export const createCompetition = apiClient.createCompetition.bind(apiClient);
+export const getAdminOverview = apiClient.getAdminOverview.bind(apiClient);
+export const getFacultyList = apiClient.getFacultyList.bind(apiClient);
+
 

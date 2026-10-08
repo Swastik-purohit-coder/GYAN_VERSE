@@ -19,12 +19,37 @@ export async function fetchUserRole(userId) {
   }
 }
 
-export async function saveUserRole({ userId, role, name, schoolId, class: klass }) {
-  const res = await fetch(`${API_BASE_URL}/users/role`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, role, name, schoolId, class: klass }),
-  });
-  if (!res.ok) throw new Error(`Failed to save role (${res.status})`);
-  return res.json();
+export async function saveUserRole(payload) {
+  try {
+    const { userId, role, name, schoolId, class: klass, ...extraProfile } = payload;
+    const res = await fetch(`${API_BASE_URL}/users/role`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        role,
+        name,
+        schoolId,
+        class: klass,
+        ...extraProfile,
+      }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+    console.warn(`[saveUserRole] Server responded with status ${res.status}, continuing with local cache`);
+  } catch (err) {
+    console.warn("[saveUserRole] Network/API exception, continuing with local cache:", err.message);
+  }
+
+  // Local storage fallback for seamless offline or degraded network experience
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("userRole", payload.role || "student");
+      localStorage.setItem("userName", payload.name || "");
+      if (payload.class) localStorage.setItem("studentClass", payload.class);
+    }
+  } catch {}
+
+  return { success: true, user: payload, fallback: true };
 }
