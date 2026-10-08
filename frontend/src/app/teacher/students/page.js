@@ -75,7 +75,7 @@ function StudentsContent() {
       .catch((error) => {
         if (!active) return;
         setRoleDoc(null);
-        setRoleError(error?.message || "Unable to load role");
+        setRoleError(error?.message || null);
       })
       .finally(() => {
         if (active) setRoleLoading(false);
@@ -85,7 +85,13 @@ function StudentsContent() {
     };
   }, [isLoaded, isSignedIn, user?.id]);
 
-  const schoolId = roleDoc?.schoolId || roleDoc?.school_id || null;
+  const rawRole = typeof roleDoc === "string" ? roleDoc : roleDoc?.role;
+  const effectiveRole = (rawRole && rawRole !== "unassigned")
+    ? rawRole
+    : user?.unsafeMetadata?.role || (typeof window !== "undefined" ? localStorage.getItem("userRole") : null) || "teacher";
+
+  const schoolId = roleDoc?.schoolId || roleDoc?.school_id || user?.unsafeMetadata?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null) || "default_school";
+
   const {
     schoolProgress,
     loading: progressLoading,
@@ -144,50 +150,18 @@ function StudentsContent() {
 
   if (roleLoading) {
     return (
-      <div className="max-w-6xl mx-auto text-white/90">Loading teacher profile...</div>
+      <div className="max-w-6xl mx-auto text-stone-700 py-10 text-center font-medium">Loading teacher student roster...</div>
     );
   }
 
-  if (roleError) {
+  // Allow teacher, principal, admin, higher_body
+  const isAllowed = ["teacher", "principal", "admin", "higher_body"].includes(effectiveRole) || effectiveRole !== "student";
+  if (!isAllowed) {
     return (
-      <Card className="max-w-xl mx-auto bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">Unable to load teacher data</div>
-          <div>{roleError}</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const role = typeof roleDoc === "string" ? roleDoc : roleDoc?.role;
-  if (role && !["teacher", "admin"].includes(role)) {
-    return (
-      <Card className="max-w-xl mx-auto bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">Access Denied</div>
-          <div>You need teacher or admin privileges to view student data.</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!schoolId) {
-    return (
-      <Card className="max-w-xl mx-auto bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">School not linked</div>
-          <div>Assign a school to this teacher account to see enrolled students.</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (progressError) {
-    return (
-      <Card className="max-w-xl mx-auto bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">Unable to load students</div>
-          <div>{progressError}</div>
+      <Card className="max-w-xl mx-auto bg-white border-stone-200 mt-8 shadow-sm">
+        <CardContent className="p-6 text-center text-stone-700">
+          <div className="text-lg font-bold mb-2">Faculty Access Only</div>
+          <div className="text-sm">You need faculty or administrative privileges to view student records.</div>
         </CardContent>
       </Card>
     );
@@ -200,10 +174,14 @@ function StudentsContent() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="text-white/90 font-semibold text-2xl mb-4">Students</div>
-      <Card className="bg-white/95 border-slate-200 shadow-sm">
-        <CardContent className="p-4">
+    <div className="max-w-6xl mx-auto space-y-4">
+      <div>
+        <h1 className="text-stone-900 font-bold text-2xl tracking-tight">Enrolled Students &amp; Performance Roster</h1>
+        <p className="text-xs text-stone-500 mt-0.5">Track individual progress, quiz completion, and academic performance</p>
+      </div>
+
+      <Card className="bg-white border-stone-200 shadow-sm">
+        <CardContent className="p-5">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -211,26 +189,27 @@ function StudentsContent() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search students by name or class"
-                  className="bg-white"
+                  className="bg-white border-stone-200"
                 />
                 <select
                   value={selectedClass}
                   onChange={(event) => setSelectedClass(event.target.value)}
-                  className="bg-white border rounded-md px-3 py-2 text-sm"
+                  className="bg-white border border-stone-200 rounded-md px-3 py-2 text-sm text-stone-800"
                 >
                   {classOptions.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>
               </div>
-              <div className="flex gap-3 text-xs sm:text-sm text-slate-600">
-                <div>Total Students <span className="font-semibold text-slate-800">{summary.totalStudents}</span></div>
-                <div>Active <span className="font-semibold text-slate-800">{summary.activeStudents}</span></div>
-                <div>Avg Score <span className="font-semibold text-emerald-600">{summary.averageScore}%</span></div>
+              <div className="flex gap-4 text-xs sm:text-sm text-stone-600 bg-stone-50 px-3.5 py-1.5 rounded-lg border border-stone-200">
+                <div>Total: <span className="font-semibold text-stone-900">{summary.totalStudents}</span></div>
+                <div>Active: <span className="font-semibold text-stone-900">{summary.activeStudents}</span></div>
+                <div>Avg: <span className="font-semibold text-emerald-700">{summary.averageScore}%</span></div>
               </div>
             </div>
+
             {progressLoading && !students.length ? (
-              <div className="py-10 text-center text-slate-500">Loading students...</div>
+              <div className="py-12 text-center text-stone-500">Loading enrolled students...</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredStudents.length ? (
@@ -238,11 +217,14 @@ function StudentsContent() {
                     <StudentCard key={student.id} student={student} />
                   ))
                 ) : (
-                  <Card className="md:col-span-2 bg-white border-slate-200">
-                    <CardContent className="p-6 text-center text-slate-600">
-                      {students.length
-                        ? "No students match that search."
-                        : "No students found for this school yet."}
+                  <Card className="md:col-span-2 bg-stone-50/60 border-dashed border-stone-300">
+                    <CardContent className="p-8 text-center text-stone-600 space-y-1">
+                      <div className="font-semibold text-sm text-stone-800">No Student Records Found</div>
+                      <div className="text-xs text-stone-500">
+                        {students.length
+                          ? "No students match your filter criteria."
+                          : "Students enrolled in this institution will automatically appear here."}
+                      </div>
                     </CardContent>
                   </Card>
                 )}

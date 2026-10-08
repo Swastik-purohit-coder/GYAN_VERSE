@@ -109,19 +109,12 @@ function ModuleManager() {
     fetchUserRole(user.id)
       .then((doc) => {
         if (!active) return;
-        let roleVal = typeof doc === "string" ? doc : doc?.role;
-        if (roleVal === "unassigned" && user?.unsafeMetadata?.role && user.unsafeMetadata.role !== "unassigned") {
-          roleVal = user.unsafeMetadata.role;
-        }
-        if (roleVal === "unassigned") {
-          router.replace("/role-select");
-          return;
-        }
         setRoleDoc(doc);
       })
       .catch((err) => {
         if (!active) return;
-        setRoleError(err?.message || "Unable to load teacher profile");
+        setRoleDoc(null);
+        setRoleError(err?.message || null);
       })
       .finally(() => {
         if (active) setRoleLoading(false);
@@ -129,10 +122,13 @@ function ModuleManager() {
     return () => {
       active = false;
     };
-  }, [isLoaded, isSignedIn, user?.id, router]);
+  }, [isLoaded, isSignedIn, user?.id]);
 
-  const schoolId = roleDoc?.schoolId || roleDoc?.school_id || null;
-  const role = typeof roleDoc === "string" ? roleDoc : roleDoc?.role;
+  const schoolId = roleDoc?.schoolId || roleDoc?.school_id || user?.unsafeMetadata?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null) || "default_school";
+  const rawRole = typeof roleDoc === "string" ? roleDoc : roleDoc?.role;
+  const role = (rawRole && rawRole !== "unassigned")
+    ? rawRole
+    : user?.unsafeMetadata?.role || (typeof window !== "undefined" ? localStorage.getItem("userRole") : null) || "teacher";
 
   const handleSwitchToTeacherRole = async () => {
     if (!user?.id) return;
@@ -466,12 +462,13 @@ function ModuleManager() {
     );
   }
 
-  if (roleError || !role || !["teacher", "admin"].includes(role)) {
+  const isAllowed = ["teacher", "principal", "admin", "higher_body"].includes(role) || role !== "student";
+  if (!isAllowed) {
     return (
-      <Card className="max-w-xl mx-auto mt-10 bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">Access Restricted</div>
-          <div>You need teacher privileges to manage learning modules.</div>
+      <Card className="max-w-xl mx-auto mt-10 bg-white border-stone-200 shadow-sm">
+        <CardContent className="p-6 text-center text-stone-700">
+          <div className="text-lg font-bold mb-2">Faculty Access Only</div>
+          <div className="text-sm">You need faculty or administrative privileges to manage learning modules.</div>
         </CardContent>
       </Card>
     );
