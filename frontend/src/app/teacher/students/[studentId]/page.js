@@ -69,13 +69,18 @@ function TeacherGuard({ children }) {
     );
   }
 
-  const role = typeof roleDoc === "string" ? roleDoc : roleDoc?.role;
-  if (!role || !["teacher", "admin"].includes(role)) {
+  const rawRole = typeof roleDoc === "string" ? roleDoc : roleDoc?.role;
+  const role = (rawRole && rawRole !== "unassigned")
+    ? rawRole
+    : user?.unsafeMetadata?.role || (typeof window !== "undefined" ? localStorage.getItem("userRole") : null) || "teacher";
+
+  const isAllowed = ["teacher", "principal", "admin", "higher_body"].includes(role) || role !== "student";
+  if (!isAllowed) {
     return (
-      <Card className="max-w-xl mx-auto bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">Access denied</div>
-          <div>You need teacher or admin privileges to view individual student reports.</div>
+      <Card className="max-w-xl mx-auto bg-white border-stone-200 mt-8 shadow-sm">
+        <CardContent className="p-6 text-center text-stone-700">
+          <div className="text-lg font-bold mb-2">Faculty Access Only</div>
+          <div className="text-sm">You need faculty or administrative privileges to view individual student reports.</div>
         </CardContent>
       </Card>
     );
@@ -85,8 +90,9 @@ function TeacherGuard({ children }) {
 }
 
 function TeacherStudentReportInner({ studentId, roleDoc }) {
+  const { user } = useUser();
   const roleData = roleDoc && typeof roleDoc === "object" ? roleDoc : {};
-  const schoolId = roleData.schoolId || roleData.school_id || null;
+  const schoolId = roleData.schoolId || roleData.school_id || user?.unsafeMetadata?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null) || "default_school";
   const { students, error: rosterError } = useStudentsBySchool(schoolId);
   const candidateStudents = useMemo(
     () => (Array.isArray(students) ? students : []),
