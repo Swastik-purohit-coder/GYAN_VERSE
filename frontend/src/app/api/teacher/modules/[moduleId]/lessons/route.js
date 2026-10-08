@@ -87,7 +87,8 @@ export async function POST(request, context) {
       return NextResponse.json({ error: "Learning module not found" }, { status: 404 });
     }
 
-    if (moduleDoc.school_id && teacher.school_id && moduleDoc.school_id !== teacher.school_id) {
+    const isExecutiveOrAdmin = ["admin", "principal", "higher_body"].includes(teacher.role);
+    if (!isExecutiveOrAdmin && moduleDoc.school_id && teacher.school_id && moduleDoc.school_id !== teacher.school_id && moduleDoc.school_id !== "default_school") {
       return NextResponse.json({ error: "Cannot add lessons to another school's module" }, { status: 403 });
     }
 
