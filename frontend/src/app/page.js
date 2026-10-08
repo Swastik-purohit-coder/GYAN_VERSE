@@ -104,6 +104,23 @@ export default function Welcome() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !user?.id) return;
     let cancelled = false;
+
+    // Check immediate Clerk unsafeMetadata first for zero-latency routing
+    const directRole = user?.unsafeMetadata?.role;
+    if (directRole === "student") {
+      setRedirecting(true);
+      router.replace("/student");
+      return;
+    } else if (["principal", "admin", "higher_body"].includes(directRole)) {
+      setRedirecting(true);
+      router.replace("/principal");
+      return;
+    } else if (directRole === "teacher") {
+      setRedirecting(true);
+      router.replace("/teacher");
+      return;
+    }
+
     (async () => {
       try {
         const data = await fetchUserRole(user.id);
@@ -112,6 +129,8 @@ export default function Welcome() {
         setRedirecting(true);
         if (role === "student") {
           router.replace("/student");
+        } else if (["principal", "admin", "higher_body"].includes(role)) {
+          router.replace("/principal");
         } else if (role === "teacher") {
           router.replace("/teacher");
         } else {
@@ -127,7 +146,7 @@ export default function Welcome() {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn, user?.id, router]);
+  }, [isLoaded, isSignedIn, user?.id, user?.unsafeMetadata?.role, router]);
 
   return (
     <>
