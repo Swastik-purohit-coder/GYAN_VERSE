@@ -106,23 +106,17 @@ export default function RoleSelectPage() {
     if (isLoaded && !user) router.replace("/");
     if (user && !name) {
       setName(user.fullName || user.firstName || "");
-      if (user.primaryEmailAddress?.emailAddress) {
-        // Default student or parent email if available
+    }
+    if (user?.id) {
+      const metaRole = user?.unsafeMetadata?.role;
+      if (metaRole === "student") {
+        router.replace("/student");
+      } else if (["principal", "admin", "higher_body"].includes(metaRole)) {
+        router.replace("/principal");
+      } else if (metaRole === "teacher") {
+        router.replace("/teacher");
       }
     }
-<<<<<<< Updated upstream
-=======
-    if (user?.id) {
-      import("@/lib/users")
-        .then(({ fetchUserRole }) => fetchUserRole(user.id))
-        .then((data) => {
-          const r = typeof data === "string" ? data : data?.role;
-          if (r === "student") router.replace("/student/dashboard");
-          else if (r === "teacher" || r === "admin") router.replace("/teacher/dashboard");
-        })
-        .catch(() => {});
-    }
->>>>>>> Stashed changes
   }, [isLoaded, user, router, name]);
 
   const toggleInterest = (label) => {
@@ -146,11 +140,7 @@ export default function RoleSelectPage() {
     if (role === "teacher") return !!department.trim();
     if (role === "principal") return !!schoolName.trim();
     return true;
-<<<<<<< Updated upstream
   }, [name, role, selectedClass, dob, fatherName, department, schoolName]);
-=======
-  }, [name, selectedClass, role]);
->>>>>>> Stashed changes
 
   async function completeOnboarding(skipOptionals = false) {
     if (!user) return;
@@ -207,19 +197,12 @@ export default function RoleSelectPage() {
         class: role === "student" ? selectedClass : undefined,
         ...profileMetadata,
       });
-<<<<<<< Updated upstream
-
       router.replace(
         role === "student" ? "/student" : role === "principal" ? "/principal" : "/teacher"
       );
     } catch (err) {
       console.error("Onboarding error:", err);
       alert(err.message || "Failed to save profile");
-=======
-      router.replace(role === "student" ? "/student/dashboard" : "/teacher/dashboard");
-    } catch (e) {
-      alert(e.message);
->>>>>>> Stashed changes
     } finally {
       setSaving(false);
     }

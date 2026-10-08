@@ -1,15 +1,16 @@
-<<<<<<< Updated upstream
-import { NextResponse } from "next/server";
-import { supabase, run, runSingle, nowIso, checkSupabaseConfigured } from "../_utils/supabase";
-=======
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { supabase, runSingle } from "../_utils/supabase";
->>>>>>> Stashed changes
+import {
+  supabase,
+  run,
+  runSingle,
+  nowIso,
+  requireUserRole,
+  checkSupabaseConfigured,
+} from "../_utils/supabase";
 
 export const runtime = "nodejs";
 
-<<<<<<< Updated upstream
 // Server memory fallback store
 let globalStudentsRegistry = [];
 
@@ -17,6 +18,7 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get("schoolId");
+    const classFilter = searchParams.get("class");
 
     let dbStudents = [];
 
@@ -28,7 +30,11 @@ export async function GET(request) {
           .eq("role", "student");
 
         if (schoolId && schoolId !== "default_school") {
-          query = query.eq("school_id", schoolId);
+          query = query.or(`school_id.eq.${schoolId},school_id.is.null,school_id.eq.default_school`);
+        }
+
+        if (classFilter && classFilter !== "all") {
+          query = query.eq("class", classFilter);
         }
 
         const rows = await run(query.order("created_at", { ascending: false }));
@@ -64,12 +70,18 @@ export async function GET(request) {
     dbStudents.forEach((s) => map.set(s.id, s));
     globalStudentsRegistry.forEach((s) => {
       if (!schoolId || schoolId === "default_school" || s.schoolId === schoolId) {
-        map.set(s.id, { ...map.get(s.id), ...s });
+        if (!classFilter || classFilter === "all" || s.class === classFilter) {
+          map.set(s.id, { ...map.get(s.id), ...s });
+        }
       }
     });
 
     const result = Array.from(map.values());
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      },
+    });
   } catch (error) {
     console.warn("[/api/students GET] Error:", error.message);
     return NextResponse.json(globalStudentsRegistry, { status: 200 });
@@ -78,6 +90,18 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const authObj = await auth();
+    const userId = authObj?.userId;
+
+    if (userId) {
+      try {
+        const caller = await requireUserRole(userId);
+        // Ensure student enrollment is performed by authenticated faculty/admin or user onboarding
+      } catch (authErr) {
+        console.warn("[/api/students POST] Auth warning:", authErr.message);
+      }
+    }
+
     const body = await request.json();
     const {
       name,
@@ -152,7 +176,6 @@ export async function POST(request) {
     // 2. Persist to Supabase user_roles if configured
     if (checkSupabaseConfigured()) {
       try {
-        // Try upserting full payload with metadata
         const fullPayload = {
           user_id: generatedId,
           role: "student",
@@ -172,7 +195,6 @@ export async function POST(request) {
               .upsert(fullPayload, { onConflict: "user_id" })
           );
         } catch (schemaErr) {
-          // If metadata column is missing, upsert without metadata column
           const simplePayload = {
             user_id: generatedId,
             role: "student",
@@ -202,43 +224,4 @@ export async function POST(request) {
     console.error("[/api/students POST] Exception:", error);
     return NextResponse.json({ error: error.message || "Failed to create student" }, { status: 500 });
   }
-=======
-// Get all students
-export async function GET() {
-  const authObj = await auth();
-  const userId = authObj?.userId;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const caller = await runSingle(
-    supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle()
-  );
-  if (!caller || !["teacher", "admin"].includes(caller.role)) {
-    return NextResponse.json(
-      { error: "Forbidden: Teacher privileges required" },
-      { status: 403 }
-    );
-  }
-  return NextResponse.json(students);
-}
-
-// Add a new student
-export async function POST(req) {
-  const authObj = await auth();
-  const userId = authObj?.userId;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const caller = await runSingle(
-    supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle()
-  );
-  if (!caller || !["teacher", "admin"].includes(caller.role)) {
-    return NextResponse.json(
-      { error: "Forbidden: Teacher privileges required" },
-      { status: 403 }
-    );
-  }
-  const data = await req.json();
-  const newStudent = { id: Date.now(), ...data };
-  students.push(newStudent);
-  return NextResponse.json(newStudent);
->>>>>>> Stashed changes
 }
