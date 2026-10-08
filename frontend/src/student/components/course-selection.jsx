@@ -375,7 +375,6 @@ export default function CourseSelection() {
 		error: subjectsError
 	} = useSubjects({
 		classFilter,
-		schoolId,
 		enabled: Boolean(branchForClass && semesterNumber)
 	});
 

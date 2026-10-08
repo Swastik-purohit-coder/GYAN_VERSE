@@ -40,21 +40,28 @@ export async function GET(request) {
     console.log("studentSchoolId:", schoolId);
     console.log("user_roles error:", roleErr?.message || null);
 
-    if (!schoolId || !studentClass) {
-      console.log("===== RESULT: MISSING CLASS OR SCHOOL =====");
+    if (!studentClass) {
+      console.log("===== RESULT: MISSING CLASS =====");
       return NextResponse.json({
         modules: [],
-        studentClass,
+        studentClass: null,
         schoolId,
-        message: "Student class and school must be set to view learning modules.",
+        message: "Student class must be set in your profile to view learning modules.",
       });
     }
 
-    console.log("===== QUERY FILTER =====");
-    console.log("class filter:", studentClass);
-    console.log("school_id filter:", schoolId);
+    const rawClass = String(studentClass).trim();
+    const numMatch = rawClass.match(/\d+/);
+    const cleanNum = numMatch ? numMatch[0] : "";
+    const classCandidates = Array.from(
+      new Set([rawClass, cleanNum ? `Class ${cleanNum}` : null, cleanNum ? `class ${cleanNum}` : null, cleanNum].filter(Boolean))
+    );
 
-    // 2. Fetch published learning modules for student's school_id and class
+    console.log("===== QUERY FILTER =====");
+    console.log("class filter candidates:", classCandidates);
+    console.log("studentSchoolId (metadata only, not filtered):", schoolId);
+
+    // 2. Fetch published learning modules for student's class (all schools shared)
     let modules = [];
     let modErr = null;
     try {
@@ -72,8 +79,8 @@ export async function GET(request) {
           created_at,
           updated_at
         `)
-        .eq("school_id", schoolId)
-        .eq("class", studentClass)
+        .eq("published", true)
+        .in("class", classCandidates)
         .order("created_at", { ascending: false });
 
       modErr = res.error;

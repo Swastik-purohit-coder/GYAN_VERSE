@@ -72,8 +72,9 @@ export async function GET(request) {
     const numericClass = classFilter ? classFilter.replace(/\D/g, "") : null;
 
     const filtered = subjects.filter((subject) => {
-      // School ID check
-      if (schoolId && subject.school_id && subject.school_id !== schoolId) {
+      // School ID check: only apply if schoolId is provided and NO class filter is set (e.g. teacher managing school subjects)
+      // For student curriculum queries with a class filter, content is class-based and school_id does not restrict visibility.
+      if (schoolId && !cleanClassFilter && subject.school_id && subject.school_id !== schoolId) {
         return false;
       }
 

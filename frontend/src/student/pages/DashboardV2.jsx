@@ -234,7 +234,6 @@ export default function DashboardV2({ user = {} }) {
     error: subjectsError,
   } = useSubjects({
     classFilter: studentClassDisplay,
-    schoolId: schoolId || dashboardData?.student?.schoolId,
     enabled: true,
   });
 

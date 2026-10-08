@@ -230,7 +230,7 @@ export default function StudentLearningModules() {
           <BookOpen className="w-12 h-12 mx-auto text-slate-500" />
           <h3 className="text-lg font-bold text-white">No Learning Modules Assigned Yet</h3>
           <p className="text-sm text-slate-400 max-w-md mx-auto">
-            Your school teachers haven&apos;t published any learning modules for {studentClass || "your class"} yet. Check back soon!
+            No learning modules have been published for {studentClass || "your class"} yet. Check back soon!
           </p>
         </CardContent>
       </Card>
