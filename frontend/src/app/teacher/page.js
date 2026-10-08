@@ -13,14 +13,14 @@ export default function TeacherPage() {
   useEffect(() => {
     if (!isLoaded || !user) return;
     const metadataRole = user?.unsafeMetadata?.role;
-    if (["principal", "admin", "higher_body"].includes(metadataRole)) {
-      router.replace("/principal");
+    if (metadataRole === "student") {
+      router.replace("/student/dashboard");
       return;
     }
     fetchUserRole(user.id).then((doc) => {
       const r = typeof doc === "string" ? doc : doc?.role;
-      if (r === "principal" || r === "admin" || r === "higher_body") {
-        router.replace("/principal");
+      if (r === "student") {
+        router.replace("/student/dashboard");
       }
     });
   }, [user, isLoaded, router]);

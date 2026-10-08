@@ -34,6 +34,14 @@ export async function saveUserRole(payload) {
         ...extraProfile,
       }),
     });
+    if (typeof window !== "undefined") {
+      document.cookie = `gyan_user_role=${payload.role || "student"}; path=/; max-age=604800; SameSite=Lax`;
+      localStorage.setItem("userRole", payload.role || "student");
+      localStorage.setItem("userName", payload.name || "");
+      if (payload.class) localStorage.setItem("studentClass", payload.class);
+      if (payload.schoolId) localStorage.setItem("schoolId", payload.schoolId);
+    }
+
     if (res.ok) {
       return await res.json();
     }
@@ -41,15 +49,6 @@ export async function saveUserRole(payload) {
   } catch (err) {
     console.warn("[saveUserRole] Network/API exception, continuing with local cache:", err.message);
   }
-
-  // Local storage fallback for seamless offline or degraded network experience
-  try {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("userRole", payload.role || "student");
-      localStorage.setItem("userName", payload.name || "");
-      if (payload.class) localStorage.setItem("studentClass", payload.class);
-    }
-  } catch {}
 
   return { success: true, user: payload, fallback: true };
 }

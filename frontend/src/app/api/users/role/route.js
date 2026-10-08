@@ -85,6 +85,11 @@ export async function POST(request) {
       console.warn("[/api/users/role] Existing user fetch warning:", err.message);
     }
 
+    const email = extraProfile.email || extraProfile.userEmail || null;
+    const phone = extraProfile.phone || extraProfile.studentPhone || null;
+    const parentEmail = extraProfile.parentEmail || null;
+    const parentPhone = extraProfile.parentPhone || null;
+
     const mergedMetadata = {
       ...(existing?.metadata || {}),
       ...extraProfile,
@@ -95,6 +100,10 @@ export async function POST(request) {
       role,
       provisional: false,
       name: name ?? existing?.name ?? null,
+      email: email ?? existing?.email ?? null,
+      phone: phone ?? existing?.phone ?? null,
+      parent_email: parentEmail ?? existing?.parent_email ?? null,
+      parent_phone: parentPhone ?? existing?.parent_phone ?? null,
       school_id: schoolId || existing?.school_id || null,
       class: klass ?? existing?.class ?? null,
       metadata: mergedMetadata,
@@ -132,7 +141,13 @@ export async function POST(request) {
       invalidateServerUserRoleCache(targetUserId);
     } catch {}
 
-    return NextResponse.json({ success: true, user: saved ?? finalPayload });
+    const response = NextResponse.json({ success: true, user: saved ?? finalPayload });
+    response.cookies.set("gyan_user_role", role, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: "lax",
+    });
+    return response;
   } catch (error) {
     console.warn("[/api/users/role] Error caught, gracefully falling back:", error.message);
     const fallbackPayload = {
@@ -145,6 +160,12 @@ export async function POST(request) {
       created_at: nowIso(),
       updated_at: nowIso(),
     };
-    return NextResponse.json({ success: true, user: fallbackPayload, fallback: true });
+    const response = NextResponse.json({ success: true, user: fallbackPayload, fallback: true });
+    response.cookies.set("gyan_user_role", role || "student", {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: "lax",
+    });
+    return response;
   }
 }

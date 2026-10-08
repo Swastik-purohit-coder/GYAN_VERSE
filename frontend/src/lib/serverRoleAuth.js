@@ -3,22 +3,25 @@
 // It bypasses client state and reads user_roles as the single source of truth.
 
 const roleCache = new Map();
-const CACHE_TTL_MS = 30 * 1000; // 30 seconds
+const CACHE_TTL_MS = 5 * 1000; // 5 seconds for fast transitions
 
 /**
  * Fetches the user's role record directly from the `user_roles` table in Supabase.
- * Returns { role: "student" | "teacher" | "admin" | "unassigned", school_id, class, ... } or null.
+ * Returns { role: "student" | "teacher" | "principal" | "admin" | "unassigned", school_id, class, ... } or null.
  *
  * @param {string} userId - Clerk user ID
+ * @param {{ forceFresh?: boolean }} options
  * @returns {Promise<{ role: string, user_id?: string, school_id?: string, class?: string } | null>}
  */
-export async function getServerUserRole(userId) {
+export async function getServerUserRole(userId, { forceFresh = false } = {}) {
   if (!userId) return null;
 
   const now = Date.now();
-  const cached = roleCache.get(userId);
-  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-    return cached.data;
+  if (!forceFresh) {
+    const cached = roleCache.get(userId);
+    if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
   }
 
   const supabaseUrl = (
@@ -61,13 +64,17 @@ export async function getServerUserRole(userId) {
 
     const rows = await res.json();
     if (!Array.isArray(rows) || rows.length === 0) {
-      const missing = { role: "unassigned", provisional: true, user_id: userId };
-      roleCache.set(userId, { data: missing, timestamp: now });
-      return missing;
+      // NEVER cache unassigned or missing roles so freshly onboarding users are recognized immediately
+      roleCache.delete(userId);
+      return { role: "unassigned", provisional: true, user_id: userId };
     }
 
     const roleDoc = rows[0];
-    roleCache.set(userId, { data: roleDoc, timestamp: now });
+    if (roleDoc.role === "unassigned") {
+      roleCache.delete(userId);
+    } else {
+      roleCache.set(userId, { data: roleDoc, timestamp: now });
+    }
     return roleDoc;
   } catch (err) {
     console.error("[serverRoleAuth] Error fetching user role from Supabase:", err?.message || err);

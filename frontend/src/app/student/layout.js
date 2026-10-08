@@ -67,6 +67,12 @@ export default function StudentLayout({ children }) {
 
   useEffect(() => {
     if (!user?.id) return;
+    const metaRole = user?.unsafeMetadata?.role;
+    const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+    if (metaRole === "student" || localRole === "student") {
+      return;
+    }
+
     let active = true;
     import("@/lib/users")
       .then(({ fetchUserRole }) => fetchUserRole(user.id))
@@ -75,7 +81,7 @@ export default function StudentLayout({ children }) {
         const role = typeof data === "string" ? data : data?.role;
         if (role === "teacher") {
           router.replace("/teacher/dashboard");
-        } else if (role === "unassigned") {
+        } else if (role === "unassigned" && !metaRole && !localRole) {
           router.replace("/role-select");
         }
       })
@@ -83,7 +89,7 @@ export default function StudentLayout({ children }) {
     return () => {
       active = false;
     };
-  }, [user?.id, router]);
+  }, [user?.id, user?.unsafeMetadata?.role, router]);
 
   const toggleDesktopSidebar = () => {
     setSidebarOpen((prev) => {

@@ -25,17 +25,11 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <head>
+    <html lang="en" suppressHydrationWarning>
+      <head suppressHydrationWarning>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0f172a" />
         <link rel="icon" href="/icons/icon-192.png" />
-        {/* Hide Google Translate top banner/balloon early to avoid flicker */}
-        <style>{`
-          .goog-te-banner-frame { display: none !important; visibility: hidden !important; height: 0 !important; }
-          iframe.goog-te-banner-frame { display: none !important; visibility: hidden !important; height: 0 !important; }
-          .goog-te-balloon-frame { display: none !important; visibility: hidden !important; height: 0 !important; }
-        `}</style>
         <Script id="gt-hide-banner" strategy="afterInteractive">
           {`
             (function(){

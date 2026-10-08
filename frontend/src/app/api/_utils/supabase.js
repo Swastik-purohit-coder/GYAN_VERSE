@@ -202,32 +202,14 @@ export async function requireUserRole(userId) {
     throw err;
   }
 
-  // 1. Check Clerk session user metadata on server
-  let clerkMeta = null;
-  try {
-    const { currentUser } = await import("@clerk/nextjs/server");
-    const clerkUser = await currentUser();
-    if (clerkUser) {
-      const meta = clerkUser.unsafeMetadata || clerkUser.publicMetadata || {};
-      clerkMeta = {
-        role: meta.role || clerkUser.publicMetadata?.role || null,
-        school_id: meta.schoolId || meta.school_id || clerkUser.publicMetadata?.schoolId || "default_school",
-        class: meta.class || clerkUser.publicMetadata?.class || "10",
-        name: clerkUser.fullName || [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || clerkUser.username || "User",
-      };
-    }
-  } catch (err) {
-    // ignore
-  }
-
-  // 2. Query Supabase user_roles if configured
+  // 1. Query Supabase user_roles directly as primary source of truth
   let dbRole = null;
   if (checkSupabaseConfigured()) {
     try {
       dbRole = await runSingle(
         supabase
           .from("user_roles")
-          .select("user_id, role, name, school_id, class, provisional, created_at, updated_at")
+          .select("user_id, role, name, school_id, class, metadata, provisional, created_at, updated_at")
           .eq("user_id", userId)
           .maybeSingle()
       );
@@ -236,32 +218,85 @@ export async function requireUserRole(userId) {
     }
   }
 
-  // 3. Resolve role: Prioritize elevated roles (principal, higher_body, teacher, admin)
-  const clerkRole = clerkMeta?.role ? String(clerkMeta.role).toLowerCase().trim() : null;
-  const dbRoleValue = dbRole?.role ? String(dbRole.role).toLowerCase().trim() : null;
-  const privilegedRoles = ["principal", "teacher", "admin", "higher_body"];
-
-  let effectiveRole = "student";
-  if (clerkRole && privilegedRoles.includes(clerkRole)) {
-    effectiveRole = clerkRole;
-  } else if (dbRoleValue && privilegedRoles.includes(dbRoleValue)) {
-    effectiveRole = dbRoleValue;
-  } else if (dbRoleValue && dbRoleValue !== "unassigned") {
-    effectiveRole = dbRoleValue;
-  } else if (clerkRole) {
-    effectiveRole = clerkRole;
+  // 2. Extract database role if present (check column and JSONB metadata)
+  let dbRoleValue = dbRole?.role ? String(dbRole.role).toLowerCase().trim() : null;
+  if (dbRole?.metadata?.role) {
+    dbRoleValue = String(dbRole.metadata.role).toLowerCase().trim();
+  } else if (dbRole?.metadata?.is_principal) {
+    dbRoleValue = "principal";
   }
+
+  // 3. Fallback to Clerk session user metadata if DB record is not yet present
+  let clerkMeta = null;
+  if (!dbRoleValue) {
+    try {
+      const { currentUser } = await import("@clerk/nextjs/server");
+      const clerkUser = await currentUser();
+      if (clerkUser) {
+        const meta = clerkUser.unsafeMetadata || clerkUser.publicMetadata || {};
+        const email = clerkUser.primaryEmailAddress?.emailAddress || clerkUser.emailAddresses?.[0]?.emailAddress || null;
+        const phone = clerkUser.primaryPhoneNumber?.phoneNumber || clerkUser.phoneNumbers?.[0]?.phoneNumber || null;
+        clerkMeta = {
+          role: meta.role || clerkUser.publicMetadata?.role || null,
+          email,
+          phone,
+          school_id: meta.schoolId || meta.school_id || clerkUser.publicMetadata?.schoolId || "default_school",
+          class: meta.class || clerkUser.publicMetadata?.class || "10",
+          name: clerkUser.fullName || [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || clerkUser.username || "User",
+        };
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  const clerkRole = clerkMeta?.role ? String(clerkMeta.role).toLowerCase().trim() : null;
+
+  // Prioritize DB role value first, then Clerk role, then unassigned/fallback
+  let effectiveRole = dbRoleValue || clerkRole || "unassigned";
 
   const effectiveSchoolId = dbRole?.school_id || clerkMeta?.school_id || "default_school";
   const effectiveName = dbRole?.name || clerkMeta?.name || "User";
   const effectiveClass = dbRole?.class || clerkMeta?.class || "10";
+  const effectiveEmail = dbRole?.email || dbRole?.metadata?.email || clerkMeta?.email || null;
+  const effectivePhone = dbRole?.phone || dbRole?.metadata?.studentPhone || dbRole?.metadata?.phone || clerkMeta?.phone || null;
+  const effectiveParentEmail = dbRole?.parent_email || dbRole?.metadata?.parentEmail || null;
+  const effectiveParentPhone = dbRole?.parent_phone || dbRole?.metadata?.parentPhone || null;
+
+  // Auto-sync into Supabase user_roles if user has clerk metadata role but no DB row yet
+  if (!dbRole && clerkRole && clerkRole !== "unassigned" && checkSupabaseConfigured()) {
+    try {
+      const syncPayload = {
+        user_id: userId,
+        role: clerkRole,
+        name: effectiveName,
+        email: effectiveEmail,
+        phone: effectivePhone,
+        parent_email: effectiveParentEmail,
+        parent_phone: effectiveParentPhone,
+        school_id: effectiveSchoolId,
+        class: effectiveClass,
+        provisional: false,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      };
+      runSingle(
+        supabase.from("user_roles").upsert(syncPayload, { onConflict: "user_id" })
+      ).catch(() => {});
+    } catch {}
+  }
 
   return {
     user_id: userId,
     role: effectiveRole,
     name: effectiveName,
+    email: effectiveEmail,
+    phone: effectivePhone,
+    parent_email: effectiveParentEmail,
+    parent_phone: effectiveParentPhone,
     school_id: effectiveSchoolId,
     class: effectiveClass,
+    metadata: dbRole?.metadata || {},
     provisional: !dbRole,
     created_at: dbRole?.created_at || nowIso(),
     updated_at: dbRole?.updated_at || nowIso(),

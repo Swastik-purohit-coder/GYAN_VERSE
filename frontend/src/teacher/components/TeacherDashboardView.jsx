@@ -74,7 +74,7 @@ export default function TeacherDashboardView({ defaultView = "principal", forced
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   
-  const userMetadataRole = forcedRole || user?.unsafeMetadata?.role;
+  const userMetadataRole = user?.unsafeMetadata?.role;
   const isHigherAuthority = ["principal", "admin", "higher_body"].includes(userMetadataRole);
 
   const [viewMode, setViewMode] = useState(defaultView || (isHigherAuthority ? "principal" : "teacher"));
@@ -85,10 +85,6 @@ export default function TeacherDashboardView({ defaultView = "principal", forced
   const { competitions } = useCompetitions();
 
   useEffect(() => {
-    if (forcedRole) {
-      setViewMode(forcedRole === "principal" ? "principal" : "teacher");
-      return;
-    }
     if (userMetadataRole) {
       if (["principal", "admin", "higher_body"].includes(userMetadataRole)) {
         setViewMode("principal");
@@ -105,7 +101,7 @@ export default function TeacherDashboardView({ defaultView = "principal", forced
         }
       });
     }
-  }, [userMetadataRole, user?.id, forcedRole]);
+  }, [userMetadataRole, user?.id]);
 
   const classData = useMemo(() => {
     if (!overview?.classPerformance) return [];

@@ -194,12 +194,16 @@ export default function DashboardV2({ user = {} }) {
       .then((doc) => {
         if (!active) return;
         let roleVal = typeof doc === 'string' ? doc : doc?.role;
-        if (!roleVal || roleVal === 'unassigned') {
+        const metaRole = clerkUser?.unsafeMetadata?.role;
+        const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+        const effectiveRole = (roleVal && roleVal !== 'unassigned') ? roleVal : (metaRole || localRole);
+
+        if (!effectiveRole || effectiveRole === 'unassigned') {
           router.replace('/role-select');
           return;
         }
-        setUserRoleDoc(doc);
-        const school = doc?.schoolId || doc?.school_id || null;
+        setUserRoleDoc(doc || { role: effectiveRole });
+        const school = doc?.schoolId || doc?.school_id || clerkUser?.unsafeMetadata?.schoolId || null;
         setSchoolId(school);
         setRoleError(null);
       })

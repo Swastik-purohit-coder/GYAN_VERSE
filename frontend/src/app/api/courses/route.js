@@ -45,7 +45,14 @@ export async function GET() {
       roleErr = e;
     }
 
-    const studentClass = roleDoc?.class || null;
+    let studentClass = roleDoc?.class || null;
+    if (!studentClass) {
+      try {
+        const { currentUser } = await import("@clerk/nextjs/server");
+        const clerkUser = await currentUser();
+        studentClass = clerkUser?.unsafeMetadata?.class || clerkUser?.publicMetadata?.class || null;
+      } catch {}
+    }
 
     if (!studentClass) {
       return NextResponse.json({

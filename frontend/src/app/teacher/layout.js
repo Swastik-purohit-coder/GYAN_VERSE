@@ -31,7 +31,7 @@ export default function TeacherLayout({ children }) {
         if (!active) return;
         const role = typeof data === "string" ? data : data?.role;
         if (role === "student") {
-          router.replace("/student");
+          router.replace("/student/dashboard");
           return;
         }
         if (role === "unassigned") {
@@ -41,7 +41,7 @@ export default function TeacherLayout({ children }) {
         if (["teacher", "admin", "principal", "higher_body"].includes(role)) {
           setAuthorized(true);
         } else {
-          router.replace("/student");
+          router.replace("/student/dashboard");
         }
       })
       .catch(() => {

@@ -381,8 +381,9 @@ export async function POST(request) {
 
     return NextResponse.json({ answer, mode });
   } catch (error) {
+    const fallbackMsg = "The AI study buddy service is momentarily unavailable. Please try again shortly.";
     return NextResponse.json(
-      { error: process.env.NODE_ENV === "development" ? (error.message || friendlyError) : friendlyError },
+      { error: error.message || fallbackMsg },
       { status: error.statusCode || 502 }
     );
   }

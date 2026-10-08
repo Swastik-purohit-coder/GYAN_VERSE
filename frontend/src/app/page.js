@@ -109,7 +109,7 @@ export default function Welcome() {
     const directRole = user?.unsafeMetadata?.role;
     if (directRole === "student") {
       setRedirecting(true);
-      router.replace("/student");
+      router.replace("/student/dashboard");
       return;
     } else if (["principal", "admin", "higher_body"].includes(directRole)) {
       setRedirecting(true);
@@ -117,7 +117,7 @@ export default function Welcome() {
       return;
     } else if (directRole === "teacher") {
       setRedirecting(true);
-      router.replace("/teacher");
+      router.replace("/teacher/dashboard");
       return;
     }
 
@@ -128,11 +128,11 @@ export default function Welcome() {
         if (cancelled) return;
         setRedirecting(true);
         if (role === "student") {
-          router.replace("/student");
+          router.replace("/student/dashboard");
         } else if (["principal", "admin", "higher_body"].includes(role)) {
           router.replace("/principal");
         } else if (role === "teacher") {
-          router.replace("/teacher");
+          router.replace("/teacher/dashboard");
         } else {
           router.replace("/role-select");
         }

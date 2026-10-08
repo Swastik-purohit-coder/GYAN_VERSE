@@ -1,6 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { supabase, run, runSingle, nowIso } from "../../../_utils/supabase";
+import { supabase, runSingle, nowIso, requireUserRole, checkSupabaseConfigured } from "../../../_utils/supabase";
 import { broadcast } from "../../../_utils/events";
 
 export const runtime = "nodejs";
