@@ -4,7 +4,13 @@ import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import { useSubjects, useQuizzes, useQuizQuestions, useTeacherModules } from "@/hooks/useApi";
 import { getQuizResults } from "@/lib/api";
-import { normalizeClass } from "@/app/api/_utils/quiz";
+
+function normalizeClass(val) {
+  if (!val) return "";
+  const s = String(val).trim().toLowerCase();
+  const match = s.match(/\d+/);
+  return match ? match[0] : s;
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@teacher/components/ui/card";
 import { Input } from "@teacher/components/ui/input";
 import { Textarea } from "@teacher/components/ui/textarea";
