@@ -201,50 +201,77 @@ export async function requireUserRole(userId) {
     err.statusCode = 400;
     throw err;
   }
-  if (!checkSupabaseConfigured()) {
-    return {
-      user_id: userId,
-      role: "student",
-      name: "Guest User",
-      school_id: "default",
-      class: "10",
-      provisional: true,
-    };
-  }
+
+  // 1. Check Clerk session user metadata on server
+  let clerkMeta = null;
   try {
-    const role = await runSingle(
-      supabase
-        .from("user_roles")
-        .select("user_id, role, name, school_id, class, provisional, created_at, updated_at")
-        .eq("user_id", userId)
-        .maybeSingle()
-    );
-    if (!role) {
-      return {
-        user_id: userId,
-        role: "student",
-        name: "Guest User",
-        school_id: "default",
-        class: "10",
-        provisional: true,
+    const { currentUser } = await import("@clerk/nextjs/server");
+    const clerkUser = await currentUser();
+    if (clerkUser) {
+      const meta = clerkUser.unsafeMetadata || clerkUser.publicMetadata || {};
+      clerkMeta = {
+        role: meta.role || clerkUser.publicMetadata?.role || null,
+        school_id: meta.schoolId || meta.school_id || clerkUser.publicMetadata?.schoolId || "default_school",
+        class: meta.class || clerkUser.publicMetadata?.class || "10",
+        name: clerkUser.fullName || [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || clerkUser.username || "User",
       };
     }
-    return role;
   } catch (err) {
-    console.warn("user_roles table missing or query error, returning fallback role:", err.message);
-    return {
-      user_id: userId,
-      role: "student",
-      name: "Guest User",
-      school_id: "default",
-      class: "10",
-      provisional: true,
-    };
+    // ignore
   }
+
+  // 2. Query Supabase user_roles if configured
+  let dbRole = null;
+  if (checkSupabaseConfigured()) {
+    try {
+      dbRole = await runSingle(
+        supabase
+          .from("user_roles")
+          .select("user_id, role, name, school_id, class, provisional, created_at, updated_at")
+          .eq("user_id", userId)
+          .maybeSingle()
+      );
+    } catch (err) {
+      console.warn("[requireUserRole] user_roles query warning:", err.message);
+    }
+  }
+
+  // 3. Resolve role: Prioritize elevated roles (principal, higher_body, teacher, admin)
+  const clerkRole = clerkMeta?.role ? String(clerkMeta.role).toLowerCase().trim() : null;
+  const dbRoleValue = dbRole?.role ? String(dbRole.role).toLowerCase().trim() : null;
+  const privilegedRoles = ["principal", "teacher", "admin", "higher_body"];
+
+  let effectiveRole = "student";
+  if (clerkRole && privilegedRoles.includes(clerkRole)) {
+    effectiveRole = clerkRole;
+  } else if (dbRoleValue && privilegedRoles.includes(dbRoleValue)) {
+    effectiveRole = dbRoleValue;
+  } else if (dbRoleValue && dbRoleValue !== "unassigned") {
+    effectiveRole = dbRoleValue;
+  } else if (clerkRole) {
+    effectiveRole = clerkRole;
+  }
+
+  const effectiveSchoolId = dbRole?.school_id || clerkMeta?.school_id || "default_school";
+  const effectiveName = dbRole?.name || clerkMeta?.name || "User";
+  const effectiveClass = dbRole?.class || clerkMeta?.class || "10";
+
+  return {
+    user_id: userId,
+    role: effectiveRole,
+    name: effectiveName,
+    school_id: effectiveSchoolId,
+    class: effectiveClass,
+    provisional: !dbRole,
+    created_at: dbRole?.created_at || nowIso(),
+    updated_at: dbRole?.updated_at || nowIso(),
+  };
 }
 
 export function ensureTeacher(roleDoc) {
-  if (!roleDoc || !["teacher", "admin", "principal", "higher_body"].includes(roleDoc.role)) {
+  const allowed = ["teacher", "admin", "principal", "higher_body"];
+  const role = String(roleDoc?.role || "").toLowerCase().trim();
+  if (!roleDoc || !allowed.includes(role)) {
     const err = new Error("Only teachers or administrators can perform this action");
     err.statusCode = 403;
     throw err;
@@ -252,7 +279,9 @@ export function ensureTeacher(roleDoc) {
 }
 
 export function ensureHigherBody(roleDoc) {
-  if (!roleDoc || !["admin", "principal", "higher_body"].includes(roleDoc.role)) {
+  const allowed = ["admin", "principal", "higher_body"];
+  const role = String(roleDoc?.role || "").toLowerCase().trim();
+  if (!roleDoc || !allowed.includes(role)) {
     const err = new Error("Only principal or higher administrative body can perform this action");
     err.statusCode = 403;
     throw err;
@@ -266,3 +295,4 @@ export function errorResponse(error) {
     headers: { "Content-Type": "application/json" },
   });
 }
+

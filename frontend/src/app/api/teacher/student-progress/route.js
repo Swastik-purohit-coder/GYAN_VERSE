@@ -14,45 +14,31 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized: Please sign in" }, { status: 401 });
     }
 
-    // 1. Verify Teacher role & authorized school_id
-    const teacherRoleDoc = await runSingle(
-      supabase
-        .from("user_roles")
-        .select("role, school_id")
-        .eq("user_id", teacherUserId)
-        .maybeSingle()
-    );
+    const teacher = await requireUserRole(teacherUserId);
+    ensureTeacher(teacher);
 
-    if (!teacherRoleDoc || !["teacher", "admin"].includes(teacherRoleDoc.role)) {
-      return NextResponse.json(
-        { error: "Forbidden: Only teachers can access student progress reporting" },
-        { status: 403 }
-      );
-    }
-
-    const schoolId = teacherRoleDoc.school_id;
-    if (!schoolId) {
-      return NextResponse.json({
-        progressReports: [],
-        message: "Teacher account is not linked to any school ID.",
-      });
-    }
+    const schoolId = teacher.school_id || teacher.schoolId || "default_school";
 
     console.log("========== TEACHER PROGRESS DEBUG ==========");
     console.log("teacherId:", teacherUserId);
-    console.log("teacherRole:", teacherRoleDoc.role);
+    console.log("teacherRole:", teacher.role);
     console.log("teacherSchoolId:", schoolId);
     console.log("API endpoint: GET /api/teacher/student-progress");
     console.log("Supabase query filters: school_id =", schoolId);
 
-    // 2. Fetch all students enrolled in this school
+    // 2. Fetch all students enrolled in this school (or all if default_school)
     let students = [];
     try {
-      const { data, error } = await supabase
+      let studentQuery = supabase
         .from("user_roles")
         .select("user_id, name, class, created_at")
-        .eq("school_id", schoolId)
         .eq("role", "student");
+
+      if (schoolId && schoolId !== "default_school") {
+        studentQuery = studentQuery.or(`school_id.eq.${schoolId},school_id.is.null,school_id.eq.default_school`);
+      }
+
+      const { data, error } = await studentQuery;
 
       if (error) {
         console.warn("[/api/teacher/student-progress] students query error:", error.message);

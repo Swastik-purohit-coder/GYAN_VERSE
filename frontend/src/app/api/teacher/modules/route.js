@@ -24,10 +24,7 @@ export async function GET(request) {
     const teacher = await requireUserRole(userId);
     ensureTeacher(teacher);
 
-    const schoolId = teacher.school_id;
-    if (!schoolId) {
-      return NextResponse.json({ error: "Teacher is not assigned to a school" }, { status: 403 });
-    }
+    const schoolId = teacher.school_id || teacher.schoolId || "default_school";
 
     const { searchParams } = new URL(request.url);
     const classFilter = searchParams.get("class");
@@ -36,13 +33,17 @@ export async function GET(request) {
     let query = supabase
       .from("learning_modules")
       .select("id, school_id, class, subject_id, title, description, thumbnail_url, published, created_by, created_at, updated_at")
-      .eq("school_id", schoolId)
       .order("created_at", { ascending: false });
 
-    if (classFilter) {
+    // Allow modules belonging to this school or default_school / null
+    if (schoolId && schoolId !== "all" && schoolId !== "default_school") {
+      query = query.or(`school_id.eq.${schoolId},school_id.is.null,school_id.eq.default_school`);
+    }
+
+    if (classFilter && classFilter !== "all") {
       query = query.eq("class", classFilter);
     }
-    if (subjectId) {
+    if (subjectId && subjectId !== "all") {
       query = query.eq("subject_id", subjectId);
     }
 
@@ -76,10 +77,7 @@ export async function POST(request) {
     const teacher = await requireUserRole(userId);
     ensureTeacher(teacher);
 
-    const schoolId = teacher.school_id;
-    if (!schoolId) {
-      return NextResponse.json({ error: "Teacher is not assigned to a school" }, { status: 403 });
-    }
+    const schoolId = teacher.school_id || teacher.schoolId || "default_school";
 
     const body = await request.json();
     const { title, description, class: klass, subjectId, thumbnailUrl, published = true } = body || {};
