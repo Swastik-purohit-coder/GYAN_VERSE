@@ -158,6 +158,21 @@ class ApiClient {
   }
 
   // ===========================================
+  // STUDENT CLASS COURSES API (SYSTEM 2)
+  // ===========================================
+
+  async getCourses() {
+    return this.request('/courses');
+  }
+
+  async saveCourseVideoProgress({ videoId, lastPosition, duration, completed }) {
+    return this.request('/courses/progress', {
+      method: 'POST',
+      body: { videoId, lastPosition, duration, completed },
+    });
+  }
+
+  // ===========================================
   // QUIZZES API
   // ===========================================
 
