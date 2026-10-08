@@ -40,48 +40,46 @@ export default function ThemeProvider({ children }) {
     const delVar = (name) => root.style.removeProperty(name);
 
     if (theme === "light") {
-      // Page background and global text color (neutral light theme)
-      body.style.backgroundColor = "#ffffff"; // white page bg
-      body.style.color = "#000000"; // make content text black
+      // Clean modern light theme
+      body.style.backgroundColor = "#F8FAFC";
+      body.style.color = "#0F172A";
 
       // Token-based variables used across the UI system
-      setVar("--background", "#ffffff");
-      setVar("--foreground", "#000000");
-      // Keep existing light component tokens for now unless overridden locally
-      setVar("--card", "#d4ffd4");
-      setVar("--card-foreground", "#000000");
-      setVar("--popover", "#d4ffd4");
-      setVar("--popover-foreground", "#000000");
-      setVar("--secondary", "#d4ffd4");
-      setVar("--secondary-foreground", "#000000");
-      setVar("--muted", "#d4ffd4");
-      setVar("--muted-foreground", "#000000");
-      setVar("--accent", "#d4ffd4");
-      setVar("--accent-foreground", "#000000");
-      setVar("--input-background", "#d4ffd4");
-      setVar("--switch-background", "#d4ffd4");
-      setVar("--border", "#e5e7eb"); // neutral gray border (Tailwind slate-200)
+      setVar("--background", "#F8FAFC");
+      setVar("--foreground", "#0F172A");
+      setVar("--card", "#ffffff");
+      setVar("--card-foreground", "#0F172A");
+      setVar("--popover", "#ffffff");
+      setVar("--popover-foreground", "#0F172A");
+      setVar("--secondary", "#f1f5f9");
+      setVar("--secondary-foreground", "#0F172A");
+      setVar("--muted", "#f1f5f9");
+      setVar("--muted-foreground", "#64748B");
+      setVar("--accent", "#f1f5f9");
+      setVar("--accent-foreground", "#0F172A");
+      setVar("--input-background", "#ffffff");
+      setVar("--switch-background", "#cbd5e1");
+      setVar("--border", "#E2E8F0");
     } else {
-      // Clean up inline overrides for dark or other themes
-      body.style.removeProperty("background-color");
-      body.style.removeProperty("color");
-      [
-        "--background",
-        "--foreground",
-        "--card",
-        "--card-foreground",
-        "--popover",
-        "--popover-foreground",
-        "--secondary",
-        "--secondary-foreground",
-        "--muted",
-        "--muted-foreground",
-        "--accent",
-        "--accent-foreground",
-        "--input-background",
-        "--switch-background",
-        "--border",
-      ].forEach(delVar);
+      // Clean modern dark theme
+      body.style.backgroundColor = "#0B0F19";
+      body.style.color = "#F8FAFC";
+
+      setVar("--background", "#0B0F19");
+      setVar("--foreground", "#F8FAFC");
+      setVar("--card", "#111827");
+      setVar("--card-foreground", "#F8FAFC");
+      setVar("--popover", "#111827");
+      setVar("--popover-foreground", "#F8FAFC");
+      setVar("--secondary", "#1e293b");
+      setVar("--secondary-foreground", "#F8FAFC");
+      setVar("--muted", "#1e293b");
+      setVar("--muted-foreground", "#94A3B8");
+      setVar("--accent", "#1e293b");
+      setVar("--accent-foreground", "#F8FAFC");
+      setVar("--input-background", "#1e293b");
+      setVar("--switch-background", "#334155");
+      setVar("--border", "#1F2937");
     }
 
     try { localStorage.setItem("theme", theme); } catch {}
