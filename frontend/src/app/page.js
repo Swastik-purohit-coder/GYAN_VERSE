@@ -128,11 +128,17 @@ export default function Welcome() {
         if (cancelled) return;
         setRedirecting(true);
         if (role === "student") {
+<<<<<<< Updated upstream
           router.replace("/student");
         } else if (["principal", "admin", "higher_body"].includes(role)) {
           router.replace("/principal");
         } else if (role === "teacher") {
           router.replace("/teacher");
+=======
+          router.replace("/student/dashboard");
+        } else if (role === "teacher" || role === "admin") {
+          router.replace("/teacher/dashboard");
+>>>>>>> Stashed changes
         } else {
           router.replace("/role-select");
         }

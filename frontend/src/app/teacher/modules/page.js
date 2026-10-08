@@ -109,6 +109,18 @@ function ModuleManager() {
     fetchUserRole(user.id)
       .then((doc) => {
         if (!active) return;
+<<<<<<< Updated upstream
+=======
+        const roleVal = typeof doc === "string" ? doc : doc?.role;
+        if (roleVal === "unassigned") {
+          router.replace("/role-select");
+          return;
+        }
+        if (roleVal === "student") {
+          router.replace("/student/dashboard");
+          return;
+        }
+>>>>>>> Stashed changes
         setRoleDoc(doc);
       })
       .catch((err) => {
@@ -129,34 +141,6 @@ function ModuleManager() {
   const role = (rawRole && rawRole !== "unassigned")
     ? rawRole
     : user?.unsafeMetadata?.role || (typeof window !== "undefined" ? localStorage.getItem("userRole") : null) || "teacher";
-
-  const handleSwitchToTeacherRole = async () => {
-    if (!user?.id) return;
-    setRoleLoading(true);
-    setRoleError(null);
-    try {
-      const updated = await saveUserRole({
-        userId: user.id,
-        role: "teacher",
-        name: user.fullName || user.firstName || "Teacher",
-        schoolId: schoolId || null,
-      });
-      if (user.update) {
-        await user.update({
-          unsafeMetadata: {
-            ...(user.unsafeMetadata || {}),
-            role: "teacher",
-            schoolId: schoolId || null,
-          },
-        }).catch(() => {});
-      }
-      setRoleDoc(updated?.user || { role: "teacher", school_id: schoolId || null, user_id: user.id });
-    } catch (err) {
-      setRoleError("Failed to update account role: " + err.message);
-    } finally {
-      setRoleLoading(false);
-    }
-  };
 
   // Fetch subjects for school & class
   const { subjects } = useSubjects({

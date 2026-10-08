@@ -1,4 +1,5 @@
 "use client";
+<<<<<<< Updated upstream
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -26,4 +27,10 @@ export default function TeacherPage() {
   }, [user, isLoaded, router]);
 
   return <TeacherDashboardView defaultView="teacher" />;
+=======
+import STEMDashboardView from "@teacher/components/STEMDashboardView";
+
+export default function TeacherPage() {
+  return <STEMDashboardView />;
+>>>>>>> Stashed changes
 }

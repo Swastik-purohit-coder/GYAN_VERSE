@@ -1,11 +1,19 @@
 "use client";
+<<<<<<< Updated upstream
 
 import { useState } from "react";
+=======
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useUser, SignedIn, SignedOut, RedirectToSignIn } from "@clerk/nextjs";
+import { fetchUserRole } from "@/lib/users";
+>>>>>>> Stashed changes
 import TeacherSidebar from "@/teacher/components/TeacherSidebar";
 import { Menu, Building2, Bell, Sparkles } from "lucide-react";
 import { Badge } from "@/teacher/components/ui/badge";
 
 export default function TeacherLayout({ children }) {
+<<<<<<< Updated upstream
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -38,5 +46,68 @@ export default function TeacherLayout({ children }) {
         </main>
       </div>
     </div>
+=======
+  const { user, isLoaded, isSignedIn } = useUser();
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn || !user?.id) return;
+
+    let active = true;
+    fetchUserRole(user.id)
+      .then((data) => {
+        if (!active) return;
+        const role = typeof data === "string" ? data : data?.role;
+        if (role === "student") {
+          router.replace("/student/dashboard");
+          return;
+        }
+        if (role === "unassigned") {
+          router.replace("/role-select");
+          return;
+        }
+        if (role === "teacher" || role === "admin") {
+          setAuthorized(true);
+        } else {
+          router.replace("/student/dashboard");
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        router.replace("/student/dashboard");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isLoaded, isSignedIn, user?.id, router]);
+
+  return (
+    <>
+      <SignedIn>
+        {authorized ? (
+          <div className="min-h-screen w-full bg-gradient-to-br from-indigo-500 via-purple-500 to-violet-600">
+            <div className="flex">
+              <TeacherSidebar />
+              <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6">
+                <div className="max-w-6xl mx-auto">{children}</div>
+              </main>
+            </div>
+          </div>
+        ) : (
+          <div className="min-h-screen w-full bg-gradient-to-br from-indigo-500 via-purple-500 to-violet-600 flex items-center justify-center">
+            <div className="text-white font-medium text-sm animate-pulse">
+              Verifying teacher authorization...
+            </div>
+          </div>
+        )}
+      </SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
+>>>>>>> Stashed changes
   );
 }

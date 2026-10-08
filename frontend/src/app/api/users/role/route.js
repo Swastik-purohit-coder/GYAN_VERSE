@@ -127,7 +127,16 @@ export async function POST(request) {
       }
     }
 
+<<<<<<< Updated upstream
     return NextResponse.json({ success: true, user: saved ?? finalPayload });
+=======
+    try {
+      const { invalidateServerUserRoleCache } = await import("@/lib/serverRoleAuth");
+      invalidateServerUserRoleCache(targetUserId);
+    } catch {}
+
+    return NextResponse.json({ success: true, user: saved ?? payload });
+>>>>>>> Stashed changes
   } catch (error) {
     console.warn("[/api/users/role] Error caught, gracefully falling back:", error.message);
     const fallbackPayload = {

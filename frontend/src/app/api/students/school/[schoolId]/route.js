@@ -1,10 +1,26 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { supabase, run } from "../../../_utils/supabase";
+import { supabase, run, runSingle } from "../../../_utils/supabase";
 
 export const runtime = "nodejs";
 
 export async function GET(_request, context) {
   try {
+    const authObj = await auth();
+    const userId = authObj?.userId;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized: Sign in required" }, { status: 401 });
+    }
+    const caller = await runSingle(
+      supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle()
+    );
+    if (!caller || !["teacher", "admin"].includes(caller.role)) {
+      return NextResponse.json(
+        { error: "Forbidden: Teacher privileges required" },
+        { status: 403 }
+      );
+    }
+
     const { schoolId } = await context.params;
     const rows = await run(
       supabase

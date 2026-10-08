@@ -27,8 +27,8 @@ export default function Layout({ children }) {
       <header className="bg-indigo-600 text-white p-4 flex justify-between items-center">
         <h1 className="text-xl font-bold">GYANARATNA</h1>
         <nav className="space-x-4 hidden md:block">
-          <Link href="/student-dashboard">Student</Link>
-          <Link href="/teacher-dashboard">Teacher</Link>
+          <Link href="/student/dashboard">Student</Link>
+          <Link href="/teacher/dashboard">Teacher</Link>
         </nav>
       </header>
 
