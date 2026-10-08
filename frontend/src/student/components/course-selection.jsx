@@ -1,481 +1,497 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
-import { FaArrowLeft } from "react-icons/fa";
 import {
-	Layers,
-	Cpu,
-	Database,
-	HardDrive,
-	Network,
-	CircuitBoard,
-	BookOpen,
-	PenTool,
-	Cog,
-	FlaskConical
+  BookOpen,
+  Calculator,
+  FlaskConical,
+  Play,
+  CheckCircle2,
+  Clock,
+  ArrowLeft,
+  Video,
+  X,
+  Sparkles,
+  Layers,
 } from "lucide-react";
-import { useI18n } from "@/i18n/useI18n";
-import { useSubjects } from "@/hooks/useApi";
-import { fetchUserRole } from "@/lib/users";
-import { getSubjectsForBranch, formatBranchName } from "@/student/data/branchSubjects";
-import SkillTrackCard from "./SkillTrackCard";
-import StudentLearningModules from "./StudentLearningModules";
-import { Card, CardContent } from "./ui/card";
 import { SubHeader } from "./sub-header";
-import styles from "./Courses.module.css";
+import { Card, CardContent } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import YouTubePlayer from "./YouTubePlayer";
+import { useCourses } from "@/hooks/useCourses";
 
-// Static mapping of course content: subject -> topic -> lessons[]
-const courseContentMap = {
-	"Data Structures": {
-		"Array": [
-			{ id: "l1", title: "Array Lecture 1: Intro to Arrays", youtubeUrl: "https://www.youtube.com/embed/bR0NYdmMg94?si=9WUSxLbc0fvKYpB5" },
-			{ id: "l2", title: "Array Lecture 2", youtubeUrl: "https://www.youtube.com/embed/-sktNalfrE0?si=rCRvcZhdlOxGyEFa" },
-			{ id: "l3", title: "L-3: Array Operations", youtubeUrl: "https://www.youtube.com/embed/Bnjbun-hiBk?si=1_sH_OqvXk3g9cj7" },
-			{ id: "l4", title: "L-4: 2D Arrays", youtubeUrl: "https://www.youtube.com/embed/sEiMDFdbPGo?si=GcUjpgKPcLJNn_BO" },
-			{ id: "l5", title: "L-5: Dynamic Arrays", youtubeUrl: "https://www.youtube.com/embed/q8j8EqCZcWM?si=2IClfzZ3J-8pGj_6" },
-			{ id: "l6", title: "L-6: Practice Problems", youtubeUrl: "https://www.youtube.com/embed/J7EhXvnixRM?si=E7IU5LaLaZa7xNCv" },
-			{ id: "l7", title: "L-7: Conclusion", youtubeUrl: "https://www.youtube.com/embed/aWKJ5lRgI3U?si=SBTYTXxe4w2cprR2" }
-		],
-		"LinkedList": [
-			{ id: "l1", title: "L-1: Intro to LinkedLists", youtubeUrl: "https://www.youtube.com/embed/TWMCMvfEAv4?si=xtbqm092tF2R-HhV" },
-			{ id: "l2", title: "L-2:  Creation and Traversal ", youtubeUrl: "https://www.youtube.com/embed/BHphhqL9EOE?si=BPplOKOeo1RHmMDN" },
-			{ id: "l3", title: "L-3: Insertion of a Node in a Linked List", youtubeUrl: "https://www.youtube.com/embed/ewCc7O2K5SM?si=ccNOwn6qe_4zKlxc" },
-			{ id: "l4", title: "L-4: Insertion in a Linked List", youtubeUrl: "https://www.youtube.com/embed/_PuIzVqJJbA?si=WwKpY7btPPS-BUHR" },
-			{ id: "l5", title: "L-5: Deletion in a Linked List", youtubeUrl: "https://www.youtube.com/embed/R_7qJzAWrMg?si=RfghT1ZT5VWxNe7b" },
-			{ id: "l6", title: "L-6: Delete a Node from Linked List ", youtubeUrl: "https://www.youtube.com/embed/UQIJNobtzVY?si=SaypDPcYEl3Rgpp6" },
-			{ id: "l7", title: "L-7: Circular Linked List and Operations in Data Structures", youtubeUrl: "https://www.youtube.com/embed/41lXYJID3OQ?si=mOl9KfYbzcEWKkaR" },
-			{ id: "l8", title: "L-8: Circular Linked Lists part 2", youtubeUrl: "https://www.youtube.com/embed/UclZxvnOQZc?si=g0gcZ21vGSStl9OO" },
-			{ id: "l9", title: "L-9: Practice Problems on Linked Lists", youtubeUrl: "https://www.youtube.com/embed/6wXZ_m3SbEs?si=c2cQLK42OthRn6fL" },
-			{ id: "l10", title: "L-10: Conclusion", youtubeUrl: "https://www.youtube.com/embed/APbaAIRzQns?si=_r0meJfjxPXfDLGZ" },
-		],
-		"Stack": [
-			{ id: "l1", title: "L-1: Introduction to Stack in Data Structures", youtubeUrl: "https://www.youtube.com/embed/-n2rVJE4vto?si=LTyBpQ83zYClJh2k" },
-			{ id: "l2", title: "L-2: LIFO Principle", youtubeUrl: "https://www.youtube.com/embed/VmsTAVpz0xo?si=4DjWPNO6HiUdJvyc" },
-			{ id: "l3", title: "L-3: Basic Operations", youtubeUrl: "https://www.youtube.com/embed/Flk5yrlx5Qo?si=v8TnLaQIi3z-kS38" },
-			{ id: "l4", title: "L-4: Auxiliary Operations", youtubeUrl: "https://www.youtube.com/embed/V4Wwuu05_t4?si=adKTcpGxSSEfQCCW" },
-			{ id: "l5", title: "L-5: Implementation", youtubeUrl: "https://www.youtube.com/embed/r2yHEW8HmBE?si=Q2Tb5DprEKIxdLSR" },
-			{ id: "l6", title: "L-6: Applications of Stack", youtubeUrl: "https://www.youtube.com/embed/7jLR-al8RaM?si=dJF1jPMlHxNnFjP2" },
-			{ id: "l7", title: "L-7: Practice Problems on Stack", youtubeUrl: "https://www.youtube.com/embed/ztsxdI-jCk4?si=N1jf30gXMDQWdRTV" },
-
-
-		],
-		"Queue": [
-			{id : "l1", title: "L-1: Introduction to Queue in Data Structures", youtubeUrl: "https://www.youtube.com/embed/zp6pBNbUB2U?si=DzN64Tj1KxMhxHKJ" },
-		],
-		"Trees": [
-		],
-		"Graph": [
-		],
-		// add other topics/lessons as needed
-	}
+// Map subject icons cleanly
+const getSubjectIcon = (iconName, subjectName) => {
+  const norm = (iconName || subjectName || "").toLowerCase();
+  if (norm.includes("math") || norm.includes("calc")) {
+    return <Calculator className="w-6 h-6 text-indigo-400" />;
+  }
+  if (norm.includes("sci") || norm.includes("flask") || norm.includes("chem") || norm.includes("phys")) {
+    return <FlaskConical className="w-6 h-6 text-emerald-400" />;
+  }
+  if (norm.includes("eng") || norm.includes("book") || norm.includes("read") || norm.includes("lit")) {
+    return <BookOpen className="w-6 h-6 text-amber-400" />;
+  }
+  return <Layers className="w-6 h-6 text-cyan-400" />;
 };
 
-const ICON_PALETTE = [
-	Layers,
-	Cpu,
-	Database,
-	HardDrive,
-	Network,
-	CircuitBoard,
-	BookOpen,
-	PenTool,
-	Cog,
-	FlaskConical
-];
+export function CourseSelection() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-function parseClassValue(value) {
-	if (!value) return null;
-	const match = String(value).match(/^([A-Za-z]+)[-_\s]*Sem(?:ester)?\s*(\d{1,2})$/i);
-	if (!match) return null;
-	const rawBranch = match[1];
-	const semesterNumber = Number(match[2]);
-	if (!Number.isFinite(semesterNumber)) return null;
-	const branchKey = rawBranch.toUpperCase();
-	const branchDisplay = formatBranchName(rawBranch);
-	return {
-		branchKey,
-		branchDisplay,
-		branchForClass: branchDisplay,
-		semester: semesterNumber
-	};
+  const {
+    studentClass,
+    canonicalClassName,
+    subjects,
+    message,
+    loading,
+    error,
+    updateVideoProgress,
+  } = useCourses();
+
+  const [selectedSubjectId, setSelectedSubjectId] = useState(null);
+  const [activeVideo, setActiveVideo] = useState(null);
+
+  // Derive the active subject object
+  const selectedSubject = useMemo(() => {
+    if (!selectedSubjectId) return null;
+    return subjects.find((s) => s.id === selectedSubjectId) || null;
+  }, [selectedSubjectId, subjects]);
+
+  // Support deep-linking from searchParams: /student/courses?subject=Mathematics
+  useEffect(() => {
+    const subjectParam = searchParams?.get("subject");
+    if (!subjectParam || selectedSubjectId || !subjects.length) return;
+
+    const paramLower = subjectParam.trim().toLowerCase();
+    const matched = subjects.find(
+      (s) => s.subjectName.toLowerCase() === paramLower || s.id.toLowerCase() === paramLower
+    );
+    if (matched) {
+      setSelectedSubjectId(matched.id);
+    }
+  }, [searchParams, selectedSubjectId, subjects]);
+
+  const handleProgressUpdate = ({ videoId, currentTime, duration, completed }) => {
+    updateVideoProgress({
+      videoId,
+      lastPosition: currentTime,
+      duration,
+      completed,
+    });
+  };
+
+  const currentClassTitle = canonicalClassName || studentClass || "My Class";
+
+  return (
+    <div className="space-y-6">
+      <SubHeader showProgress showStreak user={{ streak: 7, xp: 620, xpToNextLevel: 1000, level: 10 }} />
+
+      <Card className="border border-slate-700 bg-slate-900/90 text-white shadow-xl backdrop-blur-sm">
+        <CardContent className="p-6">
+          {/* Top Breadcrumb & Header */}
+          <div className="mb-6 border-b border-slate-800 pb-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-400">
+                  <span>Courses</span>
+                  {selectedSubject && (
+                    <>
+                      <span>/</span>
+                      <span>{currentClassTitle}</span>
+                      <span>/</span>
+                      <span className="text-white">{selectedSubject.subjectName}</span>
+                    </>
+                  )}
+                </div>
+                <h1 className="mt-1 text-2xl font-black text-white tracking-tight">
+                  {selectedSubject ? `${selectedSubject.subjectName}` : `${currentClassTitle} Courses`}
+                </h1>
+              </div>
+
+              {!selectedSubject && (
+                <div className="mt-2 sm:mt-0 flex items-center gap-2">
+                  <Badge variant="outline" className="border-indigo-500/40 bg-indigo-500/10 text-indigo-300 px-3 py-1 text-xs">
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-indigo-400" /> Curated YouTube Curriculum
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="py-16 text-center text-slate-400 space-y-3">
+              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-sm font-medium">Loading your class courses...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {!loading && error && (
+            <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-sm">
+              <p className="font-semibold">Unable to load courses:</p>
+              <p className="text-xs text-red-400 mt-1">{error}</p>
+            </div>
+          )}
+
+          {/* Missing Class in Profile */}
+          {!loading && !error && !studentClass && (
+            <div className="py-12 text-center text-slate-300 space-y-4 max-w-md mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto text-xl font-bold">
+                ⚠️
+              </div>
+              <h3 className="text-lg font-bold text-white">Student Class Required</h3>
+              <p className="text-sm text-slate-400">
+                {message || "Please select your Class in your profile to access your class-specific courses."}
+              </p>
+              <Button
+                onClick={() => router.push("/role-select")}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold px-4 py-2"
+              >
+                Set My Class
+              </Button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && studentClass && subjects.length === 0 && (
+            <div className="py-16 text-center text-slate-400 space-y-2">
+              <Video className="w-12 h-12 mx-auto text-slate-600" />
+              <h3 className="text-base font-semibold text-slate-200">
+                No course videos are available for {currentClassTitle} yet.
+              </h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Class curriculum videos will appear here once published.
+              </p>
+            </div>
+          )}
+
+          {/* VIEW 1: SUBJECTS OVERVIEW GRID */}
+          {!loading && !error && !selectedSubject && subjects.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {subjects.map((subject) => {
+                const total = subject.totalVideos || 0;
+                const completed = subject.completedVideos || 0;
+                const progressPct = subject.progressPercent || 0;
+                const isStarted = progressPct > 0;
+
+                return (
+                  <div
+                    key={subject.id}
+                    className="group relative rounded-2xl border border-slate-800 bg-slate-800/60 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-indigo-500/50 hover:bg-slate-800 hover:shadow-indigo-500/10 hover:shadow-lg flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Top Row: Icon + Video Count Badge */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 rounded-xl bg-slate-900 border border-slate-700/60 group-hover:border-indigo-500/40 transition-colors">
+                          {getSubjectIcon(subject.icon, subject.subjectName)}
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="bg-slate-900/80 text-slate-300 border border-slate-700/60 text-xs px-2.5 py-0.5"
+                        >
+                          {total} {total === 1 ? "video" : "videos"}
+                        </Badge>
+                      </div>
+
+                      {/* Subject Name */}
+                      <h3 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-300 transition-colors">
+                        {subject.subjectName}
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1 mb-4">
+                        {total} learning videos
+                      </p>
+
+                      {/* Progress Bar & Percentage */}
+                      <div className="space-y-1.5 mb-5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-400 font-medium">Completion</span>
+                          <span className="font-bold text-indigo-300">{progressPct}%</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-700/40">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                            style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
+                          />
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {completed} of {total} completed
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <Button
+                      onClick={() => setSelectedSubjectId(subject.id)}
+                      className={`w-full rounded-xl text-xs font-semibold py-2.5 flex items-center justify-center gap-1.5 transition-all ${
+                        isStarted
+                          ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20"
+                          : "bg-slate-700 hover:bg-slate-600 text-white"
+                      }`}
+                    >
+                      <span>{isStarted ? "Continue Learning" : "Start Learning"}</span>
+                      <span>→</span>
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* VIEW 2: SUBJECT VIDEO LIST */}
+          {!loading && !error && selectedSubject && (
+            <div className="space-y-6">
+              {/* Back to courses button */}
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setSelectedSubjectId(null)}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors group"
+                >
+                  <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-1 transition-transform" />
+                  <span>Back to Courses</span>
+                </button>
+
+                <div className="text-xs text-slate-400">
+                  <span className="font-bold text-white">{selectedSubject.completedVideos}</span> of{" "}
+                  <span className="font-bold text-white">{selectedSubject.totalVideos}</span> completed (
+                  <span className="text-indigo-400 font-semibold">{selectedSubject.progressPercent}%</span>)
+                </div>
+              </div>
+
+              {/* Subject Title Banner */}
+              <div className="rounded-2xl bg-slate-800/70 border border-slate-700/60 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-700 text-indigo-400">
+                    {getSubjectIcon(selectedSubject.icon, selectedSubject.subjectName)}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      {currentClassTitle} → {selectedSubject.subjectName}
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Curated educational videos ordered by curriculum sequence
+                    </p>
+                  </div>
+                </div>
+
+                <div className="w-full sm:w-48 space-y-1">
+                  <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+                      style={{ width: `${selectedSubject.progressPercent}%` }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-right text-slate-400">
+                    {selectedSubject.progressPercent}% completed
+                  </div>
+                </div>
+              </div>
+
+              {/* Video List */}
+              {selectedSubject.videos.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  No videos published for {selectedSubject.subjectName} yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedSubject.videos.map((vid, idx) => {
+                    const isCompleted = Boolean(vid.progress?.completed);
+                    const inProgress = !isCompleted && (vid.progress?.lastPosition || 0) > 0;
+                    const durationMins = vid.duration ? Math.round(vid.duration / 60) : null;
+
+                    return (
+                      <div
+                        key={vid.id}
+                        className={`group rounded-xl border p-4 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                          isCompleted
+                            ? "bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/80"
+                            : inProgress
+                            ? "bg-slate-800/90 border-indigo-500/40 shadow-sm shadow-indigo-500/10"
+                            : "bg-slate-800/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800"
+                        }`}
+                      >
+                        {/* Video Info Left */}
+                        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                          {/* Order Number / Status Icon */}
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs mt-0.5 ${
+                              isCompleted
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                : inProgress
+                                ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+                                : "bg-slate-900 text-slate-400 border border-slate-700"
+                            }`}
+                          >
+                            {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                          </div>
+
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-semibold text-white text-sm group-hover:text-indigo-300 transition-colors">
+                                {vid.title}
+                              </h4>
+                              <Badge className="bg-red-950/60 text-red-300 border-red-800/40 text-[10px] px-1.5 py-0">
+                                YouTube
+                              </Badge>
+                              {isCompleted && (
+                                <Badge className="bg-emerald-950/60 text-emerald-300 border-emerald-800/40 text-[10px] px-1.5 py-0">
+                                  Completed
+                                </Badge>
+                              )}
+                              {inProgress && (
+                                <Badge className="bg-indigo-950/60 text-indigo-300 border-indigo-800/40 text-[10px] px-1.5 py-0">
+                                  In Progress ({vid.progress?.completionPct}%)
+                                </Badge>
+                              )}
+                            </div>
+
+                            {vid.description && (
+                              <p className="text-xs text-slate-400 line-clamp-2">
+                                {vid.description}
+                              </p>
+                            )}
+
+                            {durationMins && (
+                              <div className="flex items-center gap-1 text-[11px] text-slate-500 pt-0.5">
+                                <Clock className="w-3 h-3" />
+                                <span>~{durationMins} min</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Watch Action Button */}
+                        <div className="w-full sm:w-auto shrink-0 flex justify-end">
+                          <Button
+                            onClick={() => setActiveVideo(vid)}
+                            className={`rounded-xl text-xs font-semibold px-4 py-2 flex items-center gap-1.5 w-full sm:w-auto ${
+                              isCompleted
+                                ? "bg-slate-700 hover:bg-slate-600 text-white"
+                                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30"
+                            }`}
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>Watch</span>
+                            <span>→</span>
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* VIEW 3: YOUTUBE VIDEO PLAYER MODAL */}
+      {activeVideo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setActiveVideo(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden text-white flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+              <div className="space-y-0.5 min-w-0 pr-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className="bg-indigo-600 text-white text-[10px]">
+                    {selectedSubject?.subjectName || "Course"}
+                  </Badge>
+                  <span className="text-xs text-slate-400">
+                    {currentClassTitle}
+                  </span>
+                  {activeVideo.progress?.completed && (
+                    <Badge className="bg-emerald-600 text-white text-[10px] flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Completed
+                    </Badge>
+                  )}
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-white truncate">
+                  {activeVideo.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setActiveVideo(null)}
+                aria-label="Close video player"
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Video Player Area */}
+            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+              <YouTubePlayer
+                url={activeVideo.youtubeUrl}
+                courseVideoId={activeVideo.id}
+                onProgress={handleProgressUpdate}
+                autoPlay={true}
+              />
+            </div>
+
+            {/* Modal Footer & Information */}
+            <div className="p-4 bg-slate-900/90 border-t border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="text-xs text-slate-400">
+                {activeVideo.description || "Watch this lesson video to make progress in your course."}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <Button
+                  size="sm"
+                  variant={activeVideo.progress?.completed ? "default" : "outline"}
+                  className={`text-xs rounded-xl ${
+                    activeVideo.progress?.completed
+                      ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                      : "border-slate-700 text-slate-300 hover:bg-slate-800"
+                  }`}
+                  onClick={() => {
+                    const nextCompleted = !activeVideo.progress?.completed;
+                    handleProgressUpdate({
+                      videoId: activeVideo.id,
+                      currentTime: activeVideo.duration || 100,
+                      duration: activeVideo.duration || 100,
+                      completed: nextCompleted,
+                    });
+                    setActiveVideo((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            progress: {
+                              ...prev.progress,
+                              completed: nextCompleted,
+                              completionPct: nextCompleted ? 100 : 0,
+                            },
+                          }
+                        : null
+                    );
+                  }}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                  {activeVideo.progress?.completed ? "Completed" : "Mark Complete"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs border-slate-700 text-slate-300 hover:bg-slate-800 rounded-xl"
+                  onClick={() => setActiveVideo(null)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function normalizeSemester(value) {
-	const numeric = Number(value);
-	return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
-}
-
-export default function CourseSelection() {
-    const router = useRouter();
-	const searchParams = useSearchParams();
-	const { t } = useI18n();
-	const translate = useCallback(
-		(path, fallback) => {
-			if (!path) return fallback;
-			const segments = path.split(".");
-			let cursor = t;
-
-			for (const segment of segments) {
-				if (cursor == null) break;
-				cursor = cursor[segment];
-			}
-
-			if (typeof cursor === "function") {
-				try {
-					const value = cursor();
-					return value == null ? fallback : value;
-				} catch (error) {
-					console.warn("translate() failed for", path, error);
-					return fallback;
-				}
-			}
-
-			if (cursor != null) {
-				return String(cursor);
-			}
-
-			return fallback;
-		},
-		[t]
-	);
-	const { user: clerkUser, isLoaded } = useUser();
-	const userBranch = clerkUser?.publicMetadata?.branch || "CSE";
-
-	const [selectedSubject, setSelectedSubject] = useState(null);
-	const [selectedTopic, setSelectedTopic] = useState(null);
-	const [selectedVideoUrl, setSelectedVideoUrl] = useState(null);
-
-	const schoolSubjectsList = useMemo(
-		() => [
-			{ title: "Mathematics", icon: <Layers className="w-6 h-6" />, progress: 0, isRecommended: true, imageSrc: "/courses.img/ds.jpg" },
-			{ title: "Science", icon: <FlaskConical className="w-6 h-6" />, progress: 0, isRecommended: false, imageSrc: "/courses.img/Algorithmr.jpg" },
-			{ title: "Social Science", icon: <BookOpen className="w-6 h-6" />, progress: 0, isRecommended: false, imageSrc: "/courses.img/database-system.jpg" },
-			{ title: "English", icon: <PenTool className="w-6 h-6" />, progress: 0, isRecommended: false, imageSrc: "/courses.img/pngtree-operating-system.jpg" },
-			{ title: "Digital Literacy & Computer", icon: <Cpu className="w-6 h-6" />, progress: 0, isRecommended: false, imageSrc: "/courses.img/CN.png" },
-			{ title: "Environmental Studies (EVS)", icon: <HardDrive className="w-6 h-6" />, progress: 0, isRecommended: false, imageSrc: "/courses.img/digital%20logic.png" }
-		],
-		[]
-	);
-
-	const subTopicMap = useMemo(
-		() => ({
-			"Mathematics": [
-				{ id: "num", title: "Number Systems & Arithmetic", youtubeUrl: "https://www.youtube.com/embed/bR0NYdmMg94" },
-				{ id: "alg", title: "Algebra & Equations", youtubeUrl: "https://www.youtube.com/embed/3alv1t6dQmM" },
-				{ id: "geo", title: "Geometry & Shapes", youtubeUrl: "https://www.youtube.com/embed/5h4jYj3A9h8" },
-				{ id: "mens", title: "Mensuration & Area", youtubeUrl: "https://www.youtube.com/embed/9X0m3C1Q2ZM" }
-			],
-			"Science": [
-				{ id: "phy", title: "Physics: Light, Motion & Energy", youtubeUrl: "https://www.youtube.com/embed/ZZuD6iUe3Pc" },
-				{ id: "chem", title: "Chemistry: Matter, Atoms & Reactions", youtubeUrl: "https://www.youtube.com/embed/3uKXlRjQwTQ" },
-				{ id: "bio", title: "Biology: Life Processes & Cells", youtubeUrl: "https://www.youtube.com/embed/oBt53YbR9Kk" }
-			],
-			"Social Science": [
-				{ id: "hist", title: "History: Ancient & Modern Era", youtubeUrl: "https://www.youtube.com/embed/7uGZy0Cq1xk" },
-				{ id: "geo", title: "Geography: Earth & Maps", youtubeUrl: "https://www.youtube.com/embed/9Pzj7Aj25lw" },
-				{ id: "civ", title: "Civics: Rights & Governance", youtubeUrl: "https://www.youtube.com/embed/3D9nD2Y6g6s" }
-			],
-			"English": [
-				{ id: "gram", title: "Grammar & Sentence Structure", youtubeUrl: "https://www.youtube.com/embed/ee5gq8w3ZfA" },
-				{ id: "comp", title: "Reading Comprehension & Prose", youtubeUrl: "https://www.youtube.com/embed/2y2Bf1t6Iks" }
-			],
-			"Digital Literacy & Computer": [
-				{ id: "basics", title: "Computer System Fundamentals", youtubeUrl: "https://www.youtube.com/embed/1gkVjQw3PzE" },
-				{ id: "internet", title: "Internet Safety & Software Tools", youtubeUrl: "https://www.youtube.com/embed/6h3Gz3e4d7A" }
-			],
-			"Environmental Studies (EVS)": [
-				{ id: "eco", title: "Ecology, Trees & Wildlife", youtubeUrl: "https://www.youtube.com/embed/1gkVjQw3PzE" },
-				{ id: "water", title: "Water Conservation & Climate", youtubeUrl: "https://www.youtube.com/embed/6h3Gz3e4d7A" }
-			]
-		}),
-		[]
-	);
-
-	const VideoModal = ({ url, onClose }) => {
-		if (!url) return null;
-
-		return (
-			<div className={styles.videoModalBackdrop} onClick={onClose}>
-				<div className={styles.videoModalContent} onClick={(event) => event.stopPropagation()}>
-					<button aria-label="Close video" className={styles.modalCloseButton} onClick={onClose}>
-						×
-					</button>
-					<div className={styles.videoWrapper}>
-						<iframe
-							src={url}
-							title="YouTube video player"
-							frameBorder="0"
-							allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-							referrerPolicy="strict-origin-when-cross-origin"
-							allowFullScreen
-						></iframe>
-					</div>
-				</div>
-			</div>
-		);
-	};
-
-	const mainContent = !selectedSubject ? (
-		<div className={styles.skillTracksGrid}>
-			{schoolSubjectsList.map((track) => (
-				<div key={track.title}>
-					<SkillTrackCard
-						title={track.title}
-						icon={track.icon}
-						progress={track.progress}
-						isRecommended={track.isRecommended}
-						imageSrc={track.imageSrc}
-						variant="image-cover"
-						onContinueClick={() => setSelectedSubject(track.title)}
-					/>
-				</div>
-			))}
-		</div>
-	) : (
-		<section>
-			{!selectedTopic ? (
-				<>
-					<button
-						onClick={() => {
-							// If user arrived via deep link (subject query) or has history, prefer real browser back
-							const cameFromDeepLink = Boolean(searchParams?.get('subject'));
-							if (cameFromDeepLink && typeof window !== 'undefined' && window.history.length > 1) {
-								router.back();
-								return;
-							}
-							// Otherwise just go back to the subjects list inside this page
-							setSelectedSubject(null);
-						}}
-						className="mb-4 inline-flex items-center gap-2 text-sm text-gray-300"
-					>
-						<FaArrowLeft /> Back to Courses
-					</button>
-					<h3 className="mb-2 text-lg font-semibold text-white">{selectedSubject}</h3>
-					<p className="mb-4 text-sm text-gray-400">Choose a topic to start learning.</p>
-					<div className={styles.subTopicGrid}>
-						{Array.isArray(subTopicMap[selectedSubject]) ? (
-							subTopicMap[selectedSubject].map((topic) => (
-								<button key={topic.id} onClick={() => setSelectedTopic(topic)} className={styles.subTopicCard}>
-									{topic.title}
-								</button>
-							))
-						) : (
-							<p className="text-sm text-gray-400">No sub-topics found for {selectedSubject}.</p>
-						)}
-					</div>
-				</>
-			) : (
-				<div className={styles.lessonView}>
-					<button onClick={() => setSelectedTopic(null)} className="mb-4 inline-flex items-center gap-2 text-sm text-gray-300">
-						<FaArrowLeft /> Back to Topics
-					</button>
-					<h3 className="mb-2 text-lg font-semibold text-white">{selectedTopic?.title}</h3>
-					<p className="mb-4 text-sm text-gray-400">Select a lesson to play.</p>
-					<div className={styles.lessonList}>
-						{(courseContentMap[selectedSubject]?.[selectedTopic?.title] || []).map((lesson) => (
-							<button key={lesson.id} className={styles.lessonItem} onClick={() => setSelectedVideoUrl(lesson.youtubeUrl)}>
-								{lesson.title}
-							</button>
-						))}
-					</div>
-				</div>
-			)}
-		</section>
-	);
-
-	// (preselect moved below subjectLineup definition)
-
-	const [roleDoc, setRoleDoc] = useState(null);
-	const [roleError, setRoleError] = useState(null);
-	const [roleLoading, setRoleLoading] = useState(true);
-
-	useEffect(() => {
-		if (!isLoaded) return;
-
-		if (!clerkUser?.id) {
-			setRoleDoc(null);
-			setRoleError(null);
-			setRoleLoading(false);
-			return;
-		}
-
-		let cancelled = false;
-		setRoleLoading(true);
-		fetchUserRole(clerkUser.id)
-			.then((doc) => {
-				if (cancelled) return;
-				setRoleDoc(doc);
-				setRoleError(null);
-			})
-			.catch((err) => {
-				if (cancelled) return;
-				setRoleDoc(null);
-				setRoleError(err?.message || "Unable to load student profile");
-			})
-			.finally(() => {
-				if (cancelled) return;
-				setRoleLoading(false);
-			});
-
-		return () => {
-			cancelled = true;
-		};
-	}, [isLoaded, clerkUser?.id]);
-
-	const parsedClass = useMemo(() => parseClassValue(roleDoc?.class), [roleDoc?.class]);
-
-	const metadataBranchRaw = clerkUser?.publicMetadata?.branch
-		? String(clerkUser.publicMetadata.branch)
-		: null;
-	const metadataSemester = clerkUser?.publicMetadata?.semester
-		? normalizeSemester(clerkUser.publicMetadata.semester)
-		: null;
-
-	const branchKey = useMemo(() => {
-		if (parsedClass?.branchKey) return parsedClass.branchKey;
-		if (metadataBranchRaw) return metadataBranchRaw.toUpperCase();
-		return "CSE";
-	}, [parsedClass?.branchKey, metadataBranchRaw]);
-
-	const branchForDisplay = useMemo(() => {
-		if (parsedClass?.branchDisplay) return parsedClass.branchDisplay;
-		if (metadataBranchRaw) return formatBranchName(metadataBranchRaw);
-		return formatBranchName(branchKey);
-	}, [parsedClass?.branchDisplay, metadataBranchRaw, branchKey]);
-
-	const branchForClass = useMemo(() => {
-		if (parsedClass?.branchForClass) return parsedClass.branchForClass;
-		if (metadataBranchRaw) return formatBranchName(metadataBranchRaw);
-		return formatBranchName(branchKey);
-	}, [parsedClass?.branchForClass, metadataBranchRaw, branchKey]);
-
-	const semesterNumber = useMemo(() => {
-		if (parsedClass?.semester) return parsedClass.semester;
-		if (metadataSemester) return metadataSemester;
-		return 1;
-	}, [parsedClass?.semester, metadataSemester]);
-
-		const semesterDisplay = useMemo(
-			() => `${translate("student.courses.semesterLabel", "Semester")} ${semesterNumber}`,
-			[translate, semesterNumber]
-		);
-
-	const classFilter = useMemo(
-		() => `${branchForClass}-Sem${semesterNumber}`,
-		[branchForClass, semesterNumber]
-	);
-
-	const schoolId = roleDoc?.schoolId || roleDoc?.school_id || null;
-
-	const {
-		subjects,
-		loading: subjectsLoading,
-		error: subjectsError
-	} = useSubjects({
-		classFilter,
-		enabled: Boolean(branchForClass && semesterNumber)
-	});
-
-	const fallbackSubjects = useMemo(
-		() => getSubjectsForBranch(branchKey, semesterNumber),
-		[branchKey, semesterNumber]
-	);
-
-	const normalizedSubjects = useMemo(() => {
-		if (!Array.isArray(subjects) || subjects.length === 0) return [];
-		return subjects.map((subject) => ({
-			id: subject.id,
-			name: subject.name,
-			summary:
-				subject.description ||
-				fallbackSubjects.find((item) => item.name === subject.name)?.summary ||
-				""
-		}));
-	}, [subjects, fallbackSubjects]);
-
-		const usingFallback = useMemo(
-			() => !subjectsLoading && normalizedSubjects.length === 0,
-			[subjectsLoading, normalizedSubjects]
-		);
-
-	const subjectLineup = useMemo(
-		() => (normalizedSubjects.length > 0 ? normalizedSubjects : fallbackSubjects),
-		[normalizedSubjects, fallbackSubjects]
-	);
-
-		// Preselect subject when arriving from Dashboard links: /student/courses?subject=Algorithms
-		useEffect(() => {
-			const subjectParam = searchParams?.get('subject');
-			if (!subjectParam || selectedSubject) return;
-			const paramLower = subjectParam.toLowerCase();
-			const lineupMatch = subjectLineup.find((s) => (s.name || s.title)?.toLowerCase() === paramLower);
-			if (lineupMatch) {
-				setSelectedSubject(lineupMatch.name || lineupMatch.title);
-				return;
-			}
-			const fallbackMatch = schoolSubjectsList.find((t) => t.title.toLowerCase() === paramLower);
-			if (fallbackMatch) {
-				setSelectedSubject(fallbackMatch.title);
-			}
-		}, [searchParams, selectedSubject, subjectLineup, schoolSubjectsList]);
-
-	const subjectCards = useMemo(() => {
-		return subjectLineup.map((subject, index) => {
-			const Icon = ICON_PALETTE[index % ICON_PALETTE.length];
-			const progress = Math.min(95, 35 + index * 12);
-			return {
-				key: subject.id || `${subject.name}-${index}`,
-				title: subject.name,
-				icon: <Icon className="w-6 h-6" />,
-				progress,
-				isRecommended: index === 0,
-				summary: subject.summary || ""
-			};
-		});
-	}, [subjectLineup]);
-
-	const userClassDisplay = clerkUser?.publicMetadata?.class || roleDoc?.class || "Class 8";
-	const skillTracksHeading = translate("student.courses.skillTracksHeading", "School Subjects & Curriculum");
-	const headingLabel = translate("student.courses.subjectTracks", "School Subjects");
-	const branchLabel = "Class";
-	const loadingLabel = translate("student.courses.loading", "Loading personalized subjects...");
-	const fallbackNotice = translate(
-		"student.courses.fallbackNotice",
-		"Showing standard curriculum preview until your teacher publishes subjects."
-	);
-	const emptyStateLabel = translate(
-		"student.courses.empty",
-		"Subjects will appear here once your teacher assigns them."
-	);
-
-	return (
-		<div className="space-y-6">
-			<SubHeader showProgress showStreak user={{ streak: 7, xp: 620, xpToNextLevel: 1000, level: 10 }} />
-
-			<StudentLearningModules />
-
-			<Card className="border-2 bg-slate-800 dark:bg-slate-900">
-				<CardContent className="space-y-8 p-6">
-					<section>
-						<div className="mb-5 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-							<div>
-								<h2 className="text-xl font-bold text-white">{skillTracksHeading}</h2>
-								<p className="text-sm text-gray-300">
-									Curriculum: {userClassDisplay}
-								</p>
-							</div>
-						</div>
-
-						{mainContent}
-					</section>
-
-					{/* Subject Tracks section removed per request (cards removed) */}
-				</CardContent>
-			</Card>
-
-			{selectedVideoUrl && <VideoModal url={selectedVideoUrl} onClose={() => setSelectedVideoUrl(null)} />}
-		</div>
-	);
-}
+export default CourseSelection;

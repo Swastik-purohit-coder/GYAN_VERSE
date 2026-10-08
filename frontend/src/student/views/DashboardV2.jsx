@@ -41,6 +41,7 @@ import { useTheme } from '@/components/ThemeProvider';
 
 import StudentLearningModules from '../components/StudentLearningModules';
 import SkillTrackCard from '../components/SkillTrackCard';
+import FloatingGyanBot from '../components/FloatingGyanBot';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -48,8 +49,6 @@ import { fetchUserRole } from '@/lib/users';
 import { useSchoolContent, useStudentProgress, useSubjects, useStudentDashboard } from '@/hooks/useApi';
 import { askStudyBuddy } from '@/lib/api';
 import { buildUserContext } from '@/lib/chatbot/buildContext';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { useRealtimeQuizProgress } from '@/hooks/useRealtimeQuizProgress';
 import { useStreak } from '@/hooks/useStreak';
 import { RESOURCE_SECTION_ORDER, buildResourcePreview, extractYoutubeId, getResourceMeta, normalizeContentType } from '@student/utils/resourceHelpers';
@@ -290,25 +289,6 @@ export default function DashboardV2({ user = {} }) {
     } catch (error) {
       return String(value);
     }
-  };
-
-  const renderFormattedText = (text) => {
-    if (!text) return null;
-    return (
-      <div className="space-y-1 text-[11px] leading-relaxed">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
-            ul: ({ children }) => <ul className="mb-1.5 list-disc list-inside space-y-0.5">{children}</ul>,
-            ol: ({ children }) => <ol className="mb-1.5 list-decimal list-inside space-y-0.5">{children}</ol>,
-            strong: ({ children }) => <strong className="font-semibold text-[#635BFF]">{children}</strong>,
-          }}
-        >
-          {text}
-        </ReactMarkdown>
-      </div>
-    );
   };
 
   const recentRaw = quizProgress?.recentActivity;
@@ -895,89 +875,6 @@ export default function DashboardV2({ user = {} }) {
         </div>
 
         {/* =========================================
-            4. ASK GYAN-BOT CARD (AI STUDY BUDDY)
-           ========================================= */}
-        <Card className="rounded-2xl border border-[#E2E8F0] shadow-xs bg-white p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-2xl bg-[#F1EEFF] text-[#635BFF] flex items-center justify-center shadow-xs">
-              <Brain className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-sm text-[#172033] tracking-tight leading-none">
-                Ask Gyan-Bot
-              </h4>
-              <p className="text-[11px] text-[#64748B] font-medium mt-1">
-                Your AI Study Buddy
-              </p>
-            </div>
-          </div>
-
-          {/* Prompt input box */}
-          <div className="relative mb-3">
-            <input
-              type="text"
-              placeholder="Ask about Science, Math, etc..."
-              value={gyanBotQuery}
-              onChange={(e) => setGyanBotQuery(e.target.value)}
-              onKeyDown={handleGyanBotKeyDown}
-              className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-[#E2E8F0] bg-[#F7F8FC] text-xs text-[#172033] focus:outline-none focus:ring-2 focus:ring-[#635BFF]/20 focus:border-[#635BFF] transition-all placeholder:text-[#64748B]"
-            />
-            <button
-              onClick={() => handleGyanBotSubmit()}
-              disabled={gyanBotLoading || !gyanBotQuery.trim()}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-[#635BFF] hover:bg-[#5148E5] disabled:opacity-40 text-white flex items-center justify-center transition-all shadow-xs"
-            >
-              <Send className="w-3 h-3" />
-            </button>
-          </div>
-
-          {/* Suggestion pill buttons */}
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {['Photosynthesis', 'Pythagoras Theorem', 'Fractions', 'Water Cycle'].map((topic) => (
-              <button
-                key={topic}
-                onClick={() => handleGyanBotSubmit(topic)}
-                className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-[#F1EEFF] hover:bg-[#E0DAFF] text-[#635BFF] transition-colors"
-              >
-                {topic}
-              </button>
-            ))}
-          </div>
-
-          {/* Chat history preview */}
-          {gyanBotHistory.length > 0 && (
-            <div className="max-h-40 overflow-y-auto space-y-2 mb-3 pr-1 scrollbar-thin">
-              {gyanBotHistory.slice(-4).map((entry, idx) => (
-                <div
-                  key={idx}
-                  className={`p-2.5 rounded-xl text-xs leading-relaxed ${
-                    entry.role === 'user'
-                      ? 'bg-[#F1EEFF] text-[#172033] ml-4 font-medium'
-                      : 'bg-[#F7F8FC] text-[#172033] mr-2'
-                  }`}
-                >
-                  <span className="block font-bold text-[9px] uppercase tracking-wider text-[#64748B] mb-0.5">
-                    {entry.role === 'user' ? 'You' : 'Gyan-Bot'}
-                  </span>
-                  {renderFormattedText(entry.content)}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-xs font-semibold rounded-xl border-[#E2E8F0] text-[#172033] hover:bg-[#F7F8FC] h-9"
-            asChild
-          >
-            <Link href="/student/study-buddy">
-              Open Full Screen Chat →
-            </Link>
-          </Button>
-        </Card>
-
-        {/* =========================================
             5. RECENT ACTIVITY CARD (CLEAN WHITE CARD)
            ========================================= */}
         <Card className="rounded-2xl border border-[#E2E8F0] shadow-xs bg-white p-5">
@@ -1035,6 +932,17 @@ export default function DashboardV2({ user = {} }) {
         </Card>
 
       </div>
+
+      {/* Floating Gyan-Bot AI Study Buddy Assistant */}
+      <FloatingGyanBot
+        query={gyanBotQuery}
+        setQuery={setGyanBotQuery}
+        history={gyanBotHistory}
+        loading={gyanBotLoading}
+        error={gyanBotError}
+        onSubmit={handleGyanBotSubmit}
+        onKeyDown={handleGyanBotKeyDown}
+      />
 
     </div>
   );

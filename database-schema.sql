@@ -521,7 +521,75 @@ CREATE TRIGGER update_monthly_competitions_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
--- SAMPLE DATA
+-- CLASS-BASED YOUTUBE COURSES SYSTEM (SYSTEM 2)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS course_subjects (
+  id TEXT PRIMARY KEY,
+  class TEXT NOT NULL,
+  subject_name TEXT NOT NULL,
+  display_order INTEGER DEFAULT 1,
+  icon TEXT DEFAULT 'BookOpen',
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_subjects_class ON course_subjects(class);
+CREATE INDEX IF NOT EXISTS idx_course_subjects_is_active ON course_subjects(is_active);
+CREATE INDEX IF NOT EXISTS idx_course_subjects_order ON course_subjects(display_order);
+
+CREATE TABLE IF NOT EXISTS course_videos (
+  id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL REFERENCES course_subjects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  youtube_url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  duration INTEGER DEFAULT 0,
+  display_order INTEGER DEFAULT 1,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_videos_subject_id ON course_videos(subject_id);
+CREATE INDEX IF NOT EXISTS idx_course_videos_order ON course_videos(display_order);
+CREATE INDEX IF NOT EXISTS idx_course_videos_is_active ON course_videos(is_active);
+
+CREATE TABLE IF NOT EXISTS course_video_progress (
+  id TEXT PRIMARY KEY,
+  student_id TEXT NOT NULL,
+  video_id TEXT NOT NULL REFERENCES course_videos(id) ON DELETE CASCADE,
+  last_position INTEGER DEFAULT 0,
+  duration INTEGER DEFAULT 0,
+  completion_pct INTEGER DEFAULT 0,
+  completed BOOLEAN DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT unique_student_course_video UNIQUE (student_id, video_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_course_video_progress_student ON course_video_progress(student_id);
+CREATE INDEX IF NOT EXISTS idx_course_video_progress_video ON course_video_progress(video_id);
+
+DROP TRIGGER IF EXISTS update_course_subjects_updated_at ON course_subjects;
+CREATE TRIGGER update_course_subjects_updated_at 
+  BEFORE UPDATE ON course_subjects 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_course_videos_updated_at ON course_videos;
+CREATE TRIGGER update_course_videos_updated_at 
+  BEFORE UPDATE ON course_videos 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_course_video_progress_updated_at ON course_video_progress;
+CREATE TRIGGER update_course_video_progress_updated_at 
+  BEFORE UPDATE ON course_video_progress 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- SAMPLE DATA (Optional - comment out if not needed)
 -- ============================================================================
 
 INSERT INTO subjects (id, name, description, class, icon, color)

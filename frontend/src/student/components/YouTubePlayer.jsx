@@ -7,6 +7,9 @@ import { saveLocalLessonProgress } from "@/lib/offlineDb";
 export default function YouTubePlayer({
   url,
   lessonId,
+  courseVideoId,
+  onProgress,
+  onEnded,
   autoPlay = false,
   dataSaver = false,
 }) {
@@ -60,6 +63,19 @@ export default function YouTubePlayer({
             } else {
               setIsPlaying(false);
             }
+
+            if (event.data === window.YT.PlayerState.ENDED) {
+              if (onEnded) onEnded();
+              if (courseVideoId && onProgress && playerRef.current?.getDuration) {
+                const dur = playerRef.current.getDuration() || 0;
+                onProgress({
+                  videoId: courseVideoId,
+                  currentTime: dur,
+                  duration: dur,
+                  completed: true,
+                });
+              }
+            }
           },
         },
       });
@@ -73,27 +89,41 @@ export default function YouTubePlayer({
         playerRef.current = null;
       }
     };
-  }, [videoId, autoPlay, dataSaver]);
+  }, [videoId, autoPlay, dataSaver, courseVideoId, onProgress, onEnded]);
 
   // Track playback position periodically
   useEffect(() => {
-    if (!isPlaying || !playerReady || !lessonId) return;
+    if (!isPlaying || !playerReady) return;
 
     const interval = setInterval(() => {
       if (playerRef.current && playerRef.current.getCurrentTime) {
         const currentTime = playerRef.current.getCurrentTime();
-        // Save quietly to local offline DB without triggering re-renders
-        saveLocalLessonProgress({
-          lessonId,
-          completed: false,
-          lastPosition: currentTime,
-          action: "progress",
-        }).catch((e) => console.warn("Failed to save background progress:", e));
+        const duration = playerRef.current.getDuration ? playerRef.current.getDuration() : 0;
+
+        // System 1: Teacher lesson progress (offlineDb)
+        if (lessonId) {
+          saveLocalLessonProgress({
+            lessonId,
+            completed: false,
+            lastPosition: currentTime,
+            action: "progress",
+          }).catch((e) => console.warn("Failed to save background progress:", e));
+        }
+
+        // System 2: School course YouTube video progress
+        if (courseVideoId && onProgress) {
+          onProgress({
+            videoId: courseVideoId,
+            currentTime,
+            duration,
+            completed: duration > 0 && currentTime >= duration * 0.9,
+          });
+        }
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [isPlaying, playerReady, lessonId]);
+  }, [isPlaying, playerReady, lessonId, courseVideoId, onProgress]);
 
   if (!videoId) {
     return <div className="p-4 text-white">Invalid YouTube URL</div>;
