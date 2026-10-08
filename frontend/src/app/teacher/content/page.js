@@ -1,9 +1,9 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
-import { useSchoolContent } from "@/hooks/useApi";
-import { Card, CardContent, CardHeader, CardTitle } from "@teacher/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@teacher/components/ui/card";
 import { Input } from "@teacher/components/ui/input";
 import { Textarea } from "@teacher/components/ui/textarea";
 import {
@@ -15,538 +15,533 @@ import {
 } from "@teacher/components/ui/select";
 import { Button } from "@teacher/components/ui/button";
 import { Badge } from "@teacher/components/ui/badge";
-import { Loader2, PlusCircle, Pencil, Trash2, XCircle } from "lucide-react";
-
-const CONTENT_TYPES = [
-  { value: "article", label: "Article" },
-  { value: "video", label: "YouTube Video" },
-  { value: "material", label: "Study Material" },
-];
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@teacher/components/ui/dialog";
+import {
+  GraduationCap,
+  Award,
+  Sparkles,
+  ShieldCheck,
+  Globe,
+  PlusCircle,
+  Pencil,
+  Trash2,
+  Video,
+  FileText,
+  Search,
+  Filter,
+  Play,
+  Clock,
+  Eye,
+  Lock,
+  CheckCircle2,
+  AlertCircle,
+  SlidersHorizontal,
+} from "lucide-react";
+import InbuiltVideoPlayer from "@/components/InbuiltVideoPlayer";
+import {
+  SOURCE_TYPES,
+  SEED_EDUCATIONAL_MATERIALS,
+  parseStudentGrade,
+  isGradeUpTo6,
+} from "@/lib/resourceAccess";
 
 function defaultFormState() {
   return {
-    type: "article",
     title: "",
     description: "",
-    url: "",
+    type: "video",
+    source_type: "teacher",
+    author_name: "Mrs. Ananya Sen",
+    author_role: "Senior Math Faculty",
+    duration: "20 mins",
+    target_grade_min: 1,
+    target_grade_max: 12,
+    url: "https://www.youtube.com/watch?v=NybHckSEQBI",
     body: "",
-    tags: "",
+    tags: "Math, STEM, Conceptual",
   };
 }
 
-function parseTags(value) {
-  if (!value) return [];
-  return value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean)
-    .slice(0, 10);
-}
-
-function buildYoutubeEmbed(url) {
-  if (!url) return null;
-  try {
-    const trimmed = url.trim();
-    const youtubePatterns = [
-      /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
-    ];
-    for (const pattern of youtubePatterns) {
-      const match = trimmed.match(pattern);
-      if (match && match[1]) {
-        const videoId = match[1];
-        const src = `https://www.youtube.com/embed/${videoId}`;
-        return `<iframe width="100%" height="315" src="${src}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-      }
-    }
-  } catch (error) {
-    console.error("Failed to build YouTube embed", error);
-  }
-  return null;
-}
-
-function formatDate(value) {
-  if (!value) return "";
-  try {
-    return new Date(value).toLocaleString();
-  } catch (error) {
-    return String(value);
-  }
-}
-
-function ContentManager() {
+export default function TeacherContentPage() {
   const { user, isSignedIn, isLoaded } = useUser();
   const [roleDoc, setRoleDoc] = useState(null);
-  const [roleError, setRoleError] = useState(null);
-  const [roleLoading, setRoleLoading] = useState(true);
-  const [form, setForm] = useState(() => defaultFormState());
+  const [materials, setMaterials] = useState(SEED_EDUCATIONAL_MATERIALS);
+  const [loading, setLoading] = useState(false);
+  const [activePlayerItem, setActivePlayerItem] = useState(null);
+
+  const [form, setForm] = useState(defaultFormState);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [editingId, setEditingId] = useState(null);
-  const [deleteState, setDeleteState] = useState({ id: null, loading: false, error: null });
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSource, setSelectedSource] = useState("all");
+
+  // Student Perspective Simulator
+  const [simulatorGrade, setSimulatorGrade] = useState("all"); // 'all' | 'class_5' | 'class_9'
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn || !user?.id) {
-      setRoleDoc(null);
-      setRoleError(null);
-      setRoleLoading(false);
-      return;
-    }
-    let active = true;
-    setRoleLoading(true);
-    setRoleError(null);
-    fetchUserRole(user.id)
-      .then((doc) => {
-        if (!active) return;
-        setRoleDoc(doc);
-      })
-      .catch((error) => {
-        if (!active) return;
-        setRoleDoc(null);
-        setRoleError(error?.message || "Unable to load role");
-      })
-      .finally(() => {
-        if (active) setRoleLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [isLoaded, isSignedIn, user?.id]);
-
-  const schoolId = roleDoc?.schoolId || roleDoc?.school_id || null;
-  const role = typeof roleDoc === "string" ? roleDoc : roleDoc?.role;
-
-  const {
-    content,
-    loading: contentLoading,
-    error: contentError,
-    createContent,
-    updateContent,
-    deleteContent,
-  } = useSchoolContent(schoolId, { limit: 50 });
-
-  const sortedContent = useMemo(() => {
-    if (!Array.isArray(content)) return [];
-    return [...content].sort((a, b) => {
-      const aTs = new Date(a.createdAt || 0).getTime();
-      const bTs = new Date(b.createdAt || 0).getTime();
-      return bTs - aTs;
+    if (!isLoaded || !user?.id) return;
+    fetchUserRole(user.id).then((doc) => {
+      if (doc) setRoleDoc(doc);
     });
-  }, [content]);
+  }, [user, isLoaded]);
 
-  const totalsByType = useMemo(() => {
-    return sortedContent.reduce(
-      (acc, item) => {
-        const key = item.type || "article";
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      },
-      {}
-    );
-  }, [sortedContent]);
-
-  const selectOptions = useMemo(() => {
-    const base = CONTENT_TYPES.map((item) => ({ ...item, disabled: false }));
-    const existingTypes = new Set(sortedContent.map((item) => item.type).filter(Boolean));
-    const extras = Array.from(existingTypes)
-      .filter((type) => !base.some((option) => option.value === type))
-      .map((type) => ({
-        value: type,
-        label: type === "quiz" ? "Quiz (legacy)" : type.charAt(0).toUpperCase() + type.slice(1),
-        disabled: true,
-      }));
-    return [...base, ...extras];
-  }, [sortedContent]);
-
-  const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+  // Load Content from API
+  const loadMaterials = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/content");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setMaterials(data);
+        } else {
+          setMaterials(SEED_EDUCATIONAL_MATERIALS);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load content from API, using fallback:", e);
+      setMaterials(SEED_EDUCATIONAL_MATERIALS);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!user?.id) return;
-    if (!form.title.trim()) {
-      setSubmitError("Title is required");
-      return;
-    }
+  useEffect(() => {
+    loadMaterials();
+  }, []);
+
+  const handleCreateOrUpdate = async (e) => {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+
     setSubmitting(true);
-    setSubmitError(null);
-    setSuccessMessage(null);
     try {
+      const sanitizedTags = form.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
       const payload = {
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        type: form.type,
-        url: form.url.trim() || null,
-        body: form.body.trim() || null,
-        tags: parseTags(form.tags),
+        ...form,
+        createdBy: user?.id || "faculty_user",
+        tags: sanitizedTags,
       };
-      if (form.type === "video") {
-        const embed = buildYoutubeEmbed(form.url);
-        if (!embed) {
-          setSubmitError("Enter a valid YouTube link");
-          setSubmitting(false);
-          return;
-        }
-        payload.embedHtml = embed;
+
+      const res = await fetch("/api/content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        await loadMaterials();
+        setIsDialogOpen(false);
+        setForm(defaultFormState());
       }
-      if (editingId) {
-        await updateContent(editingId, { ...payload, updatedBy: user.id });
-        setSuccessMessage("Content updated");
-      } else {
-        await createContent({ ...payload, createdBy: user.id });
-        setSuccessMessage("Content shared with students");
-      }
-      setForm(defaultFormState());
-      setEditingId(null);
-    } catch (error) {
-      setSubmitError(error?.message || "Unable to save content");
+    } catch (err) {
+      console.error("Save material error:", err);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const startEdit = (item) => {
-    setForm({
-      type: item.type || "article",
-      title: item.title || "",
-      description: item.description || "",
-      url: item.url || "",
-      body: item.body || "",
-      tags: Array.isArray(item.tags) ? item.tags.join(", ") : "",
+  const filteredList = useMemo(() => {
+    return materials.filter((item) => {
+      const matchesSearch =
+        !searchTerm.trim() ||
+        item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.author_name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const itemSource = item.source_type || "teacher";
+      const matchesSource = selectedSource === "all" || itemSource === selectedSource;
+
+      return matchesSearch && matchesSource;
     });
-    setEditingId(item.id);
-    setSubmitError(null);
-    setSuccessMessage(null);
-    setDeleteState({ id: null, loading: false, error: null });
-  };
+  }, [materials, searchTerm, selectedSource]);
 
-  const cancelEdit = () => {
-    setForm(defaultFormState());
-    setEditingId(null);
-    setSubmitError(null);
-    setSuccessMessage(null);
-    setDeleteState({ id: null, loading: false, error: null });
-  };
-
-  const handleDelete = async (id) => {
-    if (!user?.id || deleteState.loading) return;
-    setDeleteState({ id, loading: true, error: null });
-    try {
-      await deleteContent(id, user.id);
-      if (editingId === id) {
-        cancelEdit();
-      }
-      setDeleteState({ id: null, loading: false, error: null });
-    } catch (error) {
-      setDeleteState({ id, loading: false, error: error?.message || "Unable to delete" });
-    }
-  };
-
-  if (!isSignedIn) {
-    return null;
-  }
-
-  if (roleLoading) {
-    return <div className="max-w-6xl mx-auto text-white/90">Loading teacher profile...</div>;
-  }
-
-  if (roleError) {
+  if (!isSignedIn && isLoaded) {
     return (
-      <Card className="max-w-xl mx-auto bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">Unable to load teacher data</div>
-          <div>{roleError}</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!role || !["teacher", "admin"].includes(role)) {
-    return (
-      <Card className="max-w-xl mx-auto bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">Access Denied</div>
-          <div>You need teacher or admin privileges to manage shared content.</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!schoolId) {
-    return (
-      <Card className="max-w-xl mx-auto bg-white/95 border-slate-200">
-        <CardContent className="p-6 text-center text-slate-700">
-          <div className="text-lg font-semibold mb-2">School not linked</div>
-          <div>Assign a school to this teacher account to share resources.</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="max-w-6xl mx-auto">
-      <div className="text-white/90 font-semibold text-2xl mb-4">Share Learning Content</div>
-
-      <Card className="bg-white/95 border-slate-200 shadow-sm mb-6">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-slate-900 text-lg flex items-center gap-2">
-            <PlusCircle className="w-5 h-5 text-violet-600" />
-            Upload new resource
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Content type</label>
-                <Select value={form.type} onValueChange={(value) => handleChange("type", value)}>
-                  <SelectTrigger className="bg-white border-slate-200 shadow-sm">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-50">
-                    {selectOptions.map((item) => (
-                      <SelectItem
-                        key={item.value}
-                        value={item.value}
-                        disabled={item.disabled}
-                        className="data-[highlighted]:bg-slate-100 data-[state=checked]:bg-violet-100"
-                      >
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tags (comma separated)</label>
-                <Input
-                  value={form.tags}
-                  onChange={(event) => handleChange("tags", event.target.value)}
-                  placeholder="STEM, Algebra, Revision"
-                  className="bg-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-              <Input
-                value={form.title}
-                onChange={(event) => handleChange("title", event.target.value)}
-                placeholder="Enter a clear title"
-                className="bg-white"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Short description</label>
-              <Textarea
-                value={form.description}
-                onChange={(event) => handleChange("description", event.target.value)}
-                placeholder="Explain how this resource helps the students"
-                className="bg-white"
-                rows={3}
-              />
-            </div>
-
-            {(form.type === "article" || form.type === "material") && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Detailed notes</label>
-                <Textarea
-                  value={form.body}
-                  onChange={(event) => handleChange("body", event.target.value)}
-                  placeholder="Paste study notes or key takeaways"
-                  className="bg-white"
-                  rows={6}
-                />
-              </div>
-            )}
-
-            {(form.type === "material" || form.type === "video") && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {form.type === "video" ? "YouTube link" : "Resource link"}
-                </label>
-                <Input
-                  value={form.url}
-                  onChange={(event) => handleChange("url", event.target.value)}
-                  placeholder={form.type === "video" ? "https://www.youtube.com/watch?v=..." : "https://example.com/resource"}
-                  className="bg-white"
-                />
-              </div>
-            )}
-
-            {submitError && <div className="text-sm text-red-600">{submitError}</div>}
-            {successMessage && <div className="text-sm text-emerald-600">{successMessage}</div>}
-
-            <div className="flex items-center gap-3">
-              <Button type="submit" disabled={submitting} className="bg-violet-600 hover:bg-violet-700">
-                {submitting ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                  </span>
-                ) : editingId ? (
-                  "Update content"
-                ) : (
-                  "Share with students"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submitting}
-                onClick={editingId ? cancelEdit : () => {
-                  setForm(defaultFormState());
-                  setSubmitError(null);
-                  setSuccessMessage(null);
-                }}
-              >
-                {editingId ? "Cancel edit" : "Clear form"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-white/95 border-slate-200 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-slate-900 text-lg">Shared with your students</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3 mb-4 text-xs sm:text-sm text-slate-600">
-            <div>Total items <span className="font-semibold text-slate-900">{sortedContent.length}</span></div>
-            {CONTENT_TYPES.map((item) => (
-              <div key={item.value}>
-                {item.label} <span className="font-semibold text-slate-900">{totalsByType[item.value] || 0}</span>
-              </div>
-            ))}
-            {totalsByType.quiz ? (
-              <div key="quiz-legacy">
-                Assessments <span className="font-semibold text-slate-900">{totalsByType.quiz}</span>
-              </div>
-            ) : null}
-          </div>
-
-          {contentError && (
-            <div className="text-sm text-red-600 mb-4">{contentError}</div>
-          )}
-
-          {contentLoading && !sortedContent.length ? (
-            <div className="py-10 text-center text-slate-500">Loading shared content...</div>
-          ) : sortedContent.length ? (
-            <div className="space-y-4">
-              {sortedContent.map((item) => {
-                const isDeleting = deleteState.loading && deleteState.id === item.id;
-                const deleteError = deleteState.error && deleteState.id === item.id;
-                return (
-                  <Card key={item.id} className="border-slate-200">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-slate-900 text-base">{item.title}</h3>
-                            <Badge className="bg-violet-100 text-violet-700 border border-violet-200 uppercase">{item.type}</Badge>
-                            {editingId === item.id && (
-                              <Badge className="bg-amber-100 text-amber-700 border border-amber-200">Editing</Badge>
-                            )}
-                          </div>
-                          {item.description && (
-                            <p className="text-sm text-slate-600 mt-1">{item.description}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-slate-500">
-                          <span>{formatDate(item.createdAt)}</span>
-                          <div className="flex items-center gap-2">
-                            <Button size="sm" variant="outline" onClick={() => startEdit(item)}>
-                              <Pencil className="w-4 h-4 mr-1" /> Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => handleDelete(item.id)}
-                              disabled={isDeleting}
-                            >
-                              {isDeleting ? (
-                                <span className="flex items-center gap-1">
-                                  <Loader2 className="w-4 h-4 animate-spin" /> Deleting
-                                </span>
-                              ) : (
-                                <>
-                                  <Trash2 className="w-4 h-4 mr-1" /> Delete
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {item.url && (
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm text-violet-700 hover:text-violet-800 underline"
-                        >
-                          Open resource
-                        </a>
-                      )}
-
-                      {item.type === "video" && item.embedHtml && (
-                        <div
-                          className="rounded-lg overflow-hidden border border-slate-200"
-                          dangerouslySetInnerHTML={{ __html: item.embedHtml }}
-                        />
-                      )}
-
-                      {item.body && (
-                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap">
-                          {item.body}
-                        </div>
-                      )}
-
-                      {Array.isArray(item.tags) && item.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-                          {item.tags.map((tag) => (
-                            <span key={tag} className="px-2 py-1 bg-slate-100 rounded-full border border-slate-200">
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {deleteError && (
-                        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-                          <XCircle className="w-4 h-4" /> {deleteState.error}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="py-10 text-center text-slate-500">
-              No shared content yet. Use the form above to upload articles, videos, or study materials.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-export default function ContentPage() {
-  return (
-    <>
-      <SignedIn>
-        <ContentManager />
-      </SignedIn>
       <SignedOut>
         <RedirectToSignIn />
       </SignedOut>
-    </>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-12">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white border border-slate-800 shadow-xl relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 px-3 py-1 font-semibold text-xs">
+                🏛️ Institutional Resource Repository
+              </Badge>
+              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 px-3 py-1 font-semibold text-xs">
+                Multi-Contributor Architecture
+              </Badge>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Educational Material &amp; Video Lecture Hub
+            </h1>
+            <p className="text-slate-300 text-sm max-w-2xl leading-relaxed">
+              Publish and tag educational resources across 5 contributor tracks: Faculty, Alumni Mentors, Senior Scholars, Retired Veteran Teachers, and Community Experts with automated Grade 1–6 access control enforcement.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => {
+              setEditingId(null);
+              setForm(defaultFormState());
+              setIsDialogOpen(true);
+            }}
+            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs h-10 px-5 rounded-xl shadow-lg shadow-violet-600/30 shrink-0 flex items-center gap-2"
+          >
+            <PlusCircle className="w-4 h-4" /> Publish New Educational Material
+          </Button>
+        </div>
+      </div>
+
+      {/* Access Rule & Simulator Bar */}
+      <div className="bg-white/95 border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5 text-xs text-slate-700">
+          <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div>
+            <span className="font-bold text-slate-900">Enforced Access Policy:</span> Students in{" "}
+            <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+              Class 1–6
+            </span>{" "}
+            are restricted strictly to official Teacher resources. Community &amp; Alumni materials are accessible to{" "}
+            <span className="font-semibold text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded border border-violet-200">
+              Class 7–12
+            </span>.
+          </div>
+        </div>
+
+        {/* Student View Simulator */}
+        <div className="flex items-center gap-2 bg-slate-100/80 p-1.5 rounded-lg border border-slate-200 shrink-0">
+          <span className="text-[11px] font-bold text-slate-600 pl-1.5 flex items-center gap-1">
+            <Eye className="w-3.5 h-3.5 text-violet-600" /> Preview as:
+          </span>
+          <select
+            value={simulatorGrade}
+            onChange={(e) => setSimulatorGrade(e.target.value)}
+            className="text-xs font-semibold bg-white border border-slate-200 rounded px-2.5 py-1 text-slate-800"
+          >
+            <option value="all">Faculty Admin (All Unlocked)</option>
+            <option value="class_5">Class 5 Student (Junior Protected)</option>
+            <option value="class_9">Class 9 Student (Senior Full Access)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="bg-white/95 border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by title, teacher, alumni, or topic tag..."
+              className="pl-10 h-10 text-xs bg-slate-50 border-slate-200 rounded-lg"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+            <Button
+              size="sm"
+              variant={selectedSource === "all" ? "default" : "outline"}
+              onClick={() => setSelectedSource("all")}
+              className={`text-xs h-8 ${selectedSource === "all" ? "bg-slate-900 text-white" : "border-slate-200 text-slate-700"}`}
+            >
+              All ({materials.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "teacher" ? "default" : "outline"}
+              onClick={() => setSelectedSource("teacher")}
+              className={`text-xs h-8 ${selectedSource === "teacher" ? "bg-emerald-700 text-white" : "border-emerald-200 text-emerald-800 bg-emerald-50/50"}`}
+            >
+              Faculty
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "alumni" ? "default" : "outline"}
+              onClick={() => setSelectedSource("alumni")}
+              className={`text-xs h-8 ${selectedSource === "alumni" ? "bg-violet-700 text-white" : "border-violet-200 text-violet-800 bg-violet-50/50"}`}
+            >
+              Alumni
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "senior" ? "default" : "outline"}
+              onClick={() => setSelectedSource("senior")}
+              className={`text-xs h-8 ${selectedSource === "senior" ? "bg-indigo-700 text-white" : "border-indigo-200 text-indigo-800 bg-indigo-50/50"}`}
+            >
+              Senior Peers
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "retired_teacher" ? "default" : "outline"}
+              onClick={() => setSelectedSource("retired_teacher")}
+              className={`text-xs h-8 ${selectedSource === "retired_teacher" ? "bg-amber-700 text-white" : "border-amber-200 text-amber-800 bg-amber-50/50"}`}
+            >
+              Retired Faculty
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedSource === "community" ? "default" : "outline"}
+              onClick={() => setSelectedSource("community")}
+              className={`text-xs h-8 ${selectedSource === "community" ? "bg-cyan-700 text-white" : "border-cyan-200 text-cyan-800 bg-cyan-50/50"}`}
+            >
+              Community
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Materials Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filteredList.map((item) => {
+          const itemSource = item.source_type || "teacher";
+          const sourceDef = SOURCE_TYPES[itemSource] || SOURCE_TYPES.teacher;
+
+          // Simulator logic
+          const isSimulatedJunior = simulatorGrade === "class_5";
+          const isSimulatedLocked = isSimulatedJunior && itemSource !== "teacher";
+
+          return (
+            <Card
+              key={item.id}
+              className={`bg-white/95 border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden relative ${
+                isSimulatedLocked ? "border-dashed border-amber-300 bg-amber-50/20 opacity-80" : ""
+              }`}
+            >
+              <div className="p-4 pb-2">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <Badge className={`text-[10px] font-bold uppercase tracking-wider border px-2 py-0.5 ${sourceDef.badgeColor}`}>
+                    {sourceDef.badgeText}
+                  </Badge>
+
+                  {isSimulatedLocked ? (
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-semibold flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Locked in Class 5
+                    </Badge>
+                  ) : (
+                    <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-400" /> {item.duration || "20 mins"}
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="font-bold text-slate-900 text-sm leading-snug line-clamp-2">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
+                  {item.description}
+                </p>
+              </div>
+
+              <div className="p-4 pt-2 border-t border-slate-100 mt-2 bg-slate-50/50">
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <div className="w-7 h-7 rounded-full bg-violet-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                    {item.author_name?.[0] || "A"}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-slate-900 truncate">{item.author_name}</div>
+                    <div className="text-[10px] text-slate-500 truncate">{item.author_role}</div>
+                  </div>
+                </div>
+
+                {Array.isArray(item.tags) && item.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {item.tags.slice(0, 3).map((tag, idx) => (
+                      <span key={idx} className="text-[9px] bg-slate-200/80 text-slate-700 px-1.5 py-0.5 rounded font-medium">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    Grade {item.target_grade_min || 1}–{item.target_grade_max || 12}
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={() => setActivePlayerItem(item)}
+                    className="ml-auto text-xs bg-violet-600 hover:bg-violet-700 text-white font-semibold h-7 px-3 rounded-lg flex items-center gap-1"
+                  >
+                    <Play className="w-3 h-3 fill-current" /> Watch Inbuilt Stream
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Inbuilt Video Player Theatre Modal */}
+      {activePlayerItem && (
+        <InbuiltVideoPlayer
+          item={activePlayerItem}
+          isOpen={Boolean(activePlayerItem)}
+          onClose={() => setActivePlayerItem(null)}
+        />
+      )}
+
+      {/* Publish Material Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl bg-white text-slate-900 p-6 rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              Publish Educational Material or Video Lecture
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600">
+              Publish curriculum or community content with author affiliation and grade access rules.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateOrUpdate} className="space-y-4 mt-2">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Lecture / Resource Title *</label>
+              <Input
+                required
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g. Masterclass on Calculus & Applications in Machine Learning"
+                className="text-xs bg-slate-50 border-slate-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Contributor Source Track *</label>
+                <select
+                  value={form.source_type}
+                  onChange={(e) => setForm({ ...form, source_type: e.target.value })}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg h-9 px-3 text-slate-800 font-semibold"
+                >
+                  <option value="teacher">🏫 Official Teacher / Faculty (Unlocked Grades 1–12)</option>
+                  <option value="alumni">🎓 Alumni Mentor (Unlocked Grade 7+)</option>
+                  <option value="senior">⭐ Senior Student Peer (Unlocked Grade 7+)</option>
+                  <option value="retired_teacher">🎖️ Retired Veteran Faculty (Unlocked Grade 7+)</option>
+                  <option value="community">🌐 Community &amp; Guest (Unlocked Grade 7+)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Material Type</label>
+                <select
+                  value={form.type}
+                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg h-9 px-3 text-slate-800 font-medium"
+                >
+                  <option value="video">🎥 Video Lecture (YouTube / Stream)</option>
+                  <option value="material">📄 Study Material / Notes PDF</option>
+                  <option value="article">📰 Conceptual Article</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Author / Contributor Name *</label>
+                <Input
+                  required
+                  value={form.author_name}
+                  onChange={(e) => setForm({ ...form, author_name: e.target.value })}
+                  placeholder="e.g. Siddharth Nambiar (Class of '21)"
+                  className="text-xs bg-slate-50 border-slate-200"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Author Role / Credential</label>
+                <Input
+                  value={form.author_role}
+                  onChange={(e) => setForm({ ...form, author_role: e.target.value })}
+                  placeholder="e.g. Alumni | Aerospace Engineer @ ISRO"
+                  className="text-xs bg-slate-50 border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Video / Resource Stream URL</label>
+                <Input
+                  value={form.url}
+                  onChange={(e) => setForm({ ...form, url: e.target.value })}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="text-xs bg-slate-50 border-slate-200"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Duration / Length</label>
+                <Input
+                  value={form.duration}
+                  onChange={(e) => setForm({ ...form, duration: e.target.value })}
+                  placeholder="e.g. 35 mins"
+                  className="text-xs bg-slate-50 border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Description &amp; Key Concepts</label>
+              <Textarea
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Comprehensive summary of learning objectives and covered topics..."
+                className="text-xs bg-slate-50 border-slate-200"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Topic Tags (comma-separated)</label>
+              <Input
+                value={form.tags}
+                onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                placeholder="Physics, SpaceTech, Olympiad, BoardExam"
+                className="text-xs bg-slate-50 border-slate-200"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                className="text-xs text-slate-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="text-xs bg-violet-600 hover:bg-violet-700 text-white font-semibold"
+              >
+                {submitting ? "Publishing..." : "Publish Material"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

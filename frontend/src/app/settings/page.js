@@ -4,8 +4,6 @@ import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { saveUserRole } from "@/lib/users";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/student/components/ui/card";
-import { Button } from "@/student/components/ui/button";
-import { Badge } from "@/student/components/ui/badge";
 import FooterNav from "@/components/FooterNav";
 import {
   User,
@@ -13,14 +11,18 @@ import {
   Sparkles,
   Save,
   CheckCircle2,
-  Check,
   Building2,
   BookOpen,
-  Award,
-  Layers,
   ShieldCheck,
   Mail,
   Phone,
+  Calendar,
+  MapPin,
+  Clock,
+  Bell,
+  Moon,
+  ShieldAlert,
+  Lock,
 } from "lucide-react";
 
 const schoolClasses = Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`);
@@ -45,12 +47,31 @@ export default function SettingsPage() {
   const [mediumLanguage, setMediumLanguage] = useState("English");
   const [department, setDepartment] = useState("");
   const [designation, setDesignation] = useState("");
+
+  // Student & Parental Details
+  const [dob, setDob] = useState("");
+  const [fatherName, setFatherName] = useState("");
+  const [parentPhone, setParentPhone] = useState("");
+  const [parentEmail, setParentEmail] = useState("");
+  const [studentPhone, setStudentPhone] = useState("");
+  const [address, setAddress] = useState("");
+
+  // Parental Control System
+  const [parentalControl, setParentalControl] = useState({
+    weeklyReports: true,
+    dailyStudyLimit: "2 Hours / Day",
+    safetyMode: true,
+    quizAlerts: true,
+    quietHours: false,
+  });
+
+  // Optional Academic Enrichment
   const [section, setSection] = useState("");
   const [rollNumber, setRollNumber] = useState("");
   const [selectedInterests, setSelectedInterests] = useState([]);
   const [primaryGoal, setPrimaryGoal] = useState("");
-  const [parentContact, setParentContact] = useState("");
   const [specialization, setSpecialization] = useState("");
+  
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -64,11 +85,28 @@ export default function SettingsPage() {
       setMediumLanguage(meta.mediumLanguage || "English");
       setDepartment(meta.department || "");
       setDesignation(meta.designation || "");
+
+      setDob(meta.dob || "");
+      setFatherName(meta.fatherName || "");
+      setParentPhone(meta.parentPhone || "");
+      setParentEmail(meta.parentEmail || "");
+      setStudentPhone(meta.studentPhone || "");
+      setAddress(meta.address || "");
+
+      if (meta.parentalControl) {
+        setParentalControl({
+          weeklyReports: meta.parentalControl.weeklyReports ?? true,
+          dailyStudyLimit: meta.parentalControl.dailyStudyLimit || "2 Hours / Day",
+          safetyMode: meta.parentalControl.safetyMode ?? true,
+          quizAlerts: meta.parentalControl.quizAlerts ?? true,
+          quietHours: meta.parentalControl.quietHours ?? false,
+        });
+      }
+
       setSection(meta.section || "");
       setRollNumber(meta.rollNumber || "");
       setSelectedInterests(Array.isArray(meta.selectedInterests) ? meta.selectedInterests : ["🤖 AI & Prompt Engineering"]);
       setPrimaryGoal(meta.primaryGoal || "");
-      setParentContact(meta.parentContact || "");
       setSpecialization(meta.specialization || "");
     }
   }, [user]);
@@ -79,6 +117,13 @@ export default function SettingsPage() {
     );
   };
 
+  const updateParentalControl = (key, value) => {
+    setParentalControl((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -87,6 +132,13 @@ export default function SettingsPage() {
 
     try {
       const profileMetadata = {
+        dob: role === "student" ? dob : undefined,
+        fatherName: role === "student" ? fatherName : undefined,
+        parentPhone: role === "student" ? parentPhone : undefined,
+        parentEmail: role === "student" ? parentEmail : undefined,
+        studentPhone: role === "student" ? studentPhone : undefined,
+        address: role === "student" ? address : undefined,
+        parentalControl: role === "student" ? parentalControl : undefined,
         mediumLanguage,
         department: role !== "student" ? department : undefined,
         designation: designation || undefined,
@@ -94,7 +146,6 @@ export default function SettingsPage() {
         rollNumber: rollNumber || undefined,
         selectedInterests: role === "student" ? selectedInterests : undefined,
         primaryGoal: role === "student" ? primaryGoal : undefined,
-        parentContact: parentContact || undefined,
         specialization: role !== "student" ? specialization : undefined,
       };
 
@@ -140,14 +191,15 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="bg-[#EFECE6] text-stone-700 text-[10px] font-semibold px-2 py-0.5 rounded uppercase">
-                  Profile & Preferences
+                  Profile & Controls
                 </span>
               </div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight">Account & Academic Settings</h1>
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight">Account & Parental Settings</h1>
               <p className="text-xs text-stone-500 mt-0.5">
-                Update your academic grade, interests, and contact preferences anytime.
+                Update academic record, parent contact coordinates, and safety control preferences.
               </p>
             </div>
+
             <div className="flex items-center gap-2">
               <span className="text-xs bg-[#FAF8F5] px-3 py-1.5 rounded-lg border border-[#E2DDD5] text-stone-700 capitalize font-medium flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-stone-800" /> Role: {role}
@@ -157,7 +209,7 @@ export default function SettingsPage() {
 
           {savedSuccess && (
             <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Profile and preferences successfully saved!
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Profile and parental controls successfully saved!
             </div>
           )}
 
@@ -166,17 +218,17 @@ export default function SettingsPage() {
             <Card className="bg-[#FFFFFF] border-[#EAE5DC] shadow-sm">
               <CardHeader className="pb-3 border-b border-[#F0EBE1]">
                 <CardTitle className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                  <User className="w-4 h-4 text-stone-800" /> Essential Account Details
+                  <User className="w-4 h-4 text-stone-800" /> Student Identification & Academic Details
                 </CardTitle>
                 <CardDescription className="text-xs text-stone-500">
-                  Primary academic parameters used across your courses and assessments.
+                  Primary academic parameters used across course curricula and grading systems.
                 </CardDescription>
               </CardHeader>
 
               <CardContent className="p-5 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-stone-700">Full Name *</label>
+                    <label className="text-xs font-semibold text-stone-700">Student Full Name *</label>
                     <input
                       className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
                       value={name}
@@ -185,6 +237,38 @@ export default function SettingsPage() {
                       required
                     />
                   </div>
+
+                  {role === "student" && (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-stone-500" />
+                          <span>Date of Birth (DOB) *</span>
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-stone-500" />
+                          <span>Father&apos;s / Guardian&apos;s Name *</span>
+                        </label>
+                        <input
+                          className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
+                          value={fatherName}
+                          onChange={(e) => setFatherName(e.target.value)}
+                          placeholder="Father or Guardian full name"
+                          required
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-stone-700">Institution / School Name</label>
@@ -253,15 +337,199 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            {/* Parent Contact & Residential Address Card */}
+            {role === "student" && (
+              <Card className="bg-[#FFFFFF] border-[#EAE5DC] shadow-sm">
+                <CardHeader className="pb-3 border-b border-[#F0EBE1]">
+                  <CardTitle className="text-sm font-bold text-stone-900 flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-stone-800" /> Parent & Student Contact Details
+                  </CardTitle>
+                  <CardDescription className="text-xs text-stone-500">
+                    Official parent phone & email for grade alerts, school notices, and verification.
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="p-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-stone-500" />
+                        <span>Parent Phone Number *</span>
+                      </label>
+                      <input
+                        type="tel"
+                        className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
+                        value={parentPhone}
+                        onChange={(e) => setParentPhone(e.target.value)}
+                        placeholder="+91 98765 43210 (Parent Mobile)"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-stone-500" />
+                        <span>Parent Email ID *</span>
+                      </label>
+                      <input
+                        type="email"
+                        className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
+                        value={parentEmail}
+                        onChange={(e) => setParentEmail(e.target.value)}
+                        placeholder="parent.guardian@example.com"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-stone-700 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-stone-400" />
+                          <span>Student&apos;s Own Phone Number</span>
+                        </span>
+                        <span className="text-[10px] text-stone-400 font-medium">(Optional)</span>
+                      </label>
+                      <input
+                        type="tel"
+                        className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
+                        value={studentPhone}
+                        onChange={(e) => setStudentPhone(e.target.value)}
+                        placeholder="+91 91234 56789 (Optional)"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-stone-500" />
+                        <span>Residential Address</span>
+                      </label>
+                      <input
+                        className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="House / Flat No., Street, City, State, PIN"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Parent Controlling System Card */}
+            {role === "student" && (
+              <Card className="bg-[#FFFFFF] border-[#EAE5DC] shadow-sm">
+                <CardHeader className="pb-3 border-b border-[#F0EBE1]">
+                  <CardTitle className="text-sm font-bold text-stone-900 flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-stone-800" /> Parent Controlling & Supervision System
+                  </CardTitle>
+                  <CardDescription className="text-xs text-stone-500">
+                    Parental oversight, screen limits, and safety mode rules for this student profile.
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="p-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3.5 rounded-xl border border-[#E8E3DA] bg-[#FAF8F5] flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-stone-900">
+                          <Mail className="w-3.5 h-3.5 text-stone-800" /> Weekly Academic Digest
+                        </div>
+                        <p className="text-[11px] text-stone-500 leading-tight">
+                          Automated weekly summary of quiz grades and attendance sent to Parent Email.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={parentalControl.weeklyReports}
+                        onChange={(e) => updateParentalControl("weeklyReports", e.target.checked)}
+                        className="w-4 h-4 accent-stone-900 cursor-pointer mt-0.5"
+                      />
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-[#E8E3DA] bg-[#FAF8F5] flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-stone-900">
+                          <Bell className="w-3.5 h-3.5 text-stone-800" /> Instant Assessment Alerts
+                        </div>
+                        <p className="text-[11px] text-stone-500 leading-tight">
+                          SMS / WhatsApp alert to parent phone upon test or quiz completion.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={parentalControl.quizAlerts}
+                        onChange={(e) => updateParentalControl("quizAlerts", e.target.checked)}
+                        className="w-4 h-4 accent-stone-900 cursor-pointer mt-0.5"
+                      />
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-[#E8E3DA] bg-[#FAF8F5] flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-stone-900">
+                          <ShieldAlert className="w-3.5 h-3.5 text-stone-800" /> Junior Safety Shield
+                        </div>
+                        <p className="text-[11px] text-stone-500 leading-tight">
+                          Restrict non-faculty community resources and forums (active by default for $\le$ Class 6).
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={parentalControl.safetyMode}
+                        onChange={(e) => updateParentalControl("safetyMode", e.target.checked)}
+                        className="w-4 h-4 accent-stone-900 cursor-pointer mt-0.5"
+                      />
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-[#E8E3DA] bg-[#FAF8F5] flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-stone-900">
+                          <Moon className="w-3.5 h-3.5 text-stone-800" /> Quiet Hours & Study Curfew
+                        </div>
+                        <p className="text-[11px] text-stone-500 leading-tight">
+                          Enforce bedtime mode & silence non-critical notifications between 10 PM - 6 AM.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={parentalControl.quietHours}
+                        onChange={(e) => updateParentalControl("quietHours", e.target.checked)}
+                        className="w-4 h-4 accent-stone-900 cursor-pointer mt-0.5"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-[#E8E3DA] bg-[#FAF8F5] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-stone-800 shrink-0" />
+                      <div>
+                        <div className="text-xs font-bold text-stone-900">Daily Study Screen Time Target</div>
+                        <div className="text-[11px] text-stone-500">Alert parents when daily study goal or max screen time is reached</div>
+                      </div>
+                    </div>
+                    <select
+                      className="bg-white border border-[#E2DDD5] rounded-lg px-3 py-1.5 text-xs text-stone-800 font-medium focus:outline-none"
+                      value={parentalControl.dailyStudyLimit}
+                      onChange={(e) => updateParentalControl("dailyStudyLimit", e.target.value)}
+                    >
+                      <option value="1 Hour / Day">1 Hour / Day</option>
+                      <option value="2 Hours / Day">2 Hours / Day</option>
+                      <option value="3 Hours / Day">3 Hours / Day</option>
+                      <option value="Flexible / No Limit">Flexible / No Limit</option>
+                    </select>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Optional Fields (Enrichment) */}
             <Card className="bg-[#FFFFFF] border-[#EAE5DC] shadow-sm">
               <CardHeader className="pb-3 border-b border-[#F0EBE1] flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-stone-800" /> Additional & Optional Information
+                    <Sparkles className="w-4 h-4 text-stone-800" /> Additional Learning Preferences
                   </CardTitle>
                   <CardDescription className="text-xs text-stone-500">
-                    Enrich your profile for personalized peer squads, skill courses, and notifications.
+                    Enrich your profile for personalized peer squads, skill courses, and recommendations.
                   </CardDescription>
                 </div>
                 <span className="text-[10px] bg-[#EFECE6] text-stone-600 px-2 py-0.5 rounded font-medium">
@@ -318,23 +586,13 @@ export default function SettingsPage() {
                         />
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 sm:col-span-2">
                         <label className="text-xs font-semibold text-stone-700">Primary Goal / Ambition</label>
                         <input
                           className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
                           value={primaryGoal}
                           onChange={(e) => setPrimaryGoal(e.target.value)}
                           placeholder="e.g. STEM Hackathons & Olympiad Prep"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-stone-700">Parent / Guardian Contact</label>
-                        <input
-                          className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
-                          value={parentContact}
-                          onChange={(e) => setParentContact(e.target.value)}
-                          placeholder="parent@example.com (Optional)"
                         />
                       </div>
                     </div>
@@ -352,16 +610,6 @@ export default function SettingsPage() {
                         placeholder="e.g. Artificial Intelligence, Robotics"
                       />
                     </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-stone-700">Institutional Contact Desk</label>
-                      <input
-                        className="w-full bg-[#FAF8F5] border border-[#E2DDD5] focus:border-stone-800 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-stone-900 focus:outline-none transition-colors"
-                        value={parentContact}
-                        onChange={(e) => setParentContact(e.target.value)}
-                        placeholder="admin@school.edu / Phone"
-                      />
-                    </div>
                   </div>
                 )}
               </CardContent>
@@ -375,7 +623,7 @@ export default function SettingsPage() {
                 className="bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs px-5 py-2.5 rounded-lg shadow-sm flex items-center gap-2 transition-colors"
               >
                 <Save className="w-3.5 h-3.5" />
-                {saving ? "Saving Changes..." : "Save Profile Settings"}
+                {saving ? "Saving Changes..." : "Save Profile & Controls"}
               </button>
             </div>
           </form>
