@@ -244,8 +244,16 @@ export async function requireUserRole(userId) {
 }
 
 export function ensureTeacher(roleDoc) {
-  if (!roleDoc || !["teacher", "admin"].includes(roleDoc.role)) {
-    const err = new Error("Only teachers can perform this action");
+  if (!roleDoc || !["teacher", "admin", "principal", "higher_body"].includes(roleDoc.role)) {
+    const err = new Error("Only teachers or administrators can perform this action");
+    err.statusCode = 403;
+    throw err;
+  }
+}
+
+export function ensureHigherBody(roleDoc) {
+  if (!roleDoc || !["admin", "principal", "higher_body"].includes(roleDoc.role)) {
+    const err = new Error("Only principal or higher administrative body can perform this action");
     err.statusCode = 403;
     throw err;
   }

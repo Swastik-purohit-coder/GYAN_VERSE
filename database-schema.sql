@@ -297,6 +297,179 @@ CREATE TRIGGER update_quizzes_updated_at
   BEFORE UPDATE ON quizzes 
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- ============================================================================
+-- NOTICEBOARD TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS noticeboard (
+  id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  category TEXT CHECK (category IN ('academic', 'urgent', 'event', 'competition', 'exam', 'general')) DEFAULT 'general',
+  target_audience TEXT DEFAULT 'all', -- 'all', 'teachers', 'students', 'class:Class 10', etc.
+  target_class TEXT, -- optional specific class
+  priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'urgent')) DEFAULT 'medium',
+  is_pinned BOOLEAN DEFAULT FALSE,
+  attachments JSONB DEFAULT '[]',
+  created_by TEXT NOT NULL,
+  author_name TEXT,
+  author_role TEXT DEFAULT 'principal',
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_noticeboard_school_id ON noticeboard(school_id);
+CREATE INDEX IF NOT EXISTS idx_noticeboard_category ON noticeboard(category);
+CREATE INDEX IF NOT EXISTS idx_noticeboard_created_at ON noticeboard(created_at DESC);
+
+-- ============================================================================
+-- STUDENT SUB-GROUPS & PEER COMMUNICATION
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS student_groups (
+  id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  category TEXT CHECK (category IN ('study_circle', 'olympiad_squad', 'hackathon_team', 'peer_tutoring', 'science_club', 'general')) DEFAULT 'study_circle',
+  target_class TEXT,
+  mentor_id TEXT, -- teacher in charge
+  mentor_name TEXT,
+  leader_id TEXT, -- student captain
+  member_count INTEGER DEFAULT 0,
+  activity_score INTEGER DEFAULT 0,
+  created_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL REFERENCES student_groups(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  role TEXT CHECK (role IN ('leader', 'member', 'mentor')) DEFAULT 'member',
+  joined_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS group_messages (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL REFERENCES student_groups(id) ON DELETE CASCADE,
+  sender_id TEXT NOT NULL,
+  sender_name TEXT NOT NULL,
+  sender_role TEXT DEFAULT 'student',
+  message TEXT NOT NULL,
+  attachments JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_messages_group ON group_messages(group_id);
+
+-- ============================================================================
+-- SKILL DEVELOPMENT COURSES
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS skill_courses (
+  id TEXT PRIMARY KEY,
+  school_id TEXT,
+  title TEXT NOT NULL,
+  description TEXT,
+  category TEXT NOT NULL, -- 'AI & Tech', 'Public Speaking', 'Robotics & IoT', 'Finance', 'Design', 'Leadership'
+  level TEXT CHECK (level IN ('beginner', 'intermediate', 'advanced')) DEFAULT 'beginner',
+  instructor_name TEXT,
+  duration_hours INTEGER DEFAULT 10,
+  badge_icon TEXT,
+  badge_name TEXT,
+  modules_count INTEGER DEFAULT 4,
+  enrolled_count INTEGER DEFAULT 0,
+  published BOOLEAN DEFAULT TRUE,
+  curriculum JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS skill_enrollments (
+  id TEXT PRIMARY KEY,
+  course_id TEXT NOT NULL REFERENCES skill_courses(id) ON DELETE CASCADE,
+  student_id TEXT NOT NULL,
+  student_name TEXT,
+  progress_percent INTEGER DEFAULT 0,
+  completed BOOLEAN DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
+  certificate_id TEXT,
+  enrolled_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_skill_enrollments_student ON skill_enrollments(student_id);
+
+-- ============================================================================
+-- MONTHLY COMPETITIONS
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS monthly_competitions (
+  id TEXT PRIMARY KEY,
+  school_id TEXT,
+  title TEXT NOT NULL,
+  tagline TEXT,
+  description TEXT NOT NULL,
+  theme TEXT NOT NULL, -- e.g. "October STEM & AI Innovation Marathon"
+  category TEXT CHECK (category IN ('hackathon', 'olympiad', 'science_fair', 'debate_essay', 'math_sprint', 'quiz_battle')) DEFAULT 'hackathon',
+  month_year TEXT NOT NULL, -- e.g. 'October 2026'
+  target_classes TEXT[], -- e.g. ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12']
+  start_date TIMESTAMPTZ NOT NULL,
+  end_date TIMESTAMPTZ NOT NULL,
+  prize_pool TEXT,
+  rules TEXT[],
+  submission_type TEXT CHECK (submission_type IN ('quiz', 'project_link', 'video', 'document', 'team_submission')) DEFAULT 'project_link',
+  status TEXT CHECK (status IN ('upcoming', 'active', 'evaluating', 'completed')) DEFAULT 'active',
+  created_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS competition_entries (
+  id TEXT PRIMARY KEY,
+  competition_id TEXT NOT NULL REFERENCES monthly_competitions(id) ON DELETE CASCADE,
+  student_id TEXT NOT NULL,
+  student_name TEXT NOT NULL,
+  student_class TEXT,
+  group_id TEXT REFERENCES student_groups(id) ON DELETE SET NULL,
+  group_name TEXT,
+  project_title TEXT,
+  project_description TEXT,
+  submission_url TEXT,
+  score NUMERIC,
+  rank INTEGER,
+  feedback TEXT,
+  submitted_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comp_entries_comp ON competition_entries(competition_id);
+
+-- ============================================================================
+-- FUNCTIONS AND TRIGGERS
+-- ============================================================================
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Add triggers for updated_at columns
+DROP TRIGGER IF EXISTS update_subjects_updated_at ON subjects;
+CREATE TRIGGER update_subjects_updated_at 
+  BEFORE UPDATE ON subjects 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_quizzes_updated_at ON quizzes;
+CREATE TRIGGER update_quizzes_updated_at 
+  BEFORE UPDATE ON quizzes 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 DROP TRIGGER IF EXISTS update_user_roles_updated_at ON user_roles;
 CREATE TRIGGER update_user_roles_updated_at 
   BEFORE UPDATE ON user_roles 
@@ -327,11 +500,30 @@ CREATE TRIGGER update_lesson_progress_updated_at
   BEFORE UPDATE ON lesson_progress
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_noticeboard_updated_at ON noticeboard;
+CREATE TRIGGER update_noticeboard_updated_at
+  BEFORE UPDATE ON noticeboard
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_student_groups_updated_at ON student_groups;
+CREATE TRIGGER update_student_groups_updated_at
+  BEFORE UPDATE ON student_groups
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_skill_courses_updated_at ON skill_courses;
+CREATE TRIGGER update_skill_courses_updated_at
+  BEFORE UPDATE ON skill_courses
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_monthly_competitions_updated_at ON monthly_competitions;
+CREATE TRIGGER update_monthly_competitions_updated_at
+  BEFORE UPDATE ON monthly_competitions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- ============================================================================
--- SAMPLE DATA (Optional - comment out if not needed)
+-- SAMPLE DATA
 -- ============================================================================
 
--- Insert sample subject
 INSERT INTO subjects (id, name, description, class, icon, color)
 VALUES 
   ('subject:science', 'Science', 'Explore the wonders of science', '5-8', '🔬', '#3b82f6'),
@@ -339,27 +531,8 @@ VALUES
   ('subject:english', 'English', 'Improve language skills', '5-8', '📚', '#f59e0b')
 ON CONFLICT (id) DO NOTHING;
 
--- ============================================================================
--- COMPLETION MESSAGE
--- ============================================================================
-
 DO $$
 BEGIN
-  RAISE NOTICE '✅ Database schema created successfully!';
-  RAISE NOTICE '📋 Tables created:';
-  RAISE NOTICE '   - subjects';
-  RAISE NOTICE '   - learning_modules';
-  RAISE NOTICE '   - quizzes';
-  RAISE NOTICE '   - questions';
-  RAISE NOTICE '   - quiz_responses';
-  RAISE NOTICE '   - quiz_completions';
-  RAISE NOTICE '   - streaks';
-  RAISE NOTICE '   - student_progress';
-  RAISE NOTICE '   - user_roles';
-  RAISE NOTICE '   - achievements';
-  RAISE NOTICE '   - school_content';
-  RAISE NOTICE '   - lessons';
-  RAISE NOTICE '   - lesson_progress';
-  RAISE NOTICE '';
-  RAISE NOTICE '🚀 Your database is ready to use!';
+  RAISE NOTICE '✅ Database schema created successfully with Noticeboard, Sub-Groups, Skills & Monthly Competitions!';
 END $$;
+
