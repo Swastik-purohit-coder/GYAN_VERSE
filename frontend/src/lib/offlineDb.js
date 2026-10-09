@@ -199,6 +199,20 @@ export async function saveOfflineQuizAttempt({
 }
 
 /**
+ * Retrieves all locally saved quiz attempts from IndexedDB.
+ */
+export async function getOfflineQuizAttempts(studentId = null) {
+  try {
+    const attempts = await db.quizAttempts.toArray();
+    if (!studentId || studentId === "current") return attempts;
+    return attempts.filter((a) => a.studentId === studentId);
+  } catch (err) {
+    console.warn("[IndexedDB] Failed to get offline quiz attempts:", err);
+    return [];
+  }
+}
+
+/**
  * Saves a new Doubt Session locally and queues for sync.
  */
 export async function saveLocalDoubtSession({

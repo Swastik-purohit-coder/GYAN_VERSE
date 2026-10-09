@@ -31,6 +31,8 @@ import {
   getOfflineQuizQuestions,
   saveOfflineQuizAttempt,
 } from "@/lib/offline/offlineRepository";
+import OfflineQuizModal from "./OfflineQuizModal";
+import { OFFLINE_DEMO_QUIZZES } from "@/lib/offline/offlineQuizData";
 
 function formatDifficulty(value) {
   const normalized = typeof value === "string" ? value.toLowerCase() : "medium";
@@ -77,6 +79,8 @@ export default function QuizComponent() {
   const [quizStarted, setQuizStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
+  const [isOfflineDemoModalOpen, setIsOfflineDemoModalOpen] = useState(false);
+  const [offlineDemoQuizId, setOfflineDemoQuizId] = useState("demo_speed_math");
 
   // 1. Load authenticated user role and student class
   useEffect(() => {
@@ -653,6 +657,38 @@ export default function QuizComponent() {
           </Button>
         </div>
 
+        {/* Offline Demo Quizzes Practice Banner */}
+        <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-[#635BFF] font-bold text-xs uppercase tracking-wider">
+              <Sparkles className="w-4 h-4" />
+              <span>Offline Practice Arena (100% Offline Ready)</span>
+            </div>
+            <h2 className="text-base font-bold text-[#172033]">
+              Need Offline Practice? Play Live Demo Quizzes
+            </h2>
+            <p className="text-xs text-[#64748B] max-w-xl">
+              Sharpen your skills anytime with offline-cached questions across Math, Newton's Laws, Cellular Biology, and Algorithmic Logic.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            {OFFLINE_DEMO_QUIZZES.slice(0, 3).map((dq) => (
+              <button
+                key={dq.id}
+                onClick={() => {
+                  setOfflineDemoQuizId(dq.id);
+                  setIsOfflineDemoModalOpen(true);
+                }}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 hover:border-[#635BFF] hover:text-[#635BFF] text-slate-700 shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <span>{dq.emoji}</span>
+                <span>{dq.title.split(":")[0]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Quizzes List Container */}
         <Card className="bg-white border-[#E2E8F0] shadow-xs rounded-2xl overflow-hidden">
           <CardHeader className="bg-white border-b border-[#E2E8F0] py-4 px-6 flex flex-row items-center justify-between">
@@ -821,6 +857,13 @@ export default function QuizComponent() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Interactive Offline Demo Quiz Modal */}
+      <OfflineQuizModal
+        isOpen={isOfflineDemoModalOpen}
+        onClose={() => setIsOfflineDemoModalOpen(false)}
+        initialQuizId={offlineDemoQuizId}
+      />
     </div>
   );
 }
