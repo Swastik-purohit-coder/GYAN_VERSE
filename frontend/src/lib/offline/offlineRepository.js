@@ -165,7 +165,29 @@ export async function getOfflineQuizzes(filters = {}) {
   }
 
   const cached = await getCachedApiResponse(cacheKey);
-  return Array.isArray(cached) ? cached : [];
+  if (Array.isArray(cached) && cached.length > 0) {
+    return cached;
+  }
+
+  // Fallback default quizzes for student's class
+  try {
+    const { DEFAULT_OFFLINE_QUIZZES } = await import("@/lib/offline/offlineQuizData");
+    const rawClass = String(filters.class || (typeof window !== "undefined" ? localStorage.getItem("studentClass") : "") || "Class 10").trim();
+    const numMatch = rawClass.match(/\d+/);
+    const cleanNum = numMatch ? numMatch[0] : "";
+    const canonicalName = cleanNum ? `Class ${cleanNum}` : rawClass;
+
+    const filtered = DEFAULT_OFFLINE_QUIZZES.filter((q) => {
+      const qNumMatch = String(q.className || "").match(/\d+/);
+      const qCleanNum = qNumMatch ? qNumMatch[0] : "";
+      return qCleanNum === cleanNum || q.className === canonicalName || q.className === rawClass;
+    });
+
+    return filtered.length > 0 ? filtered : DEFAULT_OFFLINE_QUIZZES;
+  } catch (err) {
+    console.warn("[OfflineRepo] Failed to load default offline quizzes:", err);
+    return [];
+  }
 }
 
 export async function getOfflineQuizQuestions(params = {}) {
@@ -184,7 +206,23 @@ export async function getOfflineQuizQuestions(params = {}) {
   }
 
   const cached = await getCachedApiResponse(cacheKey);
-  return Array.isArray(cached) ? cached : [];
+  if (Array.isArray(cached) && cached.length > 0) {
+    return cached;
+  }
+
+  // Fallback questions for this quiz
+  try {
+    const { DEFAULT_OFFLINE_QUESTIONS } = await import("@/lib/offline/offlineQuizData");
+    if (params.quizId && DEFAULT_OFFLINE_QUESTIONS[params.quizId]) {
+      return DEFAULT_OFFLINE_QUESTIONS[params.quizId];
+    }
+    // Return first available questions array if generic match
+    const firstKey = Object.keys(DEFAULT_OFFLINE_QUESTIONS)[0];
+    return firstKey ? DEFAULT_OFFLINE_QUESTIONS[firstKey] : [];
+  } catch (err) {
+    console.warn("[OfflineRepo] Failed to load default offline questions:", err);
+    return [];
+  }
 }
 
 export async function getOfflineStreak(userId) {

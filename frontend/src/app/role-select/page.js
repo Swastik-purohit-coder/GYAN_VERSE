@@ -116,7 +116,16 @@ export default function RoleSelectPage() {
       }
       const metaRole = user?.unsafeMetadata?.role;
       const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
-      const effectiveRole = metaRole || localRole;
+      let cookieRole = null;
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+        if (match) cookieRole = decodeURIComponent(match[1]);
+      }
+      const effectiveRole =
+        (metaRole && metaRole !== "unassigned" ? metaRole : null) ||
+        (localRole && localRole !== "unassigned" ? localRole : null) ||
+        (cookieRole && cookieRole !== "unassigned" ? cookieRole : null);
+
       if (effectiveRole === "student") {
         router.replace("/student/dashboard");
       } else if (["principal", "admin", "higher_body"].includes(effectiveRole)) {
@@ -215,11 +224,11 @@ export default function RoleSelectPage() {
         role: normalizedRole,
         name: name.trim() || user.fullName || user.firstName || "User",
         schoolId: schoolName.trim() || "default_school",
-        class: role === "student" ? selectedClass : undefined,
+        class: role === "student" ? selectedClass : (normalizedRole === "principal" ? "role:principal" : undefined),
         ...profileMetadata,
       });
 
-      // 2. Sync to Clerk user metadata
+      // 3. Sync to Clerk user metadata
       try {
         await user.update({
           unsafeMetadata: {
@@ -234,7 +243,7 @@ export default function RoleSelectPage() {
         console.warn("Clerk unsafeMetadata update:", e);
       }
 
-      // 3. Immediate clean navigation to role portal
+      // 4. Immediate clean navigation to role portal
       const targetPath =
         normalizedRole === "student"
           ? "/student/dashboard"
@@ -244,6 +253,7 @@ export default function RoleSelectPage() {
 
       if (typeof window !== "undefined") {
         document.cookie = `gyan_user_role=${normalizedRole}; path=/; max-age=604800; SameSite=Lax`;
+        localStorage.setItem("userRole", normalizedRole);
         window.location.replace(targetPath);
       } else {
         router.replace(targetPath);

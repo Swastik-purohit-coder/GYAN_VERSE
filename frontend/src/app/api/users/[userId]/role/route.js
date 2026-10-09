@@ -32,9 +32,15 @@ export async function GET(request, context) {
     // 2. Fetch role using resilient requireUserRole helper
     const resolvedRole = await requireUserRole(targetUserId);
 
+    let finalRole = resolvedRole.role;
+    const cookieRole = request.cookies.get("gyan_user_role")?.value;
+    if ((!finalRole || finalRole === "unassigned") && cookieRole && cookieRole !== "unassigned") {
+      finalRole = cookieRole;
+    }
+
     return NextResponse.json({
       userId: resolvedRole.user_id,
-      role: resolvedRole.role,
+      role: finalRole,
       name: resolvedRole.name,
       class: resolvedRole.class,
       schoolId: resolvedRole.school_id,

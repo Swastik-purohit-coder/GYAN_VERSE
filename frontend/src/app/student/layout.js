@@ -105,7 +105,9 @@ export default function StudentLayout({ children }) {
       .then((data) => {
         if (!active) return;
         const role = typeof data === "string" ? data : data?.role;
-        if (role === "teacher") {
+        if (["principal", "higher_body", "admin"].includes(role)) {
+          router.replace("/principal");
+        } else if (role === "teacher") {
           router.replace("/teacher/dashboard");
         } else if (role === "unassigned" && !metaRole && !localRole && navigator.onLine) {
           router.replace("/role-select");

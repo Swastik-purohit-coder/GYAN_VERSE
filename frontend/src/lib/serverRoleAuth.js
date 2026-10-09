@@ -70,12 +70,25 @@ export async function getServerUserRole(userId, { forceFresh = false } = {}) {
     }
 
     const roleDoc = rows[0];
-    if (roleDoc.role === "unassigned") {
+    let resolvedRole = roleDoc.role;
+    if (roleDoc.class?.startsWith("role:")) {
+      resolvedRole = roleDoc.class.replace("role:", "").trim().toLowerCase();
+    } else if (["principal", "higher_body", "admin"].includes(roleDoc.class)) {
+      resolvedRole = roleDoc.class;
+    }
+
+    const finalDoc = {
+      ...roleDoc,
+      role: resolvedRole,
+      class: roleDoc.class?.startsWith("role:") ? null : roleDoc.class,
+    };
+
+    if (finalDoc.role === "unassigned") {
       roleCache.delete(userId);
     } else {
-      roleCache.set(userId, { data: roleDoc, timestamp: now });
+      roleCache.set(userId, { data: finalDoc, timestamp: now });
     }
-    return roleDoc;
+    return finalDoc;
   } catch (err) {
     console.error("[serverRoleAuth] Error fetching user role from Supabase:", err?.message || err);
     return null;

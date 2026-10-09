@@ -343,9 +343,17 @@ export default function QuizComponent() {
         });
       }
 
+      let finalGrade = "F";
+      if (finalScorePct >= 90) finalGrade = "A+";
+      else if (finalScorePct >= 80) finalGrade = "A";
+      else if (finalScorePct >= 70) finalGrade = "B";
+      else if (finalScorePct >= 60) finalGrade = "C";
+      else if (finalScorePct >= 50) finalGrade = "D";
+
       // Navigate to results
       const params = new URLSearchParams({
-        score: String(finalScorePct),
+        score: String(Math.round(finalScorePct)),
+        grade: finalGrade,
         topic: activeQuizMeta.title || "Quiz",
         total: String(finalTotal),
         correct: String(finalCorrect),

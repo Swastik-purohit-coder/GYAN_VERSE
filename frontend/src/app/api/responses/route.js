@@ -98,14 +98,25 @@ export async function POST(request) {
       submittedAt: responseDoc.submitted_at,
     });
 
+    let grade = "F";
+    if (scorePercentage >= 90) grade = "A+";
+    else if (scorePercentage >= 80) grade = "A";
+    else if (scorePercentage >= 70) grade = "B";
+    else if (scorePercentage >= 60) grade = "C";
+    else if (scorePercentage >= 50) grade = "D";
+
+    const passed = scorePercentage >= 60;
+
     return NextResponse.json({
       success: true,
       responseId,
       score: scorePercentage,
+      grade,
+      passed,
       correctAnswers,
       totalQuestions,
       results: detailedResults,
-      message: `Quiz completed! You scored ${Math.round(scorePercentage)}%`,
+      message: `Quiz completed! You scored ${Math.round(scorePercentage)}% (Grade ${grade})`,
     });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: error.statusCode || 500 });

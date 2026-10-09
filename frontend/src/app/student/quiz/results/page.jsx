@@ -53,9 +53,22 @@ export default function QuizResultsPage() {
   const quizTopic = searchParams.get('topic');
   const totalQuestions = searchParams.get('total');
   const correctAnswers = searchParams.get('correct');
+  const gradeParam = searchParams.get('grade');
   
   const score = parseInt(userScore, 10);
   const suggestionThreshold = 60; // Set your "low score" threshold here
+
+  const calcGrade = (s) => {
+    if (s >= 90) return { label: 'A+', color: 'bg-emerald-500 text-white border-emerald-600' };
+    if (s >= 80) return { label: 'A', color: 'bg-green-600 text-white border-green-700' };
+    if (s >= 70) return { label: 'B', color: 'bg-blue-600 text-white border-blue-700' };
+    if (s >= 60) return { label: 'C', color: 'bg-amber-500 text-white border-amber-600' };
+    if (s >= 50) return { label: 'D', color: 'bg-orange-500 text-white border-orange-600' };
+    return { label: 'F', color: 'bg-rose-500 text-white border-rose-600' };
+  };
+
+  const gradeInfo = calcGrade(score);
+  const letterGrade = gradeParam || gradeInfo.label;
 
   // 5. Add the useEffect hook for automatic redirection
   useEffect(() => {
@@ -113,17 +126,28 @@ export default function QuizResultsPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Score Display */}
-            <div className={`p-8 rounded-lg text-center ${
+            <div className={`p-8 rounded-2xl border text-center transition-all ${
               passed 
-                ? 'bg-green-100 dark:bg-green-900/20' 
-                : 'bg-red-100 dark:bg-red-900/20'
+                ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' 
+                : 'bg-rose-50/70 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800'
             }`}>
-              <div className="text-6xl font-bold mb-2">{score}%</div>
+              <div className="inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-xs font-black tracking-widest uppercase mb-3 shadow-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100">
+                <span>Grade</span>
+                <span className={`px-2 py-0.5 rounded-full text-white text-xs font-bold ${
+                  letterGrade.startsWith('A') ? 'bg-emerald-600' :
+                  letterGrade === 'B' ? 'bg-blue-600' :
+                  letterGrade === 'C' ? 'bg-amber-600' :
+                  letterGrade === 'D' ? 'bg-orange-600' : 'bg-rose-600'
+                }`}>
+                  {letterGrade}
+                </span>
+              </div>
+              <div className="text-6xl font-black mb-2 text-[#172033] dark:text-white tracking-tight">{score}%</div>
               {totalQuestions && correctAnswers && (
-                <div className="text-2xl mb-1">{correctAnswers} / {totalQuestions}</div>
+                <div className="text-base font-bold text-slate-600 dark:text-slate-300 mb-2">{correctAnswers} / {totalQuestions} Correct</div>
               )}
-              <div className="text-lg font-semibold">
-                {passed ? '✅ Excellent Work!' : '❌ Keep Practicing!'}
+              <div className="text-base font-bold">
+                {passed ? '🎉 Excellent Mastery!' : '💪 Keep Practicing & Reviewing!'}
               </div>
             </div>
 

@@ -84,14 +84,17 @@ export default isPlaceholderKey
 
       // 3. User is authenticated with Clerk - fetch their source-of-truth role from user_roles
       let userDoc = await getServerUserRole(userId);
-      let role = userDoc?.role || "unassigned";
+      let dbRole = userDoc?.role && userDoc.role !== "unassigned" ? userDoc.role : null;
+      const rawCookieRole = request.cookies.get("gyan_user_role")?.value;
+      const cookieRole = rawCookieRole && rawCookieRole !== "unassigned" ? rawCookieRole : null;
 
       // If database returned unassigned, check for immediate client cookie and try a force-fresh fetch
-      const cookieRole = request.cookies.get("gyan_user_role")?.value;
-      if (role === "unassigned" && cookieRole && cookieRole !== "unassigned") {
+      if (!dbRole && cookieRole) {
         userDoc = await getServerUserRole(userId, { forceFresh: true });
-        role = userDoc?.role || cookieRole;
+        dbRole = userDoc?.role && userDoc.role !== "unassigned" ? userDoc.role : null;
       }
+
+      let role = dbRole || cookieRole || "unassigned";
 
       // 4. If visiting root "/" or auth pages while logged in: redirect to their role dashboard
       if (pathname === "/" || isAuthRoute(request)) {

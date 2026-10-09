@@ -216,10 +216,18 @@ export default function DashboardV2({ user = {} }) {
     fetchUserRole(clerkUser.id)
       .then((doc) => {
         if (!active) return;
-        let roleVal = typeof doc === 'string' ? doc : doc?.role;
         const metaRole = clerkUser?.unsafeMetadata?.role;
         const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
-        const effectiveRole = (roleVal && roleVal !== 'unassigned') ? roleVal : (metaRole || localRole);
+        let cookieRole = null;
+        if (typeof document !== "undefined") {
+          const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+          if (match) cookieRole = decodeURIComponent(match[1]);
+        }
+        const effectiveRole =
+          (roleVal && roleVal !== "unassigned" ? roleVal : null) ||
+          (metaRole && metaRole !== "unassigned" ? metaRole : null) ||
+          (localRole && localRole !== "unassigned" ? localRole : null) ||
+          (cookieRole && cookieRole !== "unassigned" ? cookieRole : null);
 
         if (!effectiveRole || effectiveRole === 'unassigned') {
           // If offline, do not kick to role-select; default to student

@@ -89,32 +89,32 @@ export function CourseSelection() {
     <div className="space-y-6">
       <SubHeader showProgress showStreak user={{ streak: 7, xp: 620, xpToNextLevel: 1000, level: 10 }} />
 
-      <Card className="border border-slate-700 bg-slate-900/90 text-white shadow-xl backdrop-blur-sm">
+      <Card className="border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 text-[#172033] dark:text-white shadow-xs rounded-2xl backdrop-blur-sm transition-colors">
         <CardContent className="p-6">
           {/* Top Breadcrumb & Header */}
-          <div className="mb-6 border-b border-slate-800 pb-4">
+          <div className="mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-400">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#635BFF] dark:text-indigo-400">
                   <span>Courses</span>
                   {selectedSubject && (
                     <>
-                      <span>/</span>
-                      <span>{currentClassTitle}</span>
-                      <span>/</span>
-                      <span className="text-white">{selectedSubject.subjectName}</span>
+                      <span className="text-slate-400">/</span>
+                      <span className="text-slate-600 dark:text-slate-300">{currentClassTitle}</span>
+                      <span className="text-slate-400">/</span>
+                      <span className="text-[#172033] dark:text-white font-bold">{selectedSubject.subjectName}</span>
                     </>
                   )}
                 </div>
-                <h1 className="mt-1 text-2xl font-black text-white tracking-tight">
+                <h1 className="mt-1 text-2xl font-black text-[#172033] dark:text-white tracking-tight">
                   {selectedSubject ? `${selectedSubject.subjectName}` : `${currentClassTitle} Courses`}
                 </h1>
               </div>
 
               {!selectedSubject && (
                 <div className="mt-2 sm:mt-0 flex items-center gap-2">
-                  <Badge variant="outline" className="border-indigo-500/40 bg-indigo-500/10 text-indigo-300 px-3 py-1 text-xs">
-                    <Sparkles className="w-3.5 h-3.5 mr-1 text-indigo-400" /> Curated YouTube Curriculum
+                  <Badge variant="outline" className="border-indigo-200 dark:border-indigo-500/40 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1 text-xs">
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-[#635BFF] dark:text-indigo-400" /> Curated YouTube Curriculum
                   </Badge>
                 </div>
               )}
@@ -139,17 +139,17 @@ export function CourseSelection() {
 
           {/* Missing Class in Profile */}
           {!loading && !error && !studentClass && (
-            <div className="py-12 text-center text-slate-300 space-y-4 max-w-md mx-auto">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto text-xl font-bold">
+            <div className="py-12 text-center text-slate-600 dark:text-slate-300 space-y-4 max-w-md mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto text-xl font-bold">
                 ⚠️
               </div>
-              <h3 className="text-lg font-bold text-white">Student Class Required</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="text-lg font-bold text-[#172033] dark:text-white">Student Class Required</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {message || "Please select your Class in your profile to access your class-specific courses."}
               </p>
               <Button
                 onClick={() => router.push("/role-select")}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold px-4 py-2"
+                className="bg-[#635BFF] hover:bg-[#5148E5] text-white rounded-xl text-xs font-semibold px-4 py-2 shadow-xs"
               >
                 Set My Class
               </Button>
@@ -158,12 +158,12 @@ export function CourseSelection() {
 
           {/* Empty State */}
           {!loading && !error && studentClass && subjects.length === 0 && (
-            <div className="py-16 text-center text-slate-400 space-y-2">
-              <Video className="w-12 h-12 mx-auto text-slate-600" />
-              <h3 className="text-base font-semibold text-slate-200">
+            <div className="py-16 text-center text-slate-500 dark:text-slate-400 space-y-2">
+              <Video className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600" />
+              <h3 className="text-base font-semibold text-[#172033] dark:text-slate-200">
                 No course videos are available for {currentClassTitle} yet.
               </h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto">
                 Class curriculum videos will appear here once published.
               </p>
             </div>
@@ -181,37 +181,37 @@ export function CourseSelection() {
                 return (
                   <div
                     key={subject.id}
-                    className="group relative rounded-2xl border border-slate-800 bg-slate-800/60 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-indigo-500/50 hover:bg-slate-800 hover:shadow-indigo-500/10 hover:shadow-lg flex flex-col justify-between"
+                    className="group relative rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 hover:bg-white dark:bg-slate-800/60 dark:hover:bg-slate-800 p-5 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-[#635BFF]/40 dark:hover:border-indigo-500/50 hover:shadow-md flex flex-col justify-between"
                   >
                     <div>
                       {/* Top Row: Icon + Video Count Badge */}
                       <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 rounded-xl bg-slate-900 border border-slate-700/60 group-hover:border-indigo-500/40 transition-colors">
+                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/60 text-[#635BFF] dark:text-indigo-400 group-hover:border-[#635BFF]/40 transition-colors shadow-xs">
                           {getSubjectIcon(subject.icon, subject.subjectName)}
                         </div>
                         <Badge
                           variant="secondary"
-                          className="bg-slate-900/80 text-slate-300 border border-slate-700/60 text-xs px-2.5 py-0.5"
+                          className="bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 text-xs px-2.5 py-0.5 shadow-xs"
                         >
                           {total} {total === 1 ? "video" : "videos"}
                         </Badge>
                       </div>
 
                       {/* Subject Name */}
-                      <h3 className="text-lg font-bold text-white tracking-tight group-hover:text-indigo-300 transition-colors">
+                      <h3 className="text-lg font-bold text-[#172033] dark:text-white tracking-tight group-hover:text-[#635BFF] dark:group-hover:text-indigo-300 transition-colors">
                         {subject.subjectName}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-1 mb-4">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4">
                         {total} learning videos
                       </p>
 
                       {/* Progress Bar & Percentage */}
                       <div className="space-y-1.5 mb-5">
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-400 font-medium">Completion</span>
-                          <span className="font-bold text-indigo-300">{progressPct}%</span>
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">Completion</span>
+                          <span className="font-bold text-[#635BFF] dark:text-indigo-300">{progressPct}%</span>
                         </div>
-                        <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-700/40">
+                        <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-900 overflow-hidden border border-slate-200/60 dark:border-slate-700/40">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
                             style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
@@ -228,8 +228,8 @@ export function CourseSelection() {
                       onClick={() => setSelectedSubjectId(subject.id)}
                       className={`w-full rounded-xl text-xs font-semibold py-2.5 flex items-center justify-center gap-1.5 transition-all ${
                         isStarted
-                          ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20"
-                          : "bg-slate-700 hover:bg-slate-600 text-white"
+                          ? "bg-[#635BFF] hover:bg-[#5148E5] text-white shadow-md shadow-indigo-600/20"
+                          : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white border border-slate-200/80 dark:border-slate-600"
                       }`}
                     >
                       <span>{isStarted ? "Continue Learning" : "Start Learning"}</span>
@@ -248,43 +248,43 @@ export function CourseSelection() {
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setSelectedSubjectId(null)}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors group"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors group cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:-translate-x-1 transition-transform" />
+                  <ArrowLeft className="w-4 h-4 text-[#635BFF] dark:text-indigo-400 group-hover:-translate-x-1 transition-transform" />
                   <span>Back to Courses</span>
                 </button>
 
-                <div className="text-xs text-slate-400">
-                  <span className="font-bold text-white">{selectedSubject.completedVideos}</span> of{" "}
-                  <span className="font-bold text-white">{selectedSubject.totalVideos}</span> completed (
-                  <span className="text-indigo-400 font-semibold">{selectedSubject.progressPercent}%</span>)
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-bold text-[#172033] dark:text-white">{selectedSubject.completedVideos}</span> of{" "}
+                  <span className="font-bold text-[#172033] dark:text-white">{selectedSubject.totalVideos}</span> completed (
+                  <span className="text-[#635BFF] dark:text-indigo-400 font-semibold">{selectedSubject.progressPercent}%</span>)
                 </div>
               </div>
 
               {/* Subject Title Banner */}
-              <div className="rounded-2xl bg-slate-800/70 border border-slate-700/60 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/60 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-700 text-indigo-400">
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[#635BFF] dark:text-indigo-400 shadow-xs">
                     {getSubjectIcon(selectedSubject.icon, selectedSubject.subjectName)}
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">
+                    <h2 className="text-xl font-bold text-[#172033] dark:text-white">
                       {currentClassTitle} → {selectedSubject.subjectName}
                     </h2>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       Curated educational videos ordered by curriculum sequence
                     </p>
                   </div>
                 </div>
 
                 <div className="w-full sm:w-48 space-y-1">
-                  <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
+                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-900 overflow-hidden">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
                       style={{ width: `${selectedSubject.progressPercent}%` }}
                     />
                   </div>
-                  <div className="text-[11px] text-right text-slate-400">
+                  <div className="text-[11px] text-right text-slate-500 dark:text-slate-400">
                     {selectedSubject.progressPercent}% completed
                   </div>
                 </div>
@@ -292,7 +292,7 @@ export function CourseSelection() {
 
               {/* Video List */}
               {selectedSubject.videos.length === 0 ? (
-                <div className="py-12 text-center text-slate-400">
+                <div className="py-12 text-center text-slate-500 dark:text-slate-400">
                   No videos published for {selectedSubject.subjectName} yet.
                 </div>
               ) : (
@@ -307,10 +307,10 @@ export function CourseSelection() {
                         key={vid.id}
                         className={`group rounded-xl border p-4 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
                           isCompleted
-                            ? "bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/80"
+                            ? "bg-slate-50/80 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50 hover:bg-slate-100/70 dark:hover:bg-slate-800/80"
                             : inProgress
-                            ? "bg-slate-800/90 border-indigo-500/40 shadow-sm shadow-indigo-500/10"
-                            : "bg-slate-800/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800"
+                            ? "bg-white dark:bg-slate-800/90 border-[#635BFF]/40 dark:border-indigo-500/40 shadow-sm shadow-indigo-500/10"
+                            : "bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800 shadow-xs"
                         }`}
                       >
                         {/* Video Info Left */}
@@ -319,10 +319,10 @@ export function CourseSelection() {
                           <div
                             className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs mt-0.5 ${
                               isCompleted
-                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
                                 : inProgress
-                                ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
-                                : "bg-slate-900 text-slate-400 border border-slate-700"
+                                ? "bg-indigo-500/15 text-[#635BFF] dark:text-indigo-400 border border-indigo-500/30"
+                                : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
                             }`}
                           >
                             {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
@@ -330,32 +330,32 @@ export function CourseSelection() {
 
                           <div className="min-w-0 space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-semibold text-white text-sm group-hover:text-indigo-300 transition-colors">
+                              <h4 className="font-semibold text-[#172033] dark:text-white text-sm group-hover:text-[#635BFF] dark:group-hover:text-indigo-300 transition-colors">
                                 {vid.title}
                               </h4>
-                              <Badge className="bg-red-950/60 text-red-300 border-red-800/40 text-[10px] px-1.5 py-0">
+                              <Badge className="bg-red-50 text-red-600 border-red-200 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800/40 text-[10px] px-1.5 py-0">
                                 YouTube
                               </Badge>
                               {isCompleted && (
-                                <Badge className="bg-emerald-950/60 text-emerald-300 border-emerald-800/40 text-[10px] px-1.5 py-0">
+                                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/40 text-[10px] px-1.5 py-0">
                                   Completed
                                 </Badge>
                               )}
                               {inProgress && (
-                                <Badge className="bg-indigo-950/60 text-indigo-300 border-indigo-800/40 text-[10px] px-1.5 py-0">
+                                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/40 text-[10px] px-1.5 py-0">
                                   In Progress ({vid.progress?.completionPct}%)
                                 </Badge>
                               )}
                             </div>
 
                             {vid.description && (
-                              <p className="text-xs text-slate-400 line-clamp-2">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
                                 {vid.description}
                               </p>
                             )}
 
                             {durationMins && (
-                              <div className="flex items-center gap-1 text-[11px] text-slate-500 pt-0.5">
+                              <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500 pt-0.5">
                                 <Clock className="w-3 h-3" />
                                 <span>~{durationMins} min</span>
                               </div>
@@ -369,8 +369,8 @@ export function CourseSelection() {
                             onClick={() => setActiveVideo(vid)}
                             className={`rounded-xl text-xs font-semibold px-4 py-2 flex items-center gap-1.5 w-full sm:w-auto ${
                               isCompleted
-                                ? "bg-slate-700 hover:bg-slate-600 text-white"
-                                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30"
+                                ? "bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-600"
+                                : "bg-[#635BFF] hover:bg-[#5148E5] text-white shadow-sm shadow-indigo-600/30"
                             }`}
                           >
                             <Play className="w-3.5 h-3.5 fill-current" />

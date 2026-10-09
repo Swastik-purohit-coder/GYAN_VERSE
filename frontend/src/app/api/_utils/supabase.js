@@ -209,7 +209,7 @@ export async function requireUserRole(userId) {
       dbRole = await runSingle(
         supabase
           .from("user_roles")
-          .select("user_id, role, name, school_id, class, metadata, provisional, created_at, updated_at")
+          .select("user_id, role, name, school_id, class, provisional, created_at, updated_at")
           .eq("user_id", userId)
           .maybeSingle()
       );
@@ -218,17 +218,17 @@ export async function requireUserRole(userId) {
     }
   }
 
-  // 2. Extract database role if present (check column and JSONB metadata)
+  // 2. Extract database role if present (support role:principal/higher_body encoding in class column)
   let dbRoleValue = dbRole?.role ? String(dbRole.role).toLowerCase().trim() : null;
-  if (dbRole?.metadata?.role) {
-    dbRoleValue = String(dbRole.metadata.role).toLowerCase().trim();
-  } else if (dbRole?.metadata?.is_principal) {
-    dbRoleValue = "principal";
+  if (dbRole?.class?.startsWith("role:")) {
+    dbRoleValue = dbRole.class.replace("role:", "").trim().toLowerCase();
+  } else if (["principal", "higher_body", "admin"].includes(dbRole?.class)) {
+    dbRoleValue = dbRole.class;
   }
 
   // 3. Fallback to Clerk session user metadata if DB record is not yet present
   let clerkMeta = null;
-  if (!dbRoleValue) {
+  if (!dbRoleValue || dbRoleValue === "unassigned") {
     try {
       const { currentUser } = await import("@clerk/nextjs/server");
       const clerkUser = await currentUser();
@@ -253,29 +253,33 @@ export async function requireUserRole(userId) {
   const clerkRole = clerkMeta?.role ? String(clerkMeta.role).toLowerCase().trim() : null;
 
   // Prioritize DB role value first, then Clerk role, then unassigned/fallback
-  let effectiveRole = dbRoleValue || clerkRole || "unassigned";
+  let effectiveRole = (dbRoleValue && dbRoleValue !== "unassigned") ? dbRoleValue : (clerkRole || "unassigned");
+  if (clerkRole && ["principal", "higher_body", "admin"].includes(clerkRole)) {
+    effectiveRole = clerkRole;
+  }
 
   const effectiveSchoolId = dbRole?.school_id || clerkMeta?.school_id || "default_school";
   const effectiveName = dbRole?.name || clerkMeta?.name || "User";
-  const effectiveClass = dbRole?.class || clerkMeta?.class || "10";
-  const effectiveEmail = dbRole?.email || dbRole?.metadata?.email || clerkMeta?.email || null;
-  const effectivePhone = dbRole?.phone || dbRole?.metadata?.studentPhone || dbRole?.metadata?.phone || clerkMeta?.phone || null;
-  const effectiveParentEmail = dbRole?.parent_email || dbRole?.metadata?.parentEmail || null;
-  const effectiveParentPhone = dbRole?.parent_phone || dbRole?.metadata?.parentPhone || null;
+  const rawClass = dbRole?.class || clerkMeta?.class || null;
+  const effectiveClass = rawClass?.startsWith("role:") ? null : rawClass;
+  const effectiveEmail = clerkMeta?.email || null;
+  const effectivePhone = clerkMeta?.phone || null;
 
   // Auto-sync into Supabase user_roles if user has clerk metadata role but no DB row yet
-  if (!dbRole && clerkRole && clerkRole !== "unassigned" && checkSupabaseConfigured()) {
+  if ((!dbRole || dbRole.role === "unassigned") && effectiveRole !== "unassigned" && checkSupabaseConfigured()) {
     try {
+      let syncRole = effectiveRole;
+      let syncClass = effectiveClass;
+      if (["principal", "higher_body", "admin"].includes(effectiveRole)) {
+        syncRole = "teacher";
+        syncClass = `role:${effectiveRole}`;
+      }
       const syncPayload = {
         user_id: userId,
-        role: clerkRole,
+        role: syncRole,
         name: effectiveName,
-        email: effectiveEmail,
-        phone: effectivePhone,
-        parent_email: effectiveParentEmail,
-        parent_phone: effectiveParentPhone,
         school_id: effectiveSchoolId,
-        class: effectiveClass,
+        class: syncClass,
         provisional: false,
         created_at: nowIso(),
         updated_at: nowIso(),
@@ -292,11 +296,11 @@ export async function requireUserRole(userId) {
     name: effectiveName,
     email: effectiveEmail,
     phone: effectivePhone,
-    parent_email: effectiveParentEmail,
-    parent_phone: effectiveParentPhone,
+    parent_email: null,
+    parent_phone: null,
     school_id: effectiveSchoolId,
     class: effectiveClass,
-    metadata: dbRole?.metadata || {},
+    metadata: {},
     provisional: !dbRole,
     created_at: dbRole?.created_at || nowIso(),
     updated_at: dbRole?.updated_at || nowIso(),

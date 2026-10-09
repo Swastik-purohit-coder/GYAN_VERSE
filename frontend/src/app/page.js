@@ -105,8 +105,19 @@ export default function Welcome() {
     if (!isLoaded || !isSignedIn || !user?.id) return;
     let cancelled = false;
 
-    // Check immediate Clerk unsafeMetadata first for zero-latency routing
-    const directRole = user?.unsafeMetadata?.role;
+    // Check immediate Clerk unsafeMetadata, localStorage, and cookie first for zero-latency routing
+    const metaRole = user?.unsafeMetadata?.role;
+    const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+    let cookieRole = null;
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+      if (match) cookieRole = decodeURIComponent(match[1]);
+    }
+    const directRole =
+      (metaRole && metaRole !== "unassigned" ? metaRole : null) ||
+      (localRole && localRole !== "unassigned" ? localRole : null) ||
+      (cookieRole && cookieRole !== "unassigned" ? cookieRole : null);
+
     if (directRole === "student") {
       setRedirecting(true);
       router.replace("/student/dashboard");
@@ -125,13 +136,14 @@ export default function Welcome() {
       try {
         const data = await fetchUserRole(user.id);
         let role = typeof data === "string" ? data : data?.role;
+        const finalRole = (role && role !== "unassigned") ? role : directRole;
         if (cancelled) return;
         setRedirecting(true);
-        if (role === "student") {
+        if (finalRole === "student") {
           router.replace("/student/dashboard");
-        } else if (["principal", "admin", "higher_body"].includes(role)) {
+        } else if (["principal", "admin", "higher_body"].includes(finalRole)) {
           router.replace("/principal");
-        } else if (role === "teacher") {
+        } else if (finalRole === "teacher") {
           router.replace("/teacher/dashboard");
         } else {
           router.replace("/role-select");
@@ -139,7 +151,15 @@ export default function Welcome() {
       } catch (_) {
         if (!cancelled) {
           setRedirecting(true);
-          router.replace("/role-select");
+          if (["principal", "admin", "higher_body"].includes(directRole)) {
+            router.replace("/principal");
+          } else if (directRole === "teacher") {
+            router.replace("/teacher/dashboard");
+          } else if (directRole === "student") {
+            router.replace("/student/dashboard");
+          } else {
+            router.replace("/role-select");
+          }
         }
       }
     })();

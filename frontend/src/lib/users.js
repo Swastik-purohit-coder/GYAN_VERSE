@@ -20,6 +20,13 @@ export async function fetchUserRole(userId) {
         idbProfile = await db.userProfile.get(userId);
       } catch {}
 
+      // Also check cookie if available
+      let cookieRole = null;
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+        if (match) cookieRole = decodeURIComponent(match[1]);
+      }
+
       if (idbProfile && idbProfile.role && idbProfile.role !== "unassigned") {
         return {
           ...idbProfile,
@@ -31,11 +38,15 @@ export async function fetchUserRole(userId) {
         };
       }
 
-      if (localRole && localRole !== "unassigned") {
+      const assignedFallbackRole =
+        (localRole && localRole !== "unassigned" ? localRole : null) ||
+        (cookieRole && cookieRole !== "unassigned" ? cookieRole : null);
+
+      if (assignedFallbackRole) {
         return {
           userId,
-          role: localRole,
-          name: localName || "Student",
+          role: assignedFallbackRole,
+          name: localName || "User",
           class: localClass,
           schoolId: localSchoolId,
           isOffline: true,
@@ -56,21 +67,25 @@ export async function fetchUserRole(userId) {
       cache: "no-store",
     });
 
-    if (res.status === 404) {
+    if (res.status === 404 || !res.ok) {
+      const cached = await getLocalFallback();
+      if (cached) return cached;
       const json = await res.json().catch(() => null);
       return json || { role: "unassigned", provisional: true };
     }
 
-    if (!res.ok) {
-      const cached = await getLocalFallback();
-      if (cached) return cached;
-      return { role: "unassigned", provisional: true };
-    }
-
     const data = await res.json();
 
+    // If server returned unassigned, check if client already has an assigned role
+    if (!data?.role || data.role === "unassigned") {
+      const cached = await getLocalFallback();
+      if (cached && cached.role && cached.role !== "unassigned") {
+        return cached;
+      }
+    }
+
     // Cache successful profile locally for offline use
-    if (data && data.role) {
+    if (data && data.role && data.role !== "unassigned") {
       try {
         if (typeof window !== "undefined") {
           localStorage.setItem("userRole", data.role);
@@ -79,6 +94,7 @@ export async function fetchUserRole(userId) {
           if (data.schoolId || data.school_id) {
             localStorage.setItem("schoolId", data.schoolId || data.school_id);
           }
+          document.cookie = `gyan_user_role=${data.role}; path=/; max-age=604800; SameSite=Lax`;
         }
         const { db } = await import("@/lib/offlineDb");
         await db.userProfile.put({
@@ -106,25 +122,41 @@ export async function fetchUserRole(userId) {
 export async function saveUserRole(payload) {
   try {
     const { userId, role, name, schoolId, class: klass, ...extraProfile } = payload;
+    const finalRole = role || "student";
+
+    // Immediate synchronous local caching before network call
+    if (typeof window !== "undefined") {
+      document.cookie = `gyan_user_role=${finalRole}; path=/; max-age=604800; SameSite=Lax`;
+      localStorage.setItem("userRole", finalRole);
+      if (name) localStorage.setItem("userName", name);
+      if (klass) localStorage.setItem("studentClass", klass);
+      if (schoolId) localStorage.setItem("schoolId", schoolId);
+    }
+
+    try {
+      const { db } = await import("@/lib/offlineDb");
+      await db.userProfile.put({
+        userId,
+        role: finalRole,
+        name: name || null,
+        class: klass || null,
+        schoolId: schoolId || null,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch {}
+
     const res = await fetch(`${API_BASE_URL}/users/role`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId,
-        role,
+        role: finalRole,
         name,
         schoolId,
         class: klass,
         ...extraProfile,
       }),
     });
-    if (typeof window !== "undefined") {
-      document.cookie = `gyan_user_role=${payload.role || "student"}; path=/; max-age=604800; SameSite=Lax`;
-      localStorage.setItem("userRole", payload.role || "student");
-      localStorage.setItem("userName", payload.name || "");
-      if (payload.class) localStorage.setItem("studentClass", payload.class);
-      if (payload.schoolId) localStorage.setItem("schoolId", payload.schoolId);
-    }
 
     if (res.ok) {
       return await res.json();

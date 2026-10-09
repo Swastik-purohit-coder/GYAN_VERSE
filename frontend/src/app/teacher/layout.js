@@ -18,10 +18,25 @@ export default function TeacherLayout({ children }) {
     if (!isLoaded) return;
     if (!isSignedIn || !user?.id) return;
 
-    // Check immediate Clerk unsafeMetadata for instant authorization
+    // Check immediate Clerk unsafeMetadata, localStorage, and cookie for instant authorization
     const metaRole = user?.unsafeMetadata?.role;
-    if (["teacher", "admin", "principal", "higher_body"].includes(metaRole)) {
+    const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+    let cookieRole = null;
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+      if (match) cookieRole = decodeURIComponent(match[1]);
+    }
+    const immediateRole =
+      (metaRole && metaRole !== "unassigned" ? metaRole : null) ||
+      (localRole && localRole !== "unassigned" ? localRole : null) ||
+      (cookieRole && cookieRole !== "unassigned" ? cookieRole : null);
+
+    if (["teacher", "admin", "principal", "higher_body"].includes(immediateRole)) {
       setAuthorized(true);
+      return;
+    }
+    if (immediateRole === "student") {
+      router.replace("/student/dashboard");
       return;
     }
 
@@ -30,24 +45,22 @@ export default function TeacherLayout({ children }) {
       .then((data) => {
         if (!active) return;
         const role = typeof data === "string" ? data : data?.role;
-        if (role === "student") {
-          router.replace("/student/dashboard");
-          return;
-        }
-        if (role === "unassigned") {
-          router.replace("/role-select");
-          return;
-        }
-        if (["teacher", "admin", "principal", "higher_body"].includes(role)) {
+        const finalRole = (role && role !== "unassigned") ? role : immediateRole;
+        if (["teacher", "admin", "principal", "higher_body"].includes(finalRole)) {
           setAuthorized(true);
-        } else {
+        } else if (finalRole === "student") {
           router.replace("/student/dashboard");
+        } else {
+          router.replace("/role-select");
         }
       })
       .catch(() => {
         if (!active) return;
-        // If query fails, default to authorized if role in local metadata
-        setAuthorized(true);
+        if (["teacher", "admin", "principal", "higher_body"].includes(immediateRole)) {
+          setAuthorized(true);
+        } else {
+          router.replace("/student/dashboard");
+        }
       });
 
     return () => {
