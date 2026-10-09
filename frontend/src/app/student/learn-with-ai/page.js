@@ -29,6 +29,16 @@ import {
   ArrowLeft,
   Share2,
   Compass,
+  Globe,
+  Calculator,
+  Leaf,
+  Atom,
+  Landmark,
+  BookA,
+  Map,
+  Microscope,
+  PieChart,
+  Ruler,
 } from "lucide-react";
 import EnhancedAiMarkdown from "@/student/components/EnhancedAiMarkdown";
 import { askStudyBuddy } from "@/lib/api";
@@ -43,7 +53,7 @@ const MODES = [
     name: "Concept Explainer",
     shortName: "Explainer",
     icon: Lightbulb,
-    badge: "💡 Simple Analogies",
+    badge: "Simple Analogies",
     description: "Breaks down concepts using simple real-world analogies and clear steps.",
   },
   {
@@ -51,7 +61,7 @@ const MODES = [
     name: "Socratic Tutor",
     shortName: "Socratic",
     icon: HelpCircle,
-    badge: "🧠 Step-by-Step",
+    badge: "Step-by-Step",
     description: "Guides you with thoughtful questions so you discover answers yourself.",
   },
   {
@@ -59,7 +69,7 @@ const MODES = [
     name: "Practice & Quiz",
     shortName: "Practice",
     icon: CheckCircle2,
-    badge: "📝 Test Skills",
+    badge: "Test Skills",
     description: "Solves problems and gives you follow-up practice challenges.",
   },
   {
@@ -67,7 +77,7 @@ const MODES = [
     name: "Exam Revision",
     shortName: "Exam Prep",
     icon: FileText,
-    badge: "🎯 High-Yield Notes",
+    badge: "High-Yield Notes",
     description: "Key formulas, definitions, common mistakes, and summary checklists.",
   },
   {
@@ -75,20 +85,20 @@ const MODES = [
     name: "Direct Answer",
     shortName: "Direct",
     icon: BookOpen,
-    badge: "⚡ Fast & Clear",
+    badge: "Fast & Clear",
     description: "A structured, concise response with bullet points and takeaways.",
   },
 ];
 
 // Subject Filters
 const SUBJECTS = [
-  { id: "all", name: "All Subjects", icon: "🌐" },
-  { id: "math", name: "Mathematics", icon: "📐" },
-  { id: "science", name: "Science & Biology", icon: "🌱" },
-  { id: "physics", name: "Physics & Chemistry", icon: "⚛️" },
-  { id: "history", name: "Social Science & History", icon: "🏛️" },
-  { id: "english", name: "English & Grammar", icon: "📖" },
-  { id: "geography", name: "Geography & EVS", icon: "🌍" },
+  { id: "all", name: "All Subjects", icon: Globe },
+  { id: "math", name: "Mathematics", icon: Calculator },
+  { id: "science", name: "Science & Biology", icon: Leaf },
+  { id: "physics", name: "Physics & Chemistry", icon: Atom },
+  { id: "history", name: "Social Science & History", icon: Landmark },
+  { id: "english", name: "English & Grammar", icon: BookA },
+  { id: "geography", name: "Geography & EVS", icon: Map },
 ];
 
 // Curated Starters
@@ -98,42 +108,42 @@ const CURATED_PROMPTS = [
     mode: "explain",
     title: "How does Photosynthesis work?",
     prompt: "Explain Photosynthesis step-by-step using a fun kitchen cooking analogy.",
-    icon: "🌱",
+    icon: Leaf,
   },
   {
     subject: "math",
     mode: "practice",
     title: "Pythagorean Theorem Practice",
     prompt: "Explain how to calculate the hypotenuse in a right triangle and give me 2 practice problems with hints.",
-    icon: "📐",
+    icon: Ruler,
   },
   {
     subject: "physics",
     mode: "socratic",
     title: "Why does Gravity exist?",
     prompt: "Why do heavy objects fall at the same speed as light objects in a vacuum? Walk me through it step-by-step.",
-    icon: "⚛️",
+    icon: Atom,
   },
   {
     subject: "history",
     mode: "explain",
     title: "Indus Valley Civilization",
     prompt: "Explain how town planning and drainage systems worked in Harappa and Mohenjo-daro for school students.",
-    icon: "🏛️",
+    icon: Landmark,
   },
   {
     subject: "science",
     mode: "exam",
     title: "Mitosis vs Meiosis Cheat Sheet",
     prompt: "Give me an exam-ready comparison table between Mitosis and Meiosis with common student traps to avoid.",
-    icon: "🔬",
+    icon: Microscope,
   },
   {
     subject: "math",
     mode: "explain",
     title: "Understanding Fractions & Percentages",
     prompt: "Explain how fractions convert to decimals and percentages using pizza slices as an example.",
-    icon: "🍕",
+    icon: PieChart,
   },
 ];
 
@@ -452,11 +462,11 @@ export default function LearnWithAiPage() {
   const handleExportChat = () => {
     if (messages.length === 0) return;
     const title = sessions.find((s) => s.id === currentSessionId)?.title || "AI-Study-Notes";
-    const header = `# 🎓 Gyan-Bot AI Study Notes: ${title}\nDate: ${new Date().toLocaleDateString()}\nMode: ${activeMode} | Subject: ${activeSubject}\n\n---\n\n`;
+    const header = `# Gyan-Bot AI Study Notes: ${title}\nDate: ${new Date().toLocaleDateString()}\nMode: ${activeMode} | Subject: ${activeSubject}\n\n---\n\n`;
     const body = messages
       .map(
         (m) =>
-          `### ${m.role === "user" ? "🙋 Question" : "🤖 Gyan-Bot Answer"}\n\n${m.content}\n\n`
+          `### ${m.role === "user" ? "Student Question" : "Gyan-Bot Answer"}\n\n${m.content}\n\n`
       )
       .join("---\n\n");
 
@@ -688,6 +698,7 @@ export default function LearnWithAiPage() {
           </span>
           {SUBJECTS.map((sub) => {
             const isSelected = activeSubject === sub.id;
+            const SubIcon = sub.icon;
             return (
               <button
                 key={sub.id}
@@ -699,7 +710,7 @@ export default function LearnWithAiPage() {
                     : "bg-white text-[#64748B] hover:text-[#172033] border border-[#E2E8F0] hover:border-slate-300"
                 )}
               >
-                <span>{sub.icon}</span>
+                <SubIcon className={cn("w-3.5 h-3.5 shrink-0", isSelected ? "text-white" : "text-[#635BFF]")} />
                 <span>{sub.name}</span>
               </button>
             );
@@ -721,8 +732,9 @@ export default function LearnWithAiPage() {
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-xl sm:text-2xl font-black text-[#172033] tracking-tight">
-                  Welcome to Learn with AI, {studentName}! 🚀
+                <h2 className="text-xl sm:text-2xl font-black text-[#172033] tracking-tight flex items-center justify-center gap-2">
+                  <span>Welcome to Learn with AI, {studentName}!</span>
+                  <Sparkles className="w-5 h-5 text-[#635BFF] shrink-0" />
                 </h2>
                 <p className="text-xs sm:text-sm text-[#64748B] max-w-lg mx-auto leading-relaxed">
                   I am your 24/7 AI Study Buddy. Select your learning mode below or tap any curriculum question to begin learning with deep analogies, practice quizzes, and step-by-step guidance!
@@ -759,31 +771,34 @@ export default function LearnWithAiPage() {
                   <span>Curated Learning Topics to Explore</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {CURATED_PROMPTS.map((card, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setActiveMode(card.mode);
-                        handleSendMessage(card.prompt, card.mode);
-                      }}
-                      className="group p-3.5 rounded-2xl border border-[#E2E8F0] hover:border-[#635BFF] bg-white hover:bg-[#FAF9FF] transition-all text-left shadow-2xs hover:shadow-xs flex items-start gap-3 cursor-pointer"
-                    >
-                      <span className="text-xl shrink-0 p-1 rounded-xl bg-slate-50 group-hover:bg-[#F1EEFF] transition-colors">
-                        {card.icon}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <h4 className="text-xs font-bold text-[#172033] group-hover:text-[#635BFF] transition-colors truncate">
-                            {card.title}
-                          </h4>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#635BFF] transition-colors shrink-0" />
+                  {CURATED_PROMPTS.map((card, idx) => {
+                    const CardIcon = card.icon;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setActiveMode(card.mode);
+                          handleSendMessage(card.prompt, card.mode);
+                        }}
+                        className="group p-3.5 rounded-2xl border border-[#E2E8F0] hover:border-[#635BFF] bg-white hover:bg-[#FAF9FF] transition-all text-left shadow-2xs hover:shadow-xs flex items-start gap-3 cursor-pointer"
+                      >
+                        <span className="shrink-0 p-2 rounded-xl bg-slate-50 text-[#635BFF] group-hover:bg-[#F1EEFF] group-hover:text-[#635BFF] transition-colors flex items-center justify-center">
+                          <CardIcon className="w-4 h-4" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <h4 className="text-xs font-bold text-[#172033] group-hover:text-[#635BFF] transition-colors truncate">
+                              {card.title}
+                            </h4>
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#635BFF] transition-colors shrink-0" />
+                          </div>
+                          <p className="text-[11px] text-[#64748B] line-clamp-2 leading-relaxed">
+                            {card.prompt}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-[#64748B] line-clamp-2 leading-relaxed">
-                          {card.prompt}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
