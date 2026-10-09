@@ -27,6 +27,7 @@ export async function GET(request, context) {
   let lessonData = null;
 
   // 1. Try fetching from Supabase Database
+  try {
     let dbLesson = null;
     try {
       dbLesson = await runSingle(
