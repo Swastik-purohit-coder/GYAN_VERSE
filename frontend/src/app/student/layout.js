@@ -28,6 +28,7 @@ import {
   WifiOff,
   GraduationCap,
   Brain,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/student/components/ui/input";
 import { useI18n } from "@/i18n/useI18n";
