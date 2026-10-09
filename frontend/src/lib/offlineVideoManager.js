@@ -1,5 +1,5 @@
 // Utility manager for downloading and storing lesson videos in Cache Storage for offline playback
-import { getVideoType } from './videoHelpers';
+import { getVideoType } from './videoHelpers.js';
 
 const VIDEO_CACHE_NAME = 'glp-videos-v1';
 const META_KEY = 'gyanaratna_offline_video_meta';
