@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Send, X, Sparkles, MessageCircle, ArrowRight } from "lucide-react";
 import FormattedMarkdown from "./FormattedMarkdown";
@@ -23,10 +24,20 @@ export default function FloatingGyanBot({
   onKeyDown,
   renderFormattedText,
 }) {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // If already on the full Learn with AI page, hide the floating overlay button
+  if (
+    pathname === "/student/learn-with-ai" ||
+    pathname === "/learn-with-ai" ||
+    pathname === "/student/study-buddy"
+  ) {
+    return null;
+  }
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -217,7 +228,7 @@ export default function FloatingGyanBot({
               {/* Footer link: Open Full Screen Chat */}
               <div className="flex items-center justify-between px-1 pt-0.5">
                 <Link
-                  href="/student/study-buddy"
+                  href="/student/learn-with-ai"
                   className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#635BFF] hover:text-[#5148E5] hover:underline transition-colors"
                 >
                   <span>Open Full Screen Chat</span>

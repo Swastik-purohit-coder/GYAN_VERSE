@@ -27,6 +27,7 @@ import {
   Users,
   WifiOff,
   GraduationCap,
+  Brain,
 } from "lucide-react";
 import { Input } from "@/student/components/ui/input";
 import { useI18n } from "@/i18n/useI18n";
@@ -36,10 +37,9 @@ import SyncStatusBadge from "@/components/SyncStatusBadge";
 
 const makeNavItems = (t) => [
   { href: "/student", label: t?.nav?.dashboard ? t.nav.dashboard() : "Dashboard", icon: Home },
+  { href: "/student/learn-with-ai", label: "Learn with AI", icon: Brain },
   { href: "/student/courses", label: t?.nav?.courses ? t.nav.courses() : "Courses", icon: BookOpen },
   { href: "/student/exams", label: "Exams & Scholarships", icon: GraduationCap },
-  { href: "/student/groups", label: "Peer Groups", icon: Users },
-  { href: "/student/quiz", label: "Quiz", icon: ClipboardList },
   { href: "/student/achievements", label: t?.nav?.achievements ? t.nav.achievements() : "Achievements", icon: Star },
   { href: "/student/leaderboard", label: t?.nav?.leaderboard ? t.nav.leaderboard() : "Leaderboard", icon: Trophy },
   { href: "/student/search", label: t?.nav?.search ? t.nav.search() : "Search", icon: Search },
@@ -147,7 +147,7 @@ export default function StudentLayout({ children }) {
              ========================================= */}
           <aside
             className={cn(
-              "hidden lg:flex flex-col fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out border-r bg-white border-[#E2E8F0] shadow-xs",
+              "hidden lg:flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out border-r bg-white border-[#E2E8F0] shadow-xs",
               sidebarOpen ? "w-64 translate-x-0" : "-translate-x-full w-64"
             )}
           >
@@ -184,28 +184,38 @@ export default function StudentLayout({ children }) {
                 Menu
               </div>
               {navItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive =
+                  pathname === item.href ||
+                  (item.href === "/student" &&
+                    (pathname === "/student" ||
+                      pathname === "/student/dashboard" ||
+                      pathname === "/student/dashboard-v2")) ||
+                  (item.href === "/student/learn-with-ai" &&
+                    (pathname === "/student/learn-with-ai" ||
+                      pathname === "/student/study-buddy" ||
+                      pathname === "/learn-with-ai"));
                 return (
-                  <Link key={item.href} href={item.href} prefetch>
-                    <div
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch={false}
+                    className={cn(
+                      "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer select-none",
+                      isActive
+                        ? "bg-[#F1EEFF] text-[#635BFF] font-semibold shadow-xs"
+                        : "text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF]/60"
+                    )}
+                  >
+                    <item.icon
                       className={cn(
-                        "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer select-none",
-                        isActive
-                          ? "bg-[#F1EEFF] text-[#635BFF] font-semibold shadow-xs"
-                          : "text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF]/60"
+                        "w-5 h-5 shrink-0 transition-colors",
+                        isActive ? "text-[#635BFF]" : "text-[#64748B]"
                       )}
-                    >
-                      <item.icon
-                        className={cn(
-                          "w-5 h-5 shrink-0 transition-colors",
-                          isActive ? "text-[#635BFF]" : "text-[#64748B]"
-                        )}
-                      />
-                      <span className="truncate">{item.label}</span>
-                      {isActive && (
-                        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#635BFF]" />
-                      )}
-                    </div>
+                    />
+                    <span className="truncate">{item.label}</span>
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#635BFF]" />
+                    )}
                   </Link>
                 );
               })}
@@ -213,18 +223,18 @@ export default function StudentLayout({ children }) {
 
             {/* Sidebar Bottom Controls */}
             <div className="p-3 border-t border-[#E2E8F0] space-y-1">
-              <Link href="/settings">
-                <div
-                  className={cn(
-                    "flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer",
-                    pathname === "/settings"
-                      ? "bg-[#F1EEFF] text-[#635BFF] font-semibold"
-                      : "text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF]/60"
-                  )}
-                >
-                  <Settings className="w-5 h-5 text-[#64748B] shrink-0" />
-                  <span>Settings</span>
-                </div>
+              <Link
+                href="/settings"
+                prefetch={false}
+                className={cn(
+                  "flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer",
+                  pathname === "/settings"
+                    ? "bg-[#F1EEFF] text-[#635BFF] font-semibold"
+                    : "text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF]/60"
+                )}
+              >
+                <Settings className="w-5 h-5 text-[#64748B] shrink-0" />
+                <span>Settings</span>
               </Link>
 
               <button
@@ -263,7 +273,7 @@ export default function StudentLayout({ children }) {
              ========================================= */}
           {mobileDrawerOpen && (
             <div
-              className="lg:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs transition-opacity duration-300"
+              className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300"
               onClick={() => setMobileDrawerOpen(false)}
             />
           )}
@@ -277,6 +287,7 @@ export default function StudentLayout({ children }) {
             <div className="flex items-center justify-between px-5 h-16 border-b border-[#E2E8F0]">
               <Link
                 href="/student"
+                prefetch={false}
                 className="flex items-center gap-2.5"
                 onClick={() => setMobileDrawerOpen(false)}
               >
@@ -304,40 +315,58 @@ export default function StudentLayout({ children }) {
 
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
               {navItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive =
+                  pathname === item.href ||
+                  (item.href === "/student" &&
+                    (pathname === "/student" ||
+                      pathname === "/student/dashboard" ||
+                      pathname === "/student/dashboard-v2")) ||
+                  (item.href === "/student/learn-with-ai" &&
+                    (pathname === "/student/learn-with-ai" ||
+                      pathname === "/student/study-buddy" ||
+                      pathname === "/learn-with-ai"));
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     onClick={() => setMobileDrawerOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer",
+                      isActive
+                        ? "bg-[#F1EEFF] text-[#635BFF] font-semibold shadow-xs"
+                        : "text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF]/60"
+                    )}
                   >
-                    <div
+                    <item.icon
                       className={cn(
-                        "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                        isActive
-                          ? "bg-[#F1EEFF] text-[#635BFF] font-semibold"
-                          : "text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF]/60"
+                        "w-5 h-5 shrink-0",
+                        isActive ? "text-[#635BFF]" : "text-[#64748B]"
                       )}
-                    >
-                      <item.icon
-                        className={cn(
-                          "w-5 h-5 shrink-0",
-                          isActive ? "text-[#635BFF]" : "text-[#64748B]"
-                        )}
-                      />
-                      <span>{item.label}</span>
-                    </div>
+                    />
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#635BFF]" />
+                    )}
                   </Link>
                 );
               })}
             </div>
 
             <div className="p-3 border-t border-[#E2E8F0] space-y-1">
-              <Link href="/settings" onClick={() => setMobileDrawerOpen(false)}>
-                <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium text-[#64748B] hover:bg-slate-100">
-                  <Settings className="w-5 h-5 text-[#64748B]" />
-                  <span>Settings</span>
-                </div>
+              <Link
+                href="/settings"
+                prefetch={false}
+                onClick={() => setMobileDrawerOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer",
+                  pathname === "/settings"
+                    ? "bg-[#F1EEFF] text-[#635BFF] font-semibold"
+                    : "text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF]/60"
+                )}
+              >
+                <Settings className="w-5 h-5 text-[#64748B]" />
+                <span>Settings</span>
               </Link>
               <button
                 onClick={() => {
@@ -450,8 +479,8 @@ export default function StudentLayout({ children }) {
               <div className="grid grid-cols-5">
                 {[
                   { href: "/student", label: "Dashboard", icon: Home },
+                  { href: "/student/learn-with-ai", label: "AI Tutor", icon: Brain },
                   { href: "/student/courses", label: "Courses", icon: BookOpen },
-                  { href: "/student/quiz", label: "Quiz", icon: ClipboardList },
                   { href: "/student/games", label: "Games", icon: Gamepad2 },
                   { href: "/settings", label: "Profile", icon: Settings },
                 ].map(({ href, label, icon: Icon }) => {

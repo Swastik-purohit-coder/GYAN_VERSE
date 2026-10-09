@@ -29,14 +29,14 @@ import {
 const schoolClasses = Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`);
 
 const studentInterestTags = [
-  "AI & Prompt Engineering",
-  "Python & Web Coding",
-  "Math Olympiad Prep",
-  "Science & Robotics",
-  "UI/UX & Design",
-  "Monthly Hackathons",
-  "Financial Literacy",
+  "Mathematics & Olympiad",
+  "Science & Experiments",
+  "School Competitions & Quiz",
+  "Creative Arts & Drawing",
   "Public Speaking & Debate",
+  "General Knowledge & Social Studies",
+  "Computer & Digital Basics",
+  "Language & Story Writing",
 ];
 
 export default function SettingsPage() {
@@ -830,7 +830,7 @@ export default function SettingsPage() {
                           className={`w-full ${t.input} rounded-xl px-3.5 py-2.5 text-xs sm:text-sm focus:outline-none transition-all shadow-xs`}
                           value={primaryGoal}
                           onChange={(e) => setPrimaryGoal(e.target.value)}
-                          placeholder="e.g. STEM Hackathons & Olympiad Prep"
+                          placeholder="e.g. Science Exhibition & Olympiad Prep"
                         />
                       </div>
                     </div>

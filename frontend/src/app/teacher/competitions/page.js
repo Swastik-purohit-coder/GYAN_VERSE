@@ -143,9 +143,9 @@ export default function MonthlyCompetitionsPage() {
               <Trophy className="w-3.5 h-3.5 text-amber-300" /> Institutional Excellence & Olympiads
             </span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Monthly Competitions & Hackathons</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Monthly School Competitions & Olympiads</h1>
           <p className="text-slate-300 text-sm mt-1 max-w-2xl">
-            Host school-wide monthly coding hackathons, math speed olympiads, science exhibitions, and track student champion leaderboards.
+            Host school-wide math speed olympiads, science exhibitions, essay contests, and track student champion leaderboards.
           </p>
         </div>
 
@@ -189,7 +189,7 @@ export default function MonthlyCompetitionsPage() {
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="hackathon">Coding & AI Hackathon</SelectItem>
+                      <SelectItem value="hackathon">Science & Tech Fair</SelectItem>
                       <SelectItem value="olympiad">Math Olympiad</SelectItem>
                       <SelectItem value="science">Science Project Expo</SelectItem>
                       <SelectItem value="debate">Debate & Leadership</SelectItem>
@@ -344,7 +344,7 @@ export default function MonthlyCompetitionsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Tracks</SelectItem>
-              <SelectItem value="hackathon">Hackathons</SelectItem>
+              <SelectItem value="hackathon">Science & Tech Fairs</SelectItem>
               <SelectItem value="olympiad">Math Olympiads</SelectItem>
               <SelectItem value="science">Science Expo</SelectItem>
             </SelectContent>

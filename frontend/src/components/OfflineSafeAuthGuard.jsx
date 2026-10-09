@@ -63,9 +63,9 @@ export default function OfflineSafeAuthGuard({ children, fallback = null }) {
     return <>{children}</>;
   }
 
-  // Educational Knowledge Base (/student/exams) is publicly accessible without forced sign-in
-  const isExamsPage = typeof window !== "undefined" && window.location.pathname.startsWith("/student/exams");
-  if (isExamsPage) {
+  // Educational Knowledge Base & Student Portal routes are handled by StudentAuthGuard
+  const isStudentRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/student");
+  if (isStudentRoute) {
     return <>{children}</>;
   }
 

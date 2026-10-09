@@ -30,11 +30,13 @@ export default function StudentAuthGuard({ children }) {
     };
   }, []);
 
+  const isDev = process.env.NODE_ENV !== "production";
+
   return (
     <>
       <SignedIn>{children}</SignedIn>
       <SignedOut>
-        {isOffline || hasCachedSession ? (
+        {isOffline || hasCachedSession || isDev ? (
           children
         ) : (
           <RedirectToSignIn />

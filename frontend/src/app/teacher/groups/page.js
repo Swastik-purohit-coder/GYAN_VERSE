@@ -286,7 +286,7 @@ export default function StudentGroupsPage() {
   const getCategoryBadge = (category) => {
     switch (category) {
       case "hackathon_team":
-        return <Badge className="bg-violet-100 text-violet-800 border-violet-200 text-[10px]"><Trophy className="w-3 h-3 mr-1 text-violet-600" /> Hackathon Team</Badge>;
+        return <Badge className="bg-violet-100 text-violet-800 border-violet-200 text-[10px]"><Trophy className="w-3 h-3 mr-1 text-violet-600" /> Project Team</Badge>;
       case "olympiad_squad":
         return <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]"><Star className="w-3 h-3 mr-1 text-amber-600" /> Olympiad Squad</Badge>;
       case "science_club":
@@ -352,7 +352,7 @@ export default function StudentGroupsPage() {
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="hackathon_team">Hackathon & Innovation Team</SelectItem>
+                      <SelectItem value="hackathon_team">School Project & Science Fair Team</SelectItem>
                       <SelectItem value="olympiad_squad">Olympiad & Quiz Squad</SelectItem>
                       <SelectItem value="science_club">Science & Tech Project Club</SelectItem>
                       <SelectItem value="peer_tutoring">Peer Tutoring & Study Circle</SelectItem>
@@ -481,7 +481,7 @@ export default function StudentGroupsPage() {
             </div>
             <div>
               <div className="text-xl font-extrabold text-slate-900">{stats.hackathonTeams}</div>
-              <div className="text-xs text-slate-500 font-medium">Hackathon Teams</div>
+              <div className="text-xs text-slate-500 font-medium">Project Teams</div>
             </div>
           </CardContent>
         </Card>
@@ -530,7 +530,7 @@ export default function StudentGroupsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="hackathon_team">Hackathon Squads</SelectItem>
+              <SelectItem value="hackathon_team">Project Squads</SelectItem>
               <SelectItem value="olympiad_squad">Olympiad Pods</SelectItem>
               <SelectItem value="science_club">Science & Tech</SelectItem>
               <SelectItem value="peer_tutoring">Study Circles</SelectItem>

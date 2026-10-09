@@ -74,15 +74,21 @@ export default isPlaceholderKey
 
       // 2. Unauthenticated user handling for protected pages
       if (!effectiveUserId) {
-        // Educational Knowledge Base & Examination Roadmap is publicly accessible
-        if (pathname.startsWith("/student/exams") || pathname === "/exams") {
+        // Educational Knowledge Base, Examination Roadmap, and Student Learning Portal routes
+        // are accessible with client-side StudentAuthGuard & OfflineSafeAuthGuard handling
+        if (
+          pathname.startsWith("/student") ||
+          pathname === "/exams" ||
+          pathname === "/games" ||
+          pathname === "/quiz" ||
+          pathname === "/achievements"
+        ) {
           return NextResponse.next();
         }
 
         if (
           isPrincipalRoute(request) ||
           isTeacherRoute(request) ||
-          isStudentRoute(request) ||
           isRoleSelectRoute(request)
         ) {
           // Allow offline mode to browse and use website normally via IndexedDB
@@ -190,6 +196,10 @@ export default isPlaceholderKey
 
       // 8. Protect Student routes (/student/*)
       if (isStudentRoute(request)) {
+        // Educational Knowledge Base & Exam Roadmap is globally accessible
+        if (pathname.startsWith("/student/exams")) {
+          return NextResponse.next();
+        }
         if (role === "teacher") {
           return NextResponse.redirect(new URL("/teacher/dashboard", request.url));
         }
