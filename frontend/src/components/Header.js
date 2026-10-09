@@ -88,9 +88,9 @@ export default function Header() {
               <ThemeToggle />
             </div>
           ) : isStudentShell ? (
-            <ClientOnly fallback={<div className="flex items-center gap-2 sm:gap-3 flex-shrink-0"><OnlineBadge /><ThemeToggle /><PreHeader /></div>}>
+            <ClientOnly fallback={<div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">{!pathname?.startsWith("/student") && <OnlineBadge />}<ThemeToggle /><PreHeader /></div>}>
               <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                <OnlineBadge />
+                {!pathname?.startsWith("/student") && <OnlineBadge />}
                 <ThemeToggle />
                 <PreHeader />
                 <SignedIn>

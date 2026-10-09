@@ -187,20 +187,9 @@ export default function SyncStatusBadge({ inline = false, className = "" }) {
   // ==========================================
   // 2. FLOATING BOTTOM-RIGHT BADGE VARIANT
   // ==========================================
-  // Don't clutter UI when all synced and online unless user clicked to inspect or recently synced
-  if (!isOffline && !isSyncing && !isPending && !isError && !recentlySynced && !isExpanded) {
-    const compactWidget = (
-      <div
-        onClick={() => setIsExpanded(true)}
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/80 hover:bg-slate-800 text-emerald-400 text-xs font-medium border border-slate-700/60 shadow-lg backdrop-blur-md cursor-pointer transition-all hover:scale-105"
-        title="Application is online and synchronized"
-      >
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="hidden sm:inline text-[11px] text-slate-300">Online</span>
-      </div>
-    );
-
-    return typeof document !== "undefined" ? createPortal(compactWidget, document.body) : null;
+  // Don't clutter UI when all synced and online unless user clicked to inspect
+  if (!isOffline && !isSyncing && !isPending && !isError && !isExpanded) {
+    return null;
   }
 
   const floatingWidget = (
