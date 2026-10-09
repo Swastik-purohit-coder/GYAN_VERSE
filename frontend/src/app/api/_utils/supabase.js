@@ -209,7 +209,7 @@ export async function requireUserRole(userId) {
       dbRole = await runSingle(
         supabase
           .from("user_roles")
-          .select("user_id, role, name, school_id, class, provisional, created_at, updated_at")
+          .select("user_id, role, name, email, phone, parent_email, parent_phone, school_id, class, metadata, provisional, created_at, updated_at")
           .eq("user_id", userId)
           .maybeSingle()
       );
@@ -240,9 +240,12 @@ export async function requireUserRole(userId) {
           role: meta.role || clerkUser.publicMetadata?.role || null,
           email,
           phone,
+          parent_email: meta.parentEmail || meta.parent_email || null,
+          parent_phone: meta.parentPhone || meta.parent_phone || null,
           school_id: meta.schoolId || meta.school_id || clerkUser.publicMetadata?.schoolId || "default_school",
           class: meta.class || clerkUser.publicMetadata?.class || "10",
           name: clerkUser.fullName || [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || clerkUser.username || "User",
+          metadata: meta,
         };
       }
     } catch (err) {
@@ -262,8 +265,14 @@ export async function requireUserRole(userId) {
   const effectiveName = dbRole?.name || clerkMeta?.name || "User";
   const rawClass = dbRole?.class || clerkMeta?.class || null;
   const effectiveClass = rawClass?.startsWith("role:") ? null : rawClass;
-  const effectiveEmail = clerkMeta?.email || null;
-  const effectivePhone = clerkMeta?.phone || null;
+  const effectiveEmail = dbRole?.email || clerkMeta?.email || null;
+  const effectivePhone = dbRole?.phone || clerkMeta?.phone || null;
+  const effectiveParentEmail = dbRole?.parent_email || clerkMeta?.parent_email || null;
+  const effectiveParentPhone = dbRole?.parent_phone || clerkMeta?.parent_phone || null;
+  const effectiveMetadata =
+    dbRole?.metadata && typeof dbRole.metadata === "object"
+      ? dbRole.metadata
+      : (clerkMeta?.metadata && typeof clerkMeta.metadata === "object" ? clerkMeta.metadata : {});
 
   // Auto-sync into Supabase user_roles if user has clerk metadata role but no DB row yet
   if ((!dbRole || dbRole.role === "unassigned") && effectiveRole !== "unassigned" && checkSupabaseConfigured()) {
@@ -278,8 +287,13 @@ export async function requireUserRole(userId) {
         user_id: userId,
         role: syncRole,
         name: effectiveName,
+        email: effectiveEmail,
+        phone: effectivePhone,
+        parent_email: effectiveParentEmail,
+        parent_phone: effectiveParentPhone,
         school_id: effectiveSchoolId,
         class: syncClass,
+        metadata: effectiveMetadata,
         provisional: false,
         created_at: nowIso(),
         updated_at: nowIso(),
@@ -292,15 +306,21 @@ export async function requireUserRole(userId) {
 
   return {
     user_id: userId,
+    userId: userId,
     role: effectiveRole,
     name: effectiveName,
     email: effectiveEmail,
     phone: effectivePhone,
-    parent_email: null,
-    parent_phone: null,
+    studentPhone: effectivePhone,
+    parent_email: effectiveParentEmail,
+    parentEmail: effectiveParentEmail,
+    parent_phone: effectiveParentPhone,
+    parentPhone: effectiveParentPhone,
     school_id: effectiveSchoolId,
+    schoolId: effectiveSchoolId,
     class: effectiveClass,
-    metadata: {},
+    metadata: effectiveMetadata,
+    ...effectiveMetadata,
     provisional: !dbRole,
     created_at: dbRole?.created_at || nowIso(),
     updated_at: dbRole?.updated_at || nowIso(),

@@ -79,7 +79,11 @@ export async function POST(request) {
     let existing = null;
     try {
       existing = await runSingle(
-        supabase.from("user_roles").select("user_id, role, name, school_id, class").eq("user_id", targetUserId).maybeSingle()
+        supabase
+          .from("user_roles")
+          .select("user_id, role, name, email, phone, parent_email, parent_phone, school_id, class, metadata, created_at")
+          .eq("user_id", targetUserId)
+          .maybeSingle()
       );
     } catch (err) {
       console.warn("[/api/users/role] Existing user fetch warning:", err.message);
@@ -93,13 +97,100 @@ export async function POST(request) {
       dbClass = `role:${role}`;
     }
 
+    // Extract contact columns
+    const effectiveEmail =
+      body.email ||
+      extraProfile.email ||
+      existing?.email ||
+      null;
+
+    const effectivePhone =
+      body.studentPhone ||
+      body.phone ||
+      extraProfile.studentPhone ||
+      extraProfile.phone ||
+      existing?.phone ||
+      null;
+
+    const effectiveParentEmail =
+      body.parentEmail ||
+      body.parent_email ||
+      extraProfile.parentEmail ||
+      extraProfile.parent_email ||
+      existing?.parent_email ||
+      null;
+
+    const effectiveParentPhone =
+      body.parentPhone ||
+      body.parent_phone ||
+      extraProfile.parentPhone ||
+      extraProfile.parent_phone ||
+      existing?.parent_phone ||
+      null;
+
+    // Build comprehensive, clean metadata JSONB containing all extended student and faculty parameters
+    const existingMeta =
+      existing?.metadata && typeof existing.metadata === "object"
+        ? existing.metadata
+        : {};
+
+    const submittedExtra = {
+      ...(extraProfile.metadata && typeof extraProfile.metadata === "object" ? extraProfile.metadata : {}),
+      ...extraProfile,
+    };
+    delete submittedExtra.userId;
+    delete submittedExtra.user_id;
+    delete submittedExtra.targetUserId;
+    delete submittedExtra.role;
+    delete submittedExtra.name;
+    delete submittedExtra.schoolId;
+    delete submittedExtra.school_id;
+    delete submittedExtra.class;
+    delete submittedExtra.metadata;
+
+    const cleanMetadata = {
+      ...existingMeta,
+      ...submittedExtra,
+      dob: body.dob ?? extraProfile.dob ?? existingMeta.dob ?? null,
+      fatherName: body.fatherName ?? extraProfile.fatherName ?? existingMeta.fatherName ?? null,
+      parentPhone: effectiveParentPhone,
+      parentEmail: effectiveParentEmail,
+      studentPhone: effectivePhone,
+      address: body.address ?? extraProfile.address ?? existingMeta.address ?? null,
+      mediumLanguage: body.mediumLanguage ?? extraProfile.mediumLanguage ?? existingMeta.mediumLanguage ?? "English",
+      section: body.section ?? extraProfile.section ?? existingMeta.section ?? null,
+      rollNumber: body.rollNumber ?? extraProfile.rollNumber ?? existingMeta.rollNumber ?? null,
+      selectedInterests:
+        body.selectedInterests ??
+        extraProfile.selectedInterests ??
+        existingMeta.selectedInterests ??
+        [],
+      primaryGoal:
+        body.primaryGoal ?? extraProfile.primaryGoal ?? existingMeta.primaryGoal ?? null,
+      parentalControl:
+        body.parentalControl ??
+        extraProfile.parentalControl ??
+        existingMeta.parentalControl ?? {
+          weeklyReports: true,
+          dailyStudyLimit: "2 Hours / Day",
+          safetyMode: true,
+          quizAlerts: true,
+          quietHours: false,
+        },
+    };
+
     const dbPayload = {
       user_id: targetUserId,
       role: dbRole,
       provisional: false,
       name: name ?? existing?.name ?? null,
+      email: effectiveEmail,
+      phone: effectivePhone,
+      parent_email: effectiveParentEmail,
+      parent_phone: effectiveParentPhone,
       school_id: schoolId || existing?.school_id || null,
       class: dbClass ?? existing?.class ?? null,
+      metadata: cleanMetadata,
       created_at: existing?.created_at ?? nowIso(),
       updated_at: nowIso(),
     };
@@ -120,12 +211,21 @@ export async function POST(request) {
 
     const returnUser = {
       user_id: targetUserId,
+      userId: targetUserId,
       role,
       name: name ?? existing?.name ?? null,
+      email: effectiveEmail,
+      phone: effectivePhone,
+      parent_email: effectiveParentEmail,
+      parentEmail: effectiveParentEmail,
+      parent_phone: effectiveParentPhone,
+      parentPhone: effectiveParentPhone,
       school_id: schoolId || existing?.school_id || null,
+      schoolId: schoolId || existing?.school_id || null,
       class: klass ?? null,
       provisional: false,
-      ...extraProfile,
+      metadata: cleanMetadata,
+      ...cleanMetadata,
     };
 
     const response = NextResponse.json({ success: true, user: returnUser });

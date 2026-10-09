@@ -478,12 +478,15 @@ export async function getPendingSyncCount() {
 export async function saveLocalUserProfile(profile) {
   if (!profile || !profile.userId) return;
   try {
+    const existing = await db.userProfile.get(profile.userId).catch(() => null);
     await db.userProfile.put({
+      ...(existing || {}),
+      ...profile,
       userId: profile.userId,
-      role: profile.role || "student",
-      name: profile.name || "Student",
-      class: profile.class || "Class 8",
-      schoolId: profile.schoolId || "Gyanaratna STEM Academy",
+      role: profile.role || existing?.role || "student",
+      name: profile.name || existing?.name || "Student",
+      class: profile.class || existing?.class || "Class 8",
+      schoolId: profile.schoolId || profile.school_id || existing?.schoolId || "Gyanaratna STEM Academy",
       updatedAt: new Date().toISOString(),
     });
   } catch (e) {
