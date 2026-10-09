@@ -5,6 +5,7 @@ import {
   getCachedApiResponse,
   saveLocalLessonProgress,
   saveOfflineQuizAttempt,
+  getOfflineQuizAttempts,
   saveLocalDoubtSession,
   saveLocalDoubtMessage,
   updateLocalDoubtStatus,
@@ -602,6 +603,7 @@ export async function getOfflineGroup() {
 export {
   saveLocalLessonProgress,
   saveOfflineQuizAttempt,
+  getOfflineQuizAttempts,
   saveLocalDoubtSession,
   saveLocalDoubtMessage,
   updateLocalDoubtStatus,

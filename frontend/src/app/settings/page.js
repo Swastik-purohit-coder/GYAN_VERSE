@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import OfflineSafeAuthGuard from "@/components/OfflineSafeAuthGuard";
 import { useEffect, useState } from "react";
-import { saveUserRole } from "@/lib/users";
+import { saveUserRole, fetchUserRole } from "@/lib/users";
 import { useTheme } from "@/components/ThemeProvider";
 import {
   User,
@@ -29,14 +29,14 @@ import {
 const schoolClasses = Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`);
 
 const studentInterestTags = [
-  "🤖 AI & Prompt Engineering",
-  "💻 Python & Web Coding",
-  "📐 Math Olympiad Prep",
-  "🔬 Science & Robotics",
-  "🎨 UI/UX & Design",
-  "🏆 Monthly Hackathons",
-  "📈 Financial Literacy",
-  "🗣️ Public Speaking & Debate",
+  "AI & Prompt Engineering",
+  "Python & Web Coding",
+  "Math Olympiad Prep",
+  "Science & Robotics",
+  "UI/UX & Design",
+  "Monthly Hackathons",
+  "Financial Literacy",
+  "Public Speaking & Debate",
 ];
 
 export default function SettingsPage() {
@@ -153,7 +153,7 @@ export default function SettingsPage() {
         if (dbDoc.primaryGoal) setPrimaryGoal(dbDoc.primaryGoal);
         if (dbDoc.specialization) setSpecialization(dbDoc.specialization);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       active = false;
@@ -211,7 +211,7 @@ export default function SettingsPage() {
             ...profileMetadata,
           },
         });
-        if (user.reload) await user.reload().catch(() => {});
+        if (user.reload) await user.reload().catch(() => { });
       } catch (err) {
         console.warn("Clerk metadata save:", err);
       }
@@ -622,9 +622,8 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Weekly Academic Digest */}
                     <div
-                      className={`p-4 rounded-xl border transition-all duration-200 flex items-start justify-between gap-3 ${
-                        parentalControl.weeklyReports ? t.cardSubtleActive : t.cardSubtle
-                      }`}
+                      className={`p-4 rounded-xl border transition-all duration-200 flex items-start justify-between gap-3 ${parentalControl.weeklyReports ? t.cardSubtleActive : t.cardSubtle
+                        }`}
                     >
                       <div className="space-y-1">
                         <div className={`flex items-center gap-1.5 font-semibold text-xs ${t.title}`}>
@@ -648,9 +647,8 @@ export default function SettingsPage() {
 
                     {/* Instant Assessment Alerts */}
                     <div
-                      className={`p-4 rounded-xl border transition-all duration-200 flex items-start justify-between gap-3 ${
-                        parentalControl.quizAlerts ? t.cardSubtleActive : t.cardSubtle
-                      }`}
+                      className={`p-4 rounded-xl border transition-all duration-200 flex items-start justify-between gap-3 ${parentalControl.quizAlerts ? t.cardSubtleActive : t.cardSubtle
+                        }`}
                     >
                       <div className="space-y-1">
                         <div className={`flex items-center gap-1.5 font-semibold text-xs ${t.title}`}>
@@ -674,9 +672,8 @@ export default function SettingsPage() {
 
                     {/* Junior Safety Shield */}
                     <div
-                      className={`p-4 rounded-xl border transition-all duration-200 flex items-start justify-between gap-3 ${
-                        parentalControl.safetyMode ? t.cardSubtleActive : t.cardSubtle
-                      }`}
+                      className={`p-4 rounded-xl border transition-all duration-200 flex items-start justify-between gap-3 ${parentalControl.safetyMode ? t.cardSubtleActive : t.cardSubtle
+                        }`}
                     >
                       <div className="space-y-1">
                         <div className={`flex items-center gap-1.5 font-semibold text-xs ${t.title}`}>
@@ -700,9 +697,8 @@ export default function SettingsPage() {
 
                     {/* Quiet Hours & Study Curfew */}
                     <div
-                      className={`p-4 rounded-xl border transition-all duration-200 flex items-start justify-between gap-3 ${
-                        parentalControl.quietHours ? t.cardSubtleActive : t.cardSubtle
-                      }`}
+                      className={`p-4 rounded-xl border transition-all duration-200 flex items-start justify-between gap-3 ${parentalControl.quietHours ? t.cardSubtleActive : t.cardSubtle
+                        }`}
                     >
                       <div className="space-y-1">
                         <div className={`flex items-center gap-1.5 font-semibold text-xs ${t.title}`}>
@@ -791,9 +787,8 @@ export default function SettingsPage() {
                               key={tag}
                               type="button"
                               onClick={() => toggleInterest(tag)}
-                              className={`text-xs px-3.5 py-2 rounded-xl border font-medium transition-all cursor-pointer ${
-                                active ? t.tagActive : t.tagInactive
-                              }`}
+                              className={`text-xs px-3.5 py-2 rounded-xl border font-medium transition-all cursor-pointer ${active ? t.tagActive : t.tagInactive
+                                }`}
                             >
                               {tag}
                             </button>
