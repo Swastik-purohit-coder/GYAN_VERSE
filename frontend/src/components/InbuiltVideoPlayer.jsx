@@ -583,7 +583,7 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
                         </div>
                       )}
 
-                      <div className="pt-1 flex items-center gap-2">
+                      <div className="pt-1 flex flex-col sm:flex-row items-center gap-2">
                         {!isOfflineReady ? (
                           <Button
                             size="sm"
@@ -599,7 +599,7 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
                             ) : (
                               <>
                                 <Download className="w-3.5 h-3.5" />
-                                <span>Save for Offline (Chunk Cache)</span>
+                                <span>Save for Offline (Cache)</span>
                               </>
                             )}
                           </Button>
@@ -613,6 +613,20 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
                             <Trash2 className="w-3.5 h-3.5" /> Delete Offline Copy
                           </Button>
                         )}
+
+                        <a
+                          href={
+                            ytVideoId
+                              ? `/api/media/youtube/${encodeURIComponent(ytVideoId)}?url=${encodeURIComponent(rawVideoUrl)}&download=1`
+                              : `/api/media/video/${encodeURIComponent(videoId)}?download=1`
+                          }
+                          download={`${(item.title || "lecture").replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4`}
+                          className="w-full text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg py-2 px-3 font-medium flex items-center justify-center gap-1.5 transition-colors"
+                          title="Download MP4 video file directly to your device storage"
+                        >
+                          <Download className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Download .mp4</span>
+                        </a>
                       </div>
                     </div>
 
