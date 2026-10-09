@@ -473,6 +473,7 @@ export default function StudentLayout({ children }) {
               </div>
             </nav>
           </div>
-    </OfflineSafeAuthGuard>
-  );
-}
+        </div>
+      </OfflineSafeAuthGuard>
+    );
+  }
