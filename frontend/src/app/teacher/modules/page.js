@@ -30,11 +30,18 @@ import {
   Layers,
   Upload,
   CheckCircle,
+  CheckCircle2,
   XCircle,
   Eye,
   EyeOff,
   ChevronUp,
   ChevronDown,
+  Filter,
+  Youtube,
+  Clock,
+  Sparkles,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 
 const SCHOOL_CLASSES = Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`);
@@ -427,9 +434,9 @@ function ModuleManager() {
 
   if (roleLoading) {
     return (
-      <div className="max-w-6xl mx-auto py-12 text-center text-white/90">
-        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-violet-400" />
-        Loading teacher profile...
+      <div className="max-w-6xl mx-auto py-16 text-center text-slate-600">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-[#635BFF]" />
+        <p className="text-sm font-medium">Loading faculty workspace...</p>
       </div>
     );
   }
@@ -437,36 +444,46 @@ function ModuleManager() {
   const isAllowed = ["teacher", "principal", "admin", "higher_body"].includes(role) || role !== "student";
   if (!isAllowed) {
     return (
-      <Card className="max-w-xl mx-auto mt-10 bg-white border-stone-200 shadow-sm">
-        <CardContent className="p-6 text-center text-stone-700">
-          <div className="text-lg font-bold mb-2">Faculty Access Only</div>
-          <div className="text-sm">You need faculty or administrative privileges to manage learning modules.</div>
+      <Card className="max-w-xl mx-auto mt-10 bg-white border-slate-200 shadow-sm rounded-2xl">
+        <CardContent className="p-8 text-center text-slate-700">
+          <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-3">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <div className="text-lg font-bold text-slate-900 mb-1">Faculty Access Only</div>
+          <div className="text-sm text-slate-500">You need faculty or administrative privileges to manage learning modules.</div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-12">
+    <div className="space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Layers className="w-7 h-7 text-violet-400" /> Learning Module Management
-          </h1>
-          <p className="text-sm text-slate-300">
-            Create structured courses, video lessons, and order curriculum for your school
-          </p>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-[#635BFF]/10 text-[#635BFF] rounded-2xl border border-[#635BFF]/20 shadow-2xs">
+              <Layers className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-[#172033] tracking-tight">
+                Learning Module Management
+              </h1>
+              <p className="text-sm text-[#64748B]">
+                Create structured courses, video lessons, and order curriculum for your school
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Filter Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="w-36">
             <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
-              <SelectTrigger className="bg-slate-800 text-white border-slate-700">
+              <SelectTrigger className="bg-white border-slate-200 text-slate-700 shadow-2xs hover:border-slate-300 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 rounded-xl h-10 font-medium">
                 <SelectValue placeholder="All Classes" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 text-white border-slate-700">
+              <SelectContent className="bg-white border-slate-200 shadow-lg rounded-xl">
                 <SelectItem value="all">All Classes</SelectItem>
                 {SCHOOL_CLASSES.map((cls) => (
                   <SelectItem key={cls} value={cls}>{cls}</SelectItem>
@@ -475,15 +492,15 @@ function ModuleManager() {
             </Select>
           </div>
 
-          <div className="w-44">
+          <div className="w-48">
             <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
-              <SelectTrigger className="bg-slate-800 text-white border-slate-700">
+              <SelectTrigger className="bg-white border-slate-200 text-slate-700 shadow-2xs hover:border-slate-300 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 rounded-xl h-10 font-medium">
                 <SelectValue placeholder="All Subjects" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 text-white border-slate-700">
+              <SelectContent className="bg-white border-slate-200 shadow-lg rounded-xl">
                 <SelectItem value="all">All Subjects</SelectItem>
                 {subjects.map((sub) => (
-                  <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                  <SelectItem key={sub.id} value={sub.id}>{sub.name} ({sub.class || 'K-12'})</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -491,32 +508,41 @@ function ModuleManager() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* ============================================================ */}
         {/* LEFT COLUMN: Create / Edit Module Form & Module List (2 Cols) */}
         {/* ============================================================ */}
         <div className="lg:col-span-2 space-y-6">
           {/* Create/Edit Module Form */}
-          <Card className="bg-white/95 border-slate-200 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-slate-900 text-lg flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-violet-600" />
-                {editingModuleId ? "Edit Learning Module" : "Create New Learning Module"}
+          <Card className="bg-white border-[#E2E8F0] shadow-2xs rounded-2xl overflow-hidden">
+            <CardHeader className="bg-white border-b border-[#E2E8F0] py-4 px-6 flex flex-row items-center justify-between">
+              <CardTitle className="text-[#172033] text-base font-bold flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-[#635BFF]/10 text-[#635BFF] flex items-center justify-center">
+                  {editingModuleId ? <Pencil className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
+                </div>
+                <span>{editingModuleId ? "Edit Learning Module" : "Create New Learning Module"}</span>
               </CardTitle>
+              {editingModuleId && (
+                <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs font-semibold">
+                  Editing Mode
+                </Badge>
+              )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               <form onSubmit={handleSaveModule} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Target Class *</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                      Target Class *
+                    </label>
                     <Select
                       value={moduleForm.class}
                       onValueChange={(val) => setModuleForm((p) => ({ ...p, class: val }))}
                     >
-                      <SelectTrigger className="bg-white border-slate-300">
+                      <SelectTrigger className="bg-slate-50/60 hover:bg-slate-50 border-slate-200 text-slate-800 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 rounded-xl h-10">
                         <SelectValue placeholder="Select Class" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white">
+                      <SelectContent className="bg-white border-slate-200 shadow-lg rounded-xl">
                         {SCHOOL_CLASSES.map((cls) => (
                           <SelectItem key={cls} value={cls}>{cls}</SelectItem>
                         ))}
@@ -525,15 +551,17 @@ function ModuleManager() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Subject *</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                      Subject *
+                    </label>
                     <Select
                       value={moduleForm.subjectId}
                       onValueChange={(val) => setModuleForm((p) => ({ ...p, subjectId: val }))}
                     >
-                      <SelectTrigger className="bg-white border-slate-300">
+                      <SelectTrigger className="bg-slate-50/60 hover:bg-slate-50 border-slate-200 text-slate-800 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 rounded-xl h-10">
                         <SelectValue placeholder="Select Subject" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white">
+                      <SelectContent className="bg-white border-slate-200 shadow-lg rounded-xl">
                         {subjects.map((sub) => (
                           <SelectItem key={sub.id} value={sub.id}>{sub.name} ({sub.class || 'K-12'})</SelectItem>
                         ))}
@@ -543,34 +571,38 @@ function ModuleManager() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Module Title *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Module Title *
+                  </label>
                   <Input
                     value={moduleForm.title}
                     onChange={(e) => setModuleForm((p) => ({ ...p, title: e.target.value }))}
                     placeholder="e.g. Chapter 1: Introduction to Matter & Energy"
-                    className="bg-white border-slate-300"
+                    className="bg-slate-50/60 hover:bg-slate-50 focus:bg-white border-slate-200 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 text-slate-900 rounded-xl h-10 placeholder:text-slate-400"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Description
+                  </label>
                   <Textarea
                     value={moduleForm.description}
                     onChange={(e) => setModuleForm((p) => ({ ...p, description: e.target.value }))}
                     placeholder="Brief summary of module learning objectives..."
-                    className="bg-white border-slate-300"
+                    className="bg-slate-50/60 hover:bg-slate-50 focus:bg-white border-slate-200 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 text-slate-900 rounded-xl placeholder:text-slate-400"
                     rows={2}
                   />
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 select-none">
                     <input
                       type="checkbox"
                       checked={moduleForm.published}
                       onChange={(e) => setModuleForm((p) => ({ ...p, published: e.target.checked }))}
-                      className="w-4 h-4 text-violet-600 rounded"
+                      className="w-4 h-4 rounded text-[#635BFF] focus:ring-[#635BFF] accent-[#635BFF] cursor-pointer"
                     />
                     Publish module to students immediately
                   </label>
@@ -580,18 +612,25 @@ function ModuleManager() {
                       <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         onClick={() => {
                           setEditingModuleId(null);
                           setModuleForm(defaultModuleForm());
                         }}
+                        className="border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold"
                       >
                         Cancel Edit
                       </Button>
                     )}
-                    <Button type="submit" disabled={submittingModule} className="bg-violet-600 hover:bg-violet-700 text-white">
+                    <Button
+                      type="submit"
+                      disabled={submittingModule}
+                      size="sm"
+                      className="bg-[#635BFF] hover:bg-[#5148E5] text-white rounded-xl text-xs font-semibold px-4 shadow-xs"
+                    >
                       {submittingModule ? (
-                        <span className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                        <span className="flex items-center gap-1.5">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
                         </span>
                       ) : editingModuleId ? (
                         "Update Module"
@@ -602,28 +641,43 @@ function ModuleManager() {
                   </div>
                 </div>
 
-                {moduleError && <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">{moduleError}</div>}
-                {moduleSuccess && <div className="text-sm text-emerald-600 bg-emerald-50 p-2 rounded border border-emerald-200">{moduleSuccess}</div>}
+                {moduleError && (
+                  <div className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                    <span>{moduleError}</span>
+                  </div>
+                )}
+                {moduleSuccess && (
+                  <div className="text-xs text-emerald-700 bg-emerald-50 p-3 rounded-xl border border-emerald-200 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{moduleSuccess}</span>
+                  </div>
+                )}
               </form>
             </CardContent>
           </Card>
 
           {/* Modules List */}
-          <Card className="bg-white/95 border-slate-200 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-slate-900 text-lg flex items-center justify-between">
-                <span>School Learning Modules ({modules.length})</span>
-                {modulesLoading && <Loader2 className="w-4 h-4 animate-spin text-violet-600" />}
+          <Card className="bg-white border-[#E2E8F0] shadow-2xs rounded-2xl overflow-hidden">
+            <CardHeader className="bg-white border-b border-[#E2E8F0] py-4 px-6 flex flex-row items-center justify-between">
+              <CardTitle className="text-[#172033] text-base font-bold flex items-center gap-2">
+                <span>School Learning Modules</span>
+                <span className="bg-[#635BFF]/10 text-[#635BFF] text-xs font-bold px-2.5 py-0.5 rounded-full">
+                  {modules.length}
+                </span>
               </CardTitle>
+              {modulesLoading && <Loader2 className="w-4 h-4 animate-spin text-[#635BFF]" />}
             </CardHeader>
-            <CardContent className="space-y-3">
-              {modulesError && <div className="text-sm text-red-600">{modulesError}</div>}
+            <CardContent className="p-6 space-y-3">
+              {modulesError && <div className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">{modulesError}</div>}
 
               {modulesLoading && !modules.length ? (
-                <div className="py-8 text-center text-sm text-slate-500">Loading learning modules...</div>
+                <div className="py-10 text-center text-sm text-slate-500">Loading learning modules...</div>
               ) : !modules.length ? (
-                <div className="py-8 text-center text-sm text-slate-500">
-                  No learning modules created yet for the selected filter. Create one above!
+                <div className="py-12 text-center text-sm text-slate-500 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 p-6">
+                  <BookOpen className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="font-semibold text-slate-700 mb-1">No learning modules yet</p>
+                  <p className="text-xs text-slate-400">Use the form above to create your school&apos;s first curriculum module.</p>
                 </div>
               ) : (
                 modules.map((mod) => {
@@ -635,57 +689,73 @@ function ModuleManager() {
                       key={mod.id}
                       className={`p-4 rounded-xl border transition-all ${
                         isSelected
-                          ? "border-violet-500 bg-violet-50/50 shadow-sm"
-                          : "border-slate-200 bg-white hover:border-slate-300"
+                          ? "border-[#635BFF] bg-gradient-to-r from-violet-50/70 to-indigo-50/30 shadow-xs ring-1 ring-[#635BFF]/20"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-2xs"
                       }`}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-slate-900 text-base">{mod.title}</h3>
-                            <Badge className="bg-violet-100 text-violet-700 border-violet-200">{mod.class}</Badge>
-                            <Badge variant="outline" className="text-slate-600">{subjectName}</Badge>
+                            <h3 className="font-bold text-slate-900 text-sm">{mod.title}</h3>
+                            <Badge className="bg-[#635BFF]/10 text-[#635BFF] border-0 text-xs font-semibold px-2 py-0.5">
+                              {mod.class}
+                            </Badge>
+                            <Badge variant="outline" className="text-slate-600 border-slate-200 text-xs">
+                              {subjectName}
+                            </Badge>
                             {mod.published ? (
-                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 flex items-center gap-1">
+                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs flex items-center gap-1 font-medium">
                                 <Eye className="w-3 h-3" /> Published
                               </Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-slate-500 flex items-center gap-1">
+                              <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-slate-200 text-xs flex items-center gap-1 font-medium">
                                 <EyeOff className="w-3 h-3" /> Draft
                               </Badge>
                             )}
                           </div>
-                          {mod.description && <p className="text-xs text-slate-600">{mod.description}</p>}
+                          {mod.description && <p className="text-xs text-slate-500 line-clamp-2">{mod.description}</p>}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           <Button
                             size="sm"
                             variant={isSelected ? "default" : "outline"}
-                            className={isSelected ? "bg-violet-600 text-white" : "border-violet-200 text-violet-700 hover:bg-violet-50"}
+                            className={
+                              isSelected
+                                ? "bg-[#635BFF] hover:bg-[#5148E5] text-white rounded-xl text-xs font-semibold shadow-xs"
+                                : "border-slate-200 text-slate-700 hover:border-[#635BFF] hover:text-[#635BFF] bg-white rounded-xl text-xs font-semibold"
+                            }
                             onClick={() => handleSelectModuleForLessons(mod)}
                           >
-                            <BookOpen className="w-4 h-4 mr-1" />
+                            <BookOpen className="w-3.5 h-3.5 mr-1" />
                             {isSelected ? "Managing Lessons" : "Manage Lessons"}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => startEditModule(mod)}>
-                            <Pencil className="w-4 h-4" />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg"
+                            onClick={() => startEditModule(mod)}
+                            title="Edit Module"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-slate-500 hover:text-slate-900"
+                            className="h-8 w-8 p-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg"
                             onClick={() => handleTogglePublishModule(mod)}
+                            title={mod.published ? "Unpublish Module" : "Publish Module"}
                           >
-                            {mod.published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-emerald-600" />}
+                            {mod.published ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-emerald-600" />}
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-red-500 hover:text-red-700"
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
                             onClick={() => handleDeleteModule(mod.id)}
+                            title="Delete Module"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -701,126 +771,160 @@ function ModuleManager() {
         {/* RIGHT COLUMN: Lesson Manager Panel for Selected Module (1 Col) */}
         {/* ============================================================ */}
         <div className="space-y-6">
-          <Card className="bg-slate-900 text-white border-slate-800 shadow-xl">
-            <CardHeader className="pb-3 border-b border-slate-800">
-              <CardTitle className="text-base font-semibold flex items-center gap-2 text-violet-300">
-                <Video className="w-5 h-5 text-violet-400" />
-                {activeModule ? `Lessons in: ${activeModule.title}` : "Lesson Manager"}
-              </CardTitle>
+          <Card className="bg-white border-[#E2E8F0] shadow-2xs rounded-2xl overflow-hidden sticky top-6">
+            <CardHeader className="bg-gradient-to-r from-violet-50/80 via-purple-50/40 to-white border-b border-[#E2E8F0] py-4 px-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-[#635BFF] text-white rounded-xl shadow-xs">
+                    <Video className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm font-bold text-[#172033] leading-snug">
+                      {activeModule ? `Lessons in: ${activeModule.title}` : "Lesson Manager"}
+                    </CardTitle>
+                    <p className="text-[11px] text-[#64748B]">
+                      {activeModule ? "Add and configure video lessons" : "Select a module to manage content"}
+                    </p>
+                  </div>
+                </div>
+                {activeModule && (
+                  <Badge className="bg-[#635BFF]/10 text-[#635BFF] border-0 text-xs font-semibold shrink-0">
+                    {activeModule.class}
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
               {!activeModule ? (
-                <div className="py-12 text-center text-sm text-slate-400">
-                  Select a learning module on the left to add video lessons and curriculum content.
+                <div className="py-14 text-center px-4">
+                  <div className="w-12 h-12 rounded-2xl bg-violet-50 text-[#635BFF] mx-auto flex items-center justify-center mb-3">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800 mb-1">No Module Selected</h4>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                    Select a learning module on the left to add video lessons and curriculum content.
+                  </p>
                 </div>
               ) : (
                 <>
                   {/* Add / Edit Lesson Form */}
-                  <form onSubmit={handleSaveLesson} className="space-y-3 bg-slate-800/80 p-4 rounded-xl border border-slate-700">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-violet-300">
-                      {editingLessonId ? "Edit Lesson" : "Add Lesson to Module"}
-                    </h4>
+                  <form onSubmit={handleSaveLesson} className="space-y-3 bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#635BFF] flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {editingLessonId ? "Edit Lesson" : "Add Lesson to Module"}
+                      </h4>
+                      {editingLessonId && (
+                        <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-semibold">
+                          Editing
+                        </span>
+                      )}
+                    </div>
 
                     <div>
-                      <label className="block text-xs text-slate-300 mb-1">Lesson Title *</label>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Lesson Title *</label>
                       <Input
                         value={lessonForm.title}
                         onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))}
                         placeholder="e.g. Lesson 1: States of Matter"
-                        className="bg-slate-900 border-slate-700 text-white text-sm"
+                        className="bg-white border-slate-200 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 text-slate-900 text-xs h-9 rounded-xl placeholder:text-slate-400"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs text-slate-300 mb-1">Lesson Description</label>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Lesson Description</label>
                       <Textarea
                         value={lessonForm.description}
                         onChange={(e) => setLessonForm((p) => ({ ...p, description: e.target.value }))}
                         placeholder="Video summary or key concepts..."
-                        className="bg-slate-900 border-slate-700 text-white text-sm"
+                        className="bg-white border-slate-200 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 text-slate-900 text-xs rounded-xl placeholder:text-slate-400"
                         rows={2}
                       />
                     </div>
 
-                    {/* Lesson Video Source Options */}
-                    <div className="space-y-2">
-                      <label className="block text-xs text-slate-300 font-medium">Video Source</label>
-                      <div className="flex items-center gap-4 text-xs text-slate-200 bg-slate-900 p-2.5 rounded-md border border-slate-700">
-                        <label className="flex items-center gap-1.5 cursor-pointer font-medium">
-                          <input
-                            type="radio"
-                            name="videoType"
-                            value="youtube"
-                            checked={lessonForm.videoType === "youtube"}
-                            onChange={() => setLessonForm((p) => ({ ...p, videoType: "youtube" }))}
-                            className="text-violet-600 focus:ring-violet-500"
-                          />
-                          📹 YouTube URL
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer font-medium">
-                          <input
-                            type="radio"
-                            name="videoType"
-                            value="uploaded"
-                            checked={lessonForm.videoType === "uploaded"}
-                            onChange={() => setLessonForm((p) => ({ ...p, videoType: "uploaded" }))}
-                            className="text-violet-600 focus:ring-violet-500"
-                          />
-                          📁 Upload Video (MP4 / WebM)
-                        </label>
+                    {/* Lesson Video Source Selector (Pill Switcher) */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">Video Source</label>
+                      <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-200/60 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setLessonForm((p) => ({ ...p, videoType: "youtube" }))}
+                          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            lessonForm.videoType === "youtube"
+                              ? "bg-white text-red-600 shadow-2xs"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          <Youtube className="w-3.5 h-3.5 text-red-600" />
+                          <span>YouTube URL</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLessonForm((p) => ({ ...p, videoType: "uploaded" }))}
+                          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            lessonForm.videoType === "uploaded"
+                              ? "bg-white text-[#635BFF] shadow-2xs"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          <Upload className="w-3.5 h-3.5 text-[#635BFF]" />
+                          <span>Upload Video</span>
+                        </button>
                       </div>
                     </div>
 
                     {lessonForm.videoType === "youtube" ? (
                       <div>
-                        <label className="block text-xs text-slate-300 mb-1 font-medium">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                           YouTube Video URL *
                         </label>
                         <Input
                           value={lessonForm.videoUrl}
                           onChange={(e) => setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))}
-                          placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/..."
-                          className="bg-slate-900 border-slate-700 text-white text-xs"
+                          placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                          className="bg-white border-slate-200 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 text-slate-900 text-xs h-9 rounded-xl placeholder:text-slate-400"
                         />
-                        <p className="text-[11px] text-slate-400 mt-1">
+                        <p className="text-[11px] text-slate-500 mt-1">
                           Paste any YouTube link. It will automatically convert to an embeddable format for online playback.
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <label className="block text-xs text-slate-300 font-medium">
-                          Upload Video File (Supabase Storage: learning-videos)
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Upload Video File (Supabase Storage)
                         </label>
-                        <input
-                          type="file"
-                          accept="video/mp4,video/webm,video/quicktime"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setLessonForm((p) => ({ ...p, videoFile: file }));
-                            }
-                          }}
-                          className="w-full text-xs text-slate-300 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-violet-600 file:text-white hover:file:bg-violet-700 cursor-pointer"
-                        />
+                        <div className="border border-dashed border-slate-300 rounded-xl p-3 bg-white hover:border-[#635BFF] transition-colors">
+                          <input
+                            type="file"
+                            accept="video/mp4,video/webm,video/quicktime"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setLessonForm((p) => ({ ...p, videoFile: file }));
+                              }
+                            }}
+                            className="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#635BFF] file:text-white hover:file:bg-[#5148E5] cursor-pointer"
+                          />
+                        </div>
 
                         {uploadStatus && (
-                          <div className="space-y-1">
-                            <div className="text-[11px] text-violet-300 flex items-center justify-between">
+                          <div className="space-y-1 bg-white p-2 rounded-lg border border-slate-200">
+                            <div className="text-[11px] text-[#635BFF] font-medium flex items-center justify-between">
                               <span>{uploadStatus}</span>
                               <span>{uploadProgress}%</span>
                             </div>
-                            <Progress value={uploadProgress} className="h-1.5 bg-slate-700" />
+                            <Progress value={uploadProgress} className="h-1.5 bg-slate-100" />
                           </div>
                         )}
 
                         <div className="pt-1">
-                          <label className="block text-[11px] text-slate-400 mb-1">Direct Storage Video URL (Optional Override)</label>
+                          <label className="block text-[11px] text-slate-500 mb-1">Direct Storage Video URL (Optional Override)</label>
                           <Input
                             value={lessonForm.videoUrl}
                             onChange={(e) => setLessonForm((p) => ({ ...p, videoUrl: e.target.value }))}
                             placeholder="https://... direct .mp4 video URL"
-                            className="bg-slate-900 border-slate-700 text-white text-xs"
+                            className="bg-white border-slate-200 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 text-slate-900 text-xs h-9 rounded-xl placeholder:text-slate-400"
                           />
                         </div>
                       </div>
@@ -828,47 +932,47 @@ function ModuleManager() {
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">Duration (seconds)</label>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Duration (seconds)</label>
                         <Input
                           type="number"
                           value={lessonForm.duration}
                           onChange={(e) => setLessonForm((p) => ({ ...p, duration: e.target.value }))}
-                          className="bg-slate-900 border-slate-700 text-white text-xs"
+                          className="bg-white border-slate-200 focus:border-[#635BFF] text-slate-900 text-xs h-9 rounded-xl"
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">Order Index</label>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Order Index</label>
                         <Input
                           type="number"
                           value={lessonForm.orderIndex}
                           onChange={(e) => setLessonForm((p) => ({ ...p, orderIndex: e.target.value }))}
-                          className="bg-slate-900 border-slate-700 text-white text-xs"
+                          className="bg-white border-slate-200 focus:border-[#635BFF] text-slate-900 text-xs h-9 rounded-xl"
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-300 pt-1">
-                      <label className="flex items-center gap-1.5 cursor-pointer">
+                    <div className="flex items-center justify-between text-xs text-slate-700 pt-1 bg-white p-2.5 rounded-xl border border-slate-200">
+                      <label className="flex items-center gap-1.5 cursor-pointer select-none font-medium">
                         <input
                           type="checkbox"
                           checked={lessonForm.isRequired}
                           onChange={(e) => setLessonForm((p) => ({ ...p, isRequired: e.target.checked }))}
-                          className="rounded text-violet-600"
+                          className="rounded text-[#635BFF] focus:ring-[#635BFF] accent-[#635BFF] cursor-pointer"
                         />
-                        Required
+                        <span>Required</span>
                       </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
+                      <label className="flex items-center gap-1.5 cursor-pointer select-none font-medium">
                         <input
                           type="checkbox"
                           checked={lessonForm.published}
                           onChange={(e) => setLessonForm((p) => ({ ...p, published: e.target.checked }))}
-                          className="rounded text-violet-600"
+                          className="rounded text-[#635BFF] focus:ring-[#635BFF] accent-[#635BFF] cursor-pointer"
                         />
-                        Published
+                        <span>Published</span>
                       </label>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-2 pt-1">
                       {editingLessonId && (
                         <Button
                           type="button"
@@ -878,14 +982,19 @@ function ModuleManager() {
                             setEditingLessonId(null);
                             setLessonForm(defaultLessonForm());
                           }}
-                          className="text-slate-400"
+                          className="text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl text-xs"
                         >
                           Cancel
                         </Button>
                       )}
-                      <Button type="submit" disabled={submittingLesson} size="sm" className="w-full bg-violet-600 hover:bg-violet-700 text-white">
+                      <Button
+                        type="submit"
+                        disabled={submittingLesson}
+                        size="sm"
+                        className="w-full bg-[#635BFF] hover:bg-[#5148E5] text-white rounded-xl text-xs font-semibold py-2 shadow-xs transition-all"
+                      >
                         {submittingLesson ? (
-                          <span className="flex items-center gap-2">
+                          <span className="flex items-center gap-1.5">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
                           </span>
                         ) : editingLessonId ? (
@@ -896,76 +1005,108 @@ function ModuleManager() {
                       </Button>
                     </div>
 
-                    {lessonError && <div className="text-xs text-red-400 bg-red-950/50 p-2 rounded border border-red-800">{lessonError}</div>}
-                    {lessonSuccess && <div className="text-xs text-emerald-400 bg-emerald-950/50 p-2 rounded border border-emerald-800">{lessonSuccess}</div>}
+                    {lessonError && (
+                      <div className="text-xs text-red-600 bg-red-50 p-2.5 rounded-xl border border-red-200 flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                        <span>{lessonError}</span>
+                      </div>
+                    )}
+                    {lessonSuccess && (
+                      <div className="text-xs text-emerald-700 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{lessonSuccess}</span>
+                      </div>
+                    )}
                   </form>
 
                   {/* Lessons List */}
-                  <div className="space-y-2 pt-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Module Lessons ({activeModuleLessons.length})
-                    </h4>
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Module Lessons
+                      </h4>
+                      <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                        {activeModuleLessons.length}
+                      </span>
+                    </div>
 
                     {loadingLessons ? (
-                      <div className="py-6 text-center text-xs text-slate-400">Loading lessons...</div>
+                      <div className="py-6 text-center text-xs text-slate-500">Loading lessons...</div>
                     ) : !activeModuleLessons.length ? (
-                      <div className="py-6 text-center text-xs text-slate-400">
+                      <div className="py-6 text-center text-xs text-slate-500 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 p-4">
                         No lessons added yet. Use the form above to add your first lesson video!
                       </div>
                     ) : (
-                      activeModuleLessons.map((les, index) => (
-                        <div
-                          key={les.id}
-                          className="p-3 rounded-lg bg-slate-800 border border-slate-700 space-y-2 text-xs"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="font-semibold text-slate-100">
-                                {index + 1}. {les.title}
+                      activeModuleLessons.map((les, index) => {
+                        const vType = getVideoType(les);
+                        return (
+                          <div
+                            key={les.id}
+                            className="p-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 shadow-2xs space-y-2 text-xs transition-all"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="font-bold text-slate-900 leading-snug">
+                                  {index + 1}. {les.title}
+                                </div>
+                                {les.description && <div className="text-[11px] text-slate-500 mt-0.5">{les.description}</div>}
                               </div>
-                              {les.description && <div className="text-[11px] text-slate-400">{les.description}</div>}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg"
+                                  onClick={() => handleTogglePublishLesson(les)}
+                                  title={les.published ? "Unpublish Lesson" : "Publish Lesson"}
+                                >
+                                  {les.published ? <Eye className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg"
+                                  onClick={() => startEditLesson(les)}
+                                  title="Edit Lesson"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                                  onClick={() => handleDeleteLesson(les.id)}
+                                  title="Delete Lesson"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 text-slate-400 hover:text-white"
-                                onClick={() => handleTogglePublishLesson(les)}
-                              >
-                                {les.published ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-slate-500" />}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 text-slate-400 hover:text-white"
-                                onClick={() => startEditLesson(les)}
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
-                                onClick={() => handleDeleteLesson(les.id)}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          </div>
 
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-700/50 pt-1.5">
-                            <span>⏱️ {les.duration || 0} seconds</span>
-                            {les.is_required ? (
-                              <span className="text-amber-400 font-semibold">Required</span>
-                            ) : (
-                              <span>Optional</span>
-                            )}
-                            {les.video_url && (
-                              <span className="text-emerald-400 truncate max-w-[120px]">📹 Video Attached</span>
-                            )}
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100 pt-2 flex-wrap gap-1">
+                              <span className="flex items-center gap-1 font-medium">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                {les.duration || 0}s
+                              </span>
+                              {les.is_required ? (
+                                <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.2 rounded font-semibold">
+                                  Required
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">Optional</span>
+                              )}
+                              {les.video_url && (
+                                <span className={`px-1.5 py-0.2 rounded font-semibold ${
+                                  vType === 'youtube'
+                                    ? 'bg-red-50 text-red-600 border border-red-200'
+                                    : 'bg-violet-50 text-[#635BFF] border border-violet-200'
+                                }`}>
+                                  {vType === 'youtube' ? '📹 YouTube' : '📁 Video'}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </>
@@ -976,82 +1117,88 @@ function ModuleManager() {
       </div>
 
       {/* Real-Time Student Lesson Progress Tracker */}
-      <Card className="bg-slate-900 border-slate-800 text-white shadow-xl mt-8">
-        <CardHeader className="border-b border-slate-800 flex flex-row items-center justify-between">
+      <Card className="bg-white border-[#E2E8F0] shadow-2xs rounded-2xl overflow-hidden mt-8">
+        <CardHeader className="border-b border-[#E2E8F0] bg-white py-4 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-xl font-bold flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-emerald-400" /> Student Lesson Progress Tracker
+            <CardTitle className="text-base font-bold text-[#172033] flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <span>Student Lesson Progress Tracker</span>
             </CardTitle>
-            <p className="text-xs text-slate-400 mt-1">
-              Real-time online completion data calculated from student activity across your school&apos;s modules
+            <p className="text-xs text-[#64748B] mt-0.5">
+              Real-time completion data calculated from student video lesson views across your school
             </p>
           </div>
           <Button
             size="sm"
             variant="outline"
             onClick={refetchProgress}
-            className="border-slate-700 bg-slate-800 text-white hover:bg-slate-700"
+            className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-semibold px-3 py-1.5 flex items-center gap-1.5 shadow-2xs"
           >
-            Refresh Progress
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+            <span>Refresh Progress</span>
           </Button>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-0">
           {progressReportsLoading && (!progressReports || progressReports.length === 0) ? (
-            <div className="py-8 text-center text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-violet-400" />
-              Loading student progress reports...
+            <div className="py-12 text-center text-slate-500">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#635BFF]" />
+              <p className="text-xs font-medium">Loading student progress reports...</p>
             </div>
           ) : (!progressReports || progressReports.length === 0) ? (
-            <div className="py-8 text-center text-slate-400 bg-slate-800/40 rounded-xl border border-dashed border-slate-700 p-6">
-              No student progress recorded yet. Progress will update automatically when students complete video lessons.
+            <div className="py-12 text-center text-slate-500 p-6">
+              <CheckCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="font-semibold text-slate-700 text-sm mb-1">No student progress recorded yet</p>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Progress will update automatically as students watch videos and complete learning modules.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-800/80 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   <tr>
-                    <th className="p-3.5">Student Name</th>
-                    <th className="p-3.5">Class</th>
-                    <th className="p-3.5">Learning Module</th>
-                    <th className="p-3.5 text-center">Completed Lessons</th>
-                    <th className="p-3.5">Module Progress</th>
-                    <th className="p-3.5 text-right">Last Activity</th>
+                    <th className="py-3 px-4">Student Name</th>
+                    <th className="py-3 px-4">Class</th>
+                    <th className="py-3 px-4">Learning Module</th>
+                    <th className="py-3 px-4 text-center">Completed Lessons</th>
+                    <th className="py-3 px-4">Module Progress</th>
+                    <th className="py-3 px-4 text-right">Last Activity</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-slate-100">
                   {progressReports.map((item, idx) => (
-                    <tr key={`${item.studentId}-${item.moduleId}-${idx}`} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="p-3.5 font-medium text-white">
+                    <tr key={`${item.studentId}-${item.moduleId}-${idx}`} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 px-4 font-bold text-slate-900">
                         {item.studentName}
                       </td>
-                      <td className="p-3.5">
-                        <Badge className="bg-slate-800 text-slate-200 border-slate-700">
+                      <td className="py-3 px-4">
+                        <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-[11px] font-medium">
                           {item.class}
                         </Badge>
                       </td>
-                      <td className="p-3.5 text-slate-200 font-medium">
+                      <td className="py-3 px-4 text-slate-800 font-medium">
                         {item.moduleTitle}
                       </td>
-                      <td className="p-3.5 text-center font-semibold text-white">
+                      <td className="py-3 px-4 text-center font-bold text-slate-900">
                         {item.completedLessons} / {item.totalLessons}
                       </td>
-                      <td className="p-3.5 min-w-[160px]">
+                      <td className="py-3 px-4 min-w-[160px]">
                         <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-semibold">
-                            <span className={item.progressPercent === 100 ? "text-emerald-400" : "text-slate-300"}>
+                          <div className="flex justify-between text-[11px] font-bold">
+                            <span className={item.progressPercent === 100 ? "text-emerald-600" : "text-slate-700"}>
                               {item.progressPercent}%
                             </span>
                             {item.isCompleted && (
-                              <span className="text-emerald-400 text-[10px] font-bold">✓ DONE</span>
+                              <span className="text-emerald-600 text-[10px] font-bold">✓ COMPLETED</span>
                             )}
                           </div>
                           <Progress
                             value={item.progressPercent}
-                            className={`h-2 ${item.progressPercent === 100 ? "bg-emerald-950" : "bg-slate-800"}`}
+                            className={`h-2 ${item.progressPercent === 100 ? "bg-emerald-100" : "bg-slate-100"}`}
                           />
                         </div>
                       </td>
-                      <td className="p-3.5 text-right text-xs text-slate-400">
+                      <td className="py-3 px-4 text-right text-[11px] text-slate-500">
                         {item.lastUpdatedAt
                           ? new Date(item.lastUpdatedAt).toLocaleDateString(undefined, {
                               month: "short",
