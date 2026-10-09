@@ -719,7 +719,7 @@ export default function DashboardV2({ user = {} }) {
           </div>
 
           {/* Interactive Learning Modules Engine */}
-          <StudentLearningModules />
+          <StudentLearningModules studentClass={studentClassDisplay} schoolId={schoolId} />
         </div>
 
         {/* =========================================

@@ -14,6 +14,10 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized: Please sign in" }, { status: 401 });
     }
 
+    const url = new URL(request.url);
+    const paramClass = url.searchParams.get("class");
+    const paramSchoolId = url.searchParams.get("schoolId");
+
     // 1. Fetch Student Profile from user_roles
     let roleDoc = null;
     let roleErr = null;
@@ -30,8 +34,8 @@ export async function GET(request) {
       roleErr = e;
     }
 
-    let studentClass = roleDoc?.class || null;
-    const schoolId = roleDoc?.school_id || null;
+    let studentClass = roleDoc?.class || paramClass || null;
+    const schoolId = roleDoc?.school_id || paramSchoolId || null;
 
     if (!studentClass) {
       try {
@@ -41,15 +45,7 @@ export async function GET(request) {
       } catch {}
     }
 
-    console.log("===== MODULE FETCH DEBUG =====");
-    console.log("authenticatedUserId:", userId);
-    console.log("studentRole:", roleDoc?.role || "NOT_FOUND");
-    console.log("studentClass:", studentClass);
-    console.log("studentSchoolId:", schoolId);
-    console.log("user_roles error:", roleErr?.message || null);
-
     if (!studentClass) {
-      console.log("===== RESULT: MISSING CLASS =====");
       return NextResponse.json({
         modules: [],
         studentClass: null,
@@ -64,10 +60,6 @@ export async function GET(request) {
     const classCandidates = Array.from(
       new Set([rawClass, cleanNum ? `Class ${cleanNum}` : null, cleanNum ? `class ${cleanNum}` : null, cleanNum].filter(Boolean))
     );
-
-    console.log("===== QUERY FILTER =====");
-    console.log("class filter candidates:", classCandidates);
-    console.log("studentSchoolId (metadata only, not filtered):", schoolId);
 
     // 2. Fetch published learning modules for student's class (all schools shared)
     let modules = [];
@@ -98,12 +90,6 @@ export async function GET(request) {
       modErr = e;
     }
 
-    console.log("===== DATABASE RESULT =====");
-    console.log("error:", modErr?.message || null);
-    console.log("number of modules:", modules.length);
-    console.log("module IDs:", modules.map((m) => m.id));
-    console.log("module titles:", modules.map((m) => m.title));
-
     if (modules.length === 0) {
       return NextResponse.json({
         modules: [],
@@ -112,66 +98,24 @@ export async function GET(request) {
       });
     }
 
-    // 3. Fetch Subject Details for each module
+    // 3. Concurrently fetch Subjects, Lessons, Progress & Quizzes in parallel for maximum speed
     const subjectIds = Array.from(new Set(modules.map((m) => m.subject_id).filter(Boolean)));
-    let subjectsMap = {};
-    if (subjectIds.length > 0) {
-      try {
-        const { data: subData } = await supabase
-          .from("subjects")
-          .select("id, name, code, icon, color")
-          .in("id", subjectIds);
-
-        if (subData) {
-          subData.forEach((s) => {
-            subjectsMap[s.id] = s;
-          });
-        }
-      } catch (e) {
-        console.warn("[/api/student/modules] subjects query error:", e.message);
-      }
-    }
-
-    // 4. Fetch Published Lessons for these modules
     const moduleIds = modules.map((m) => m.id);
-    let lessonsMap = {};
-    let allLessonIds = [];
 
-    console.log(`[Student Modules Debug] Student class: ${studentClass} | School: ${schoolId}`);
-    console.log(`[Student Modules Debug] Found ${modules.length} modules:`, modules.map((m) => ({ id: m.id, title: m.title })));
+    let subjectsMap = {};
+    let lessonsMap = {};
+    let progressMap = {};
+    let quizzesMap = {};
 
     try {
-      let lessonData = null;
-      let lErr = null;
+      const [subjectsRes, lessonsRes, progressRes, quizzesRes] = await Promise.all([
+        // Subquery A: Subjects
+        subjectIds.length > 0
+          ? supabase.from("subjects").select("id, name, code, icon, color").in("id", subjectIds)
+          : Promise.resolve({ data: [] }),
 
-      // Primary attempt: query with video_type column
-      const res = await supabase
-        .from("lessons")
-        .select(`
-          id,
-          module_id,
-          title,
-          description,
-          video_path,
-          video_url,
-          video_type,
-          duration,
-          order_index,
-          is_required,
-          published,
-          created_at
-        `)
-        .in("module_id", moduleIds)
-        .or("published.eq.true,published.is.null")
-        .order("order_index", { ascending: true });
-
-      lessonData = res.data;
-      lErr = res.error;
-
-      // Resilient Fallback: If video_type column is missing in DB, query without it
-      if (lErr && (lErr.code === "42703" || lErr.message?.includes("video_type"))) {
-        console.warn("[/api/student/modules] video_type column missing in DB, falling back to dynamic video_type detection.");
-        const fallbackRes = await supabase
+        // Subquery B: Lessons (with video_type resiliency)
+        supabase
           .from("lessons")
           .select(`
             id,
@@ -180,6 +124,7 @@ export async function GET(request) {
             description,
             video_path,
             video_url,
+            video_type,
             duration,
             order_index,
             is_required,
@@ -188,76 +133,83 @@ export async function GET(request) {
           `)
           .in("module_id", moduleIds)
           .or("published.eq.true,published.is.null")
-          .order("order_index", { ascending: true });
+          .order("order_index", { ascending: true })
+          .then(async (lRes) => {
+            if (lRes.error && (lRes.error.code === "42703" || lRes.error.message?.includes("video_type"))) {
+              const fallback = await supabase
+                .from("lessons")
+                .select(`
+                  id,
+                  module_id,
+                  title,
+                  description,
+                  video_path,
+                  video_url,
+                  duration,
+                  order_index,
+                  is_required,
+                  published,
+                  created_at
+                `)
+                .in("module_id", moduleIds)
+                .or("published.eq.true,published.is.null")
+                .order("order_index", { ascending: true });
+              if (fallback.data) {
+                return {
+                  data: fallback.data.map((l) => ({
+                    ...l,
+                    video_type: l.video_url && (l.video_url.includes("youtube") || l.video_url.includes("youtu.be")) ? "youtube" : "uploaded",
+                  })),
+                  error: null,
+                };
+              }
+            }
+            return lRes;
+          }),
 
-        if (fallbackRes.data) {
-          lessonData = fallbackRes.data.map((l) => ({
-            ...l,
-            video_type: l.video_url && (l.video_url.includes("youtube") || l.video_url.includes("youtu.be")) ? "youtube" : "uploaded",
-          }));
-          lErr = null;
-        } else {
-          lErr = fallbackRes.error;
-        }
+        // Subquery C: Lesson Progress for this student
+        supabase
+          .from("lesson_progress")
+          .select("lesson_id, completed, last_position, completed_at, updated_at")
+          .eq("student_id", userId),
+
+        // Subquery D: Quizzes linked to modules
+        supabase
+          .from("quizzes")
+          .select("id, module_id, title, description, difficulty, time_limit, is_published")
+          .in("module_id", moduleIds),
+      ]);
+
+      if (subjectsRes?.data) {
+        subjectsRes.data.forEach((s) => {
+          subjectsMap[s.id] = s;
+        });
       }
 
-      if (lErr) {
-        console.warn("[/api/student/modules] lessons query error:", lErr.message);
-      } else if (lessonData) {
-        console.log(`[Student Modules Debug] Found ${lessonData.length} lessons for moduleIds:`, lessonData.map((l) => ({ id: l.id, module_id: l.module_id, title: l.title, published: l.published })));
-        lessonData.forEach((l) => {
-          allLessonIds.push(l.id);
+      if (lessonsRes?.data) {
+        lessonsRes.data.forEach((l) => {
           if (!lessonsMap[l.module_id]) {
             lessonsMap[l.module_id] = [];
           }
           lessonsMap[l.module_id].push(l);
         });
       }
-    } catch (e) {
-      console.warn("[/api/student/modules] lessons query failed:", e.message);
-    }
 
-    // 5. Fetch Lesson Progress for authenticated student
-    let progressMap = {};
-    if (allLessonIds.length > 0) {
-      try {
-        const { data: progData, error: pErr } = await supabase
-          .from("lesson_progress")
-          .select("lesson_id, completed, last_position, completed_at, updated_at")
-          .eq("student_id", userId)
-          .in("lesson_id", allLessonIds);
-
-        if (pErr) {
-          console.warn("[/api/student/modules] lesson_progress query error:", pErr.message);
-        } else if (progData) {
-          progData.forEach((p) => {
-            progressMap[p.lesson_id] = p;
-          });
-        }
-      } catch (e) {
-        console.warn("[/api/student/modules] lesson_progress query failed:", e.message);
+      if (progressRes?.data) {
+        progressRes.data.forEach((p) => {
+          progressMap[p.lesson_id] = p;
+        });
       }
-    }
 
-    // 5.5 Fetch Quizzes linked to these modules
-    let quizzesMap = {};
-    try {
-      const { data: quizData, error: qErr } = await supabase
-        .from("quizzes")
-        .select("id, module_id, title, description, difficulty, time_limit, is_published")
-        .in("module_id", moduleIds);
-
-      if (qErr) {
-        console.warn("[/api/student/modules] quizzes query error:", qErr.message);
-      } else if (quizData) {
-        quizData.forEach((q) => {
+      if (quizzesRes?.data) {
+        quizzesRes.data.forEach((q) => {
           if (q.module_id) {
             quizzesMap[q.module_id] = q;
           }
         });
       }
-    } catch (e) {
-      console.warn("[/api/student/modules] quizzes query failed:", e.message);
+    } catch (parallelErr) {
+      console.warn("[/api/student/modules] parallel subqueries error:", parallelErr.message);
     }
 
     // 6. Assemble complete response object

@@ -39,26 +39,10 @@ export const DEFAULT_OFFLINE_SUBJECTS = [
   { id: "subject:evs", name: "Environmental Studies (EVS)", description: "Environment, ecology, health, and sustainability", class: "all", icon: "🌱", color: "#22c55e" },
 ];
 
-export async function getOfflineLearningModules(options = {}) {
+export async function getCachedLearningModules(options = {}) {
   const cacheKey = "student_learning_modules";
-
-  // 1. If online, fetch from network and update cache
-  if (typeof navigator !== "undefined" && navigator.onLine) {
-    try {
-      const networkData = await apiClient.getStudentModules(options);
-      if (networkData && Array.isArray(networkData.modules) && networkData.modules.length > 0) {
-        await cacheApiResponse(cacheKey, networkData);
-        return networkData;
-      }
-    } catch (err) {
-      console.warn("[OfflineRepo] Network fetch failed, falling back to local cache:", err.message);
-    }
-  }
-
-  // 2. Read from IndexedDB cachedApi
   const cached = await getCachedApiResponse(cacheKey);
   if (cached && Array.isArray(cached.modules) && cached.modules.length > 0) {
-    // Merge local lesson progress from IndexedDB
     const localProgressMap = await getLocalProgressMap();
     const enrichedModules = cached.modules.map((mod) => {
       const enrichedLessons = (mod.lessons || []).map((les) => {
@@ -95,6 +79,30 @@ export async function getOfflineLearningModules(options = {}) {
       modules: enrichedModules,
       isOfflineFallback: true,
     };
+  }
+  return null;
+}
+
+export async function getOfflineLearningModules(options = {}) {
+  const cacheKey = "student_learning_modules";
+
+  // 1. If online, fetch from network and update cache
+  if (typeof navigator !== "undefined" && navigator.onLine) {
+    try {
+      const networkData = await apiClient.getStudentModules(options);
+      if (networkData && Array.isArray(networkData.modules) && networkData.modules.length > 0) {
+        await cacheApiResponse(cacheKey, networkData);
+        return networkData;
+      }
+    } catch (err) {
+      console.warn("[OfflineRepo] Network fetch failed, falling back to local cache:", err.message);
+    }
+  }
+
+  // 2. Read from IndexedDB cachedApi
+  const cachedResult = await getCachedLearningModules(options);
+  if (cachedResult) {
+    return cachedResult;
   }
 
   // 3. Fallback default offline modules so students always have access offline
