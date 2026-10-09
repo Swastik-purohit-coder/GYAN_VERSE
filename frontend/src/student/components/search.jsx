@@ -98,6 +98,21 @@ export default function SearchPage() {
   // Fetch learning modules and lessons
   const { modules: apiModules, loading: modulesLoading } = useStudentModules();
 
+  // Fetch skill courses
+  const [skillCourses, setSkillCourses] = useState([]);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/skills')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (active && Array.isArray(data)) setSkillCourses(data);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Load recent searches from localStorage
   useEffect(() => {
     try {
@@ -296,16 +311,24 @@ export default function SearchPage() {
       return hay.includes(qLower);
     });
 
-    const totalCount = matchedLessons.length + matchedExams.length + matchedModules.length + matchedQuizzes.length;
+    // 5. Skill Courses Filter
+    const matchedSkills = skillCourses.filter((skill) => {
+      if (isBlank) return true;
+      const hay = `${skill.title} ${skill.description || ""} ${skill.category || ""} ${skill.author_name || ""} ${skill.instructor_name || ""}`.toLowerCase();
+      return hay.includes(qLower);
+    });
+
+    const totalCount = matchedLessons.length + matchedExams.length + matchedModules.length + matchedQuizzes.length + matchedSkills.length;
 
     return {
       lessons: matchedLessons,
       exams: matchedExams,
       modules: matchedModules,
       quizzes: matchedQuizzes,
+      skills: matchedSkills,
       totalCount,
     };
-  }, [query, selectedClass, selectedSubject, mediaFilter, allLessons, allExams, effectiveModules, allQuizzes]);
+  }, [query, selectedClass, selectedSubject, mediaFilter, allLessons, allExams, effectiveModules, allQuizzes, skillCourses]);
 
   const hasActiveFilters = selectedClass !== "All Classes" || selectedSubject !== "All Subjects" || mediaFilter !== "all";
 
@@ -562,7 +585,26 @@ export default function SearchPage() {
                 <Compass className="w-4 h-4 text-[#635BFF]" />
                 <span>Browse Student Feature Hubs</span>
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <Link
+                  href="/student/courses?tab=skills"
+                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-[#635BFF] hover:shadow-xs transition-all flex flex-col justify-between group"
+                >
+                  <div className="space-y-2">
+                    <div className="w-10 h-10 rounded-xl bg-purple-50 text-[#635BFF] flex items-center justify-center font-bold">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#635BFF] transition-colors">
+                      Skill Tracks &amp; Labs
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Teacher masterclasses in AI, robotics, public speaking, finance &amp; design.
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-[#635BFF] flex items-center gap-1 mt-4">
+                    Explore Skills <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </Link>
                 <Link
                   href="/student/exams"
                   className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-[#635BFF] hover:shadow-xs transition-all flex flex-col justify-between group"
@@ -724,6 +766,21 @@ export default function SearchPage() {
                 <span>Quizzes</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === "quizzes" ? "bg-white/20" : "bg-slate-100 text-slate-600"}`}>
                   {searchResults.quizzes.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab("skills")}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                  activeTab === "skills"
+                    ? "bg-[#635BFF] text-white shadow-2xs"
+                    : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Skill Tracks</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === "skills" ? "bg-white/20" : "bg-slate-100 text-slate-600"}`}>
+                  {searchResults.skills?.length || 0}
                 </span>
               </button>
 
@@ -1066,6 +1123,69 @@ export default function SearchPage() {
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold h-7 px-3 rounded-lg"
                           >
                             Take Quiz
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 5: Skill Micro-Courses & Tracks */}
+            {(activeTab === "all" || activeTab === "skills") && searchResults.skills?.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#635BFF]" />
+                    <span>Skill Micro-Courses &amp; Tracks ({searchResults.skills.length})</span>
+                  </h3>
+                  {activeTab === "all" && searchResults.skills.length > 4 && (
+                    <button
+                      onClick={() => setActiveTab("skills")}
+                      className="text-xs font-bold text-[#635BFF] hover:underline"
+                    >
+                      View all {searchResults.skills.length} tracks →
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {(activeTab === "all" ? searchResults.skills.slice(0, 4) : searchResults.skills).map((skill) => (
+                    <Card
+                      key={skill.id}
+                      className="bg-white border border-slate-200 rounded-2xl hover:border-[#635BFF]/40 hover:shadow-xs transition-all flex flex-col justify-between"
+                    >
+                      <CardContent className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <Badge className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">
+                              {skill.category || "Skill Track"}
+                            </Badge>
+                            <span className="text-[10px] text-slate-500 font-semibold">
+                              {skill.duration_hours || 4}h
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900 line-clamp-1">
+                            {skill.title}
+                          </h4>
+                          <p className="text-xs text-slate-500 line-clamp-2">
+                            {skill.description}
+                          </p>
+                          <div className="text-[11px] text-slate-400 font-medium">
+                            By {skill.author_name || "Faculty In-Charge"}
+                          </div>
+                        </div>
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-[#635BFF]">
+                            {skill.badge_name || "Certified"}
+                          </span>
+                          <Button
+                            size="sm"
+                            onClick={() => router.push(`/student/courses?tab=skills&courseId=${encodeURIComponent(skill.id)}`)}
+                            className="bg-[#635BFF] hover:bg-[#5148E5] text-white text-xs font-semibold h-7 px-3 rounded-lg"
+                          >
+                            Explore →
                           </Button>
                         </div>
                       </CardContent>
