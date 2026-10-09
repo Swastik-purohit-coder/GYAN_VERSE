@@ -6,6 +6,12 @@ import { Button } from "@/student/components/ui/button";
 import { X, CheckCircle2, Circle, Loader2, Video, Headphones, Wifi, WifiOff } from "lucide-react";
 import { getVideoType } from "@/lib/videoHelpers";
 import { saveLocalLessonProgress } from "@/lib/offlineDb";
+import {
+  autoCacheVideoOnPlay,
+  getOfflineVideoBlobUrl,
+  getOfflineAudioBlobUrl,
+  isLessonVideoDownloaded,
+} from "@/lib/offlineVideoManager";
 import LessonVideoPlayer from "@/components/media/LessonVideoPlayer";
 import LessonAudioPlayer from "@/components/media/LessonAudioPlayer";
 
@@ -54,6 +60,10 @@ export default function VideoPlayer({
   const hasVideo = Boolean(rawVideo);
   const hasAudio = Boolean(rawAudio);
 
+  const [resolvedBlob, setResolvedBlob] = useState(null);
+  const [resolvedAudioBlob, setResolvedAudioBlob] = useState(null);
+  const [isStoredLocally, setIsStoredLocally] = useState(Boolean(downloadState?.isDownloaded));
+
   const [mediaMode, setMediaMode] = useState(
     initialMode === "audio" && hasAudio ? "audio" : hasVideo ? "video" : hasAudio ? "audio" : "video"
   );
@@ -61,8 +71,67 @@ export default function VideoPlayer({
   const vType = getVideoType(rawVideo);
   const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
 
-  const resolvedStreamUrl = offlineBlobUrl
-    ? offlineBlobUrl
+  // Check offline storage and auto-cache on mount
+  useEffect(() => {
+    let active = true;
+
+    async function checkAndCacheMedia() {
+      if (!lesson) return;
+      try {
+        const isDownloaded = await isLessonVideoDownloaded(lesson.id, rawVideo);
+        if (active) setIsStoredLocally(Boolean(isDownloaded));
+
+        if (isOffline || isDownloaded) {
+          const blobUrl = await getOfflineVideoBlobUrl(lesson.id, rawVideo);
+          if (active && blobUrl) setResolvedBlob(blobUrl);
+
+          if (rawAudio) {
+            const audBlob = await getOfflineAudioBlobUrl(lesson.id, rawAudio);
+            if (active && audBlob) setResolvedAudioBlob(audBlob);
+          }
+        }
+
+        // Auto-cache in background when online so it can be replayed offline
+        if (!isOffline && (rawVideo || rawAudio)) {
+          autoCacheVideoOnPlay({
+            lessonId: lesson.id,
+            videoUrl: rawVideo,
+            audioUrl: rawAudio,
+            title: lesson.title,
+            moduleTitle: module?.title,
+          }).then((res) => {
+            if (active && res?.isOfflineReady) {
+              setIsStoredLocally(true);
+            }
+          }).catch(() => {});
+        }
+      } catch (err) {
+        console.warn("[VideoPlayer] Offline setup notice:", err);
+      }
+    }
+
+    checkAndCacheMedia();
+
+    const handleCached = (e) => {
+      if (e.detail?.lessonId === lesson?.id || e.detail?.videoUrl === rawVideo) {
+        setIsStoredLocally(true);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("offline-video-cached", handleCached);
+    }
+
+    return () => {
+      active = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("offline-video-cached", handleCached);
+      }
+    };
+  }, [lesson, rawVideo, rawAudio, module, isOffline]);
+
+  const resolvedStreamUrl = offlineBlobUrl || resolvedBlob
+    ? offlineBlobUrl || resolvedBlob
     : isOffline
     ? "/home.mp4"
     : vType === "youtube"
@@ -71,7 +140,9 @@ export default function VideoPlayer({
     ? rawVideo
     : `/api/media/video/${encodeURIComponent(lesson.id || rawVideo)}`;
 
-  const resolvedAudioUrl = rawAudio && rawAudio.startsWith("http")
+  const resolvedAudioUrl = resolvedAudioBlob
+    ? resolvedAudioBlob
+    : rawAudio && rawAudio.startsWith("http")
     ? rawAudio
     : rawAudio
     ? `/api/media/audio/${encodeURIComponent(lesson.id || rawAudio)}`
@@ -108,14 +179,14 @@ export default function VideoPlayer({
               <span className="text-xs text-slate-400">
                 Lesson {lesson.order_index || 1}
               </span>
-              {downloadState?.isDownloaded && (
+              {(isStoredLocally || downloadState?.isDownloaded) && (
                 <Badge className="bg-emerald-600 text-white text-[10px] flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Offline Ready
+                  <CheckCircle2 className="w-3 h-3" /> Stored for Offline Replay
                 </Badge>
               )}
               {isOffline && (
                 <Badge className="bg-amber-500 text-white text-[10px] flex items-center gap-1">
-                  <WifiOff className="w-3 h-3" /> Offline Mode
+                  <WifiOff className="w-3 h-3" /> Offline Mode (Playing from Cache)
                 </Badge>
               )}
             </div>

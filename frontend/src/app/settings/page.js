@@ -1,10 +1,12 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import OfflineSafeAuthGuard from "@/components/OfflineSafeAuthGuard";
 import { useEffect, useState } from "react";
 import { saveUserRole, fetchUserRole } from "@/lib/users";
 import { useTheme } from "@/components/ThemeProvider";
+import { clearAllStudentClientData } from "@/lib/clearStudentClientData";
 import {
   User,
   GraduationCap,
@@ -24,6 +26,11 @@ import {
   ShieldAlert,
   Lock,
   Loader2,
+  Trash2,
+  AlertTriangle,
+  AlertOctagon,
+  X,
+  Check,
 } from "lucide-react";
 
 const schoolClasses = Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`);
@@ -78,6 +85,16 @@ export default function SettingsPage() {
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const { signOut } = useClerk();
+  const router = useRouter();
+
+  // Student Account Deletion State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -231,6 +248,51 @@ export default function SettingsPage() {
       alert("Failed to save settings: " + error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+      setDeleteError("Please type DELETE to confirm.");
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      // 1. Call Backend API to delete database data and Clerk user
+      const res = await fetch("/api/student/account", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user?.id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.warn("Account deletion backend responded with:", data);
+      }
+
+      // 2. Clear all local storage, session storage, Cache Storage, and IndexedDB
+      await clearAllStudentClientData();
+
+      setDeleteSuccess(true);
+
+      // 3. Sign out of Clerk
+      try {
+        await signOut();
+      } catch (soErr) {
+        console.warn("Clerk signOut error:", soErr);
+      }
+
+      // 4. Force hard redirect to sign-in or home with deletion notification
+      window.location.href = "/sign-in?account_deleted=true";
+    } catch (err) {
+      console.error("Account deletion error:", err);
+      setDeleteError(err.message || "Failed to delete account. Please try again.");
+      setIsDeleting(false);
     }
   };
 
@@ -870,7 +932,235 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+
+          {/* Danger Zone: Permanent Account Deletion */}
+          <div className={`border rounded-2xl overflow-hidden transition-colors ${
+            isDark 
+              ? "bg-rose-950/20 border-rose-900/40" 
+              : "bg-rose-50/70 border-rose-200"
+          }`}>
+            <div className={`p-5 sm:p-6 pb-4 border-b ${
+              isDark ? "border-rose-900/40" : "border-rose-200/70"
+            } flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
+              <div className="flex items-start gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                  isDark 
+                    ? "bg-rose-950/80 text-rose-400 border-rose-800/60" 
+                    : "bg-rose-100 text-rose-600 border-rose-200"
+                }`}>
+                  <AlertOctagon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className={`text-sm sm:text-base font-bold ${
+                    isDark ? "text-rose-200" : "text-rose-900"
+                  }`}>
+                    Danger Zone: Delete Account
+                  </h2>
+                  <p className={`text-xs mt-0.5 ${
+                    isDark ? "text-rose-300/80" : "text-rose-700/80"
+                  }`}>
+                    Permanently delete your student account and wipe all stored data from database, local storage, and cache.
+                  </p>
+                </div>
+              </div>
+              <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${
+                isDark 
+                  ? "bg-rose-950 text-rose-300 border-rose-800" 
+                  : "bg-rose-100 text-rose-700 border-rose-200"
+              }`}>
+                Irreversible
+              </span>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-4">
+              <p className={`text-xs sm:text-sm leading-relaxed ${
+                isDark ? "text-rose-300/90" : "text-rose-800/90"
+              }`}>
+                Deleting your account will permanently wipe all your data from our cloud database, local browser storage, and offline media caches. Once confirmed, this action cannot be undone.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className={`flex items-center gap-2 p-2.5 rounded-xl border ${
+                  isDark 
+                    ? "bg-[#1E293B]/60 border-rose-900/30 text-rose-300" 
+                    : "bg-white/80 border-rose-200/80 text-rose-800"
+                }`}>
+                  <Check className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>Clears Database Records & Role</span>
+                </div>
+                <div className={`flex items-center gap-2 p-2.5 rounded-xl border ${
+                  isDark 
+                    ? "bg-[#1E293B]/60 border-rose-900/30 text-rose-300" 
+                    : "bg-white/80 border-rose-200/80 text-rose-800"
+                }`}>
+                  <Check className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>Wipes Lesson Progress & Streaks</span>
+                </div>
+                <div className={`flex items-center gap-2 p-2.5 rounded-xl border ${
+                  isDark 
+                    ? "bg-[#1E293B]/60 border-rose-900/30 text-rose-300" 
+                    : "bg-white/80 border-rose-200/80 text-rose-800"
+                }`}>
+                  <Check className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>Purges Browser Cache & IndexedDB</span>
+                </div>
+                <div className={`flex items-center gap-2 p-2.5 rounded-xl border ${
+                  isDark 
+                    ? "bg-[#1E293B]/60 border-rose-900/30 text-rose-300" 
+                    : "bg-white/80 border-rose-200/80 text-rose-800"
+                }`}>
+                  <Check className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>Deletes Offline Videos & LocalStorage</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className={`text-xs ${isDark ? "text-rose-400/80" : "text-rose-600"}`}>
+                  Requires confirmation by typing DELETE.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteConfirmText("");
+                    setDeleteError("");
+                    setIsDeleteModalOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Account & Data</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Delete Account Confirmation Modal */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+            <div
+              className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl relative transition-all ${
+                isDark
+                  ? "bg-[#111827] border-rose-900/50 text-[#F8FAFC]"
+                  : "bg-white border-rose-200 text-[#0F172A]"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className={`absolute top-4 right-4 p-1.5 rounded-lg border text-gray-400 hover:text-gray-600 disabled:opacity-50 transition-colors ${
+                  isDark
+                    ? "border-gray-800 hover:bg-gray-800"
+                    : "border-gray-200 hover:bg-gray-100"
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-rose-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-rose-600 dark:text-rose-400">
+                    Confirm Account Deletion
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    This action is permanent and cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 text-xs sm:text-sm">
+                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                  You are about to permanently delete your student account and all corresponding data.
+                  This will completely erase:
+                </p>
+
+                <ul className="space-y-1.5 pl-1 text-xs text-gray-600 dark:text-gray-300">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    <span>Database profile, role, and teacher linkages</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    <span>All lesson progress, quizzes, and streak scores</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    <span>Browser Cache Storage & offline video downloads</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    <span>LocalStorage and IndexedDB local databases</span>
+                  </li>
+                </ul>
+
+                {deleteError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>{deleteError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5 pt-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    To confirm, type <span className="font-bold text-rose-600 dark:text-rose-400">DELETE</span> below:
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    disabled={isDeleting}
+                    placeholder="Type DELETE to confirm"
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono tracking-wider uppercase border focus:outline-none transition-all ${
+                      isDark
+                        ? "bg-[#1E293B] border-rose-900/50 text-white placeholder:text-gray-500 focus:border-rose-500"
+                        : "bg-white border-rose-300 text-gray-900 placeholder:text-gray-400 focus:border-rose-600"
+                    }`}
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsDeleteModalOpen(false)}
+                    disabled={isDeleting}
+                    className={`px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all disabled:opacity-50 cursor-pointer ${
+                      isDark
+                        ? "border-gray-700 hover:bg-gray-800 text-gray-300"
+                        : "border-gray-200 hover:bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={
+                      isDeleting ||
+                      deleteConfirmText.trim().toUpperCase() !== "DELETE"
+                    }
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Wiping Data & Account...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        <span>Permanently Delete</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </OfflineSafeAuthGuard>
   );

@@ -106,8 +106,19 @@ export default function StudentLearningModules({ studentClass: propClass, school
     }
 
     checkDownloads();
+
+    const handleCached = () => {
+      checkDownloads();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("offline-video-cached", handleCached);
+    }
+
     return () => {
       active = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("offline-video-cached", handleCached);
+      }
     };
   }, [modules]);
 
@@ -369,6 +380,7 @@ export default function StudentLearningModules({ studentClass: propClass, school
                         const vType = getVideoType(lesson);
                         const hasVideo = Boolean(lesson.video_url || lesson.video_path || lesson.videoUrl);
                         const hasAudio = Boolean(lesson.audio_url || lesson.audio_path || lesson.audioUrl);
+                        const dlState = downloadStates[lesson.id];
 
                         return (
                           <div
@@ -412,6 +424,11 @@ export default function StudentLearningModules({ studentClass: propClass, school
                                   {hasAudio && (
                                     <Badge variant="outline" className="text-[10px] text-purple-600 border-purple-200 bg-purple-50">
                                       🎧 Audio
+                                    </Badge>
+                                  )}
+                                  {dlState?.isDownloaded && (
+                                    <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50 flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3" /> Offline Ready
                                     </Badge>
                                   )}
                                 </div>

@@ -45,12 +45,29 @@ function SignInOfflineHandler() {
     return null;
   }
 
+  const isDeleted = searchParams.get("account_deleted") === "true";
+
   return (
-    <SignIn
-      routing="path"
-      path="/sign-in"
-      fallbackRedirectUrl="/"
-    />
+    <div className="flex flex-col items-center gap-4 w-full">
+      {isDeleted && (
+        <div className="w-full max-w-md p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm flex items-start gap-3 shadow-xs animate-in fade-in">
+          <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+            ✓
+          </div>
+          <div>
+            <p className="font-semibold text-xs sm:text-sm">Account Permanently Deleted</p>
+            <p className="mt-0.5 text-xs opacity-90">
+              Your student account, database records, offline cache storage, and device data have been completely wiped.
+            </p>
+          </div>
+        </div>
+      )}
+      <SignIn
+        routing="path"
+        path="/sign-in"
+        fallbackRedirectUrl="/"
+      />
+    </div>
   );
 }
 

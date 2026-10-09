@@ -18,8 +18,14 @@ import {
   WifiOff,
   Zap,
   Gauge,
+  CheckCircle2,
 } from "lucide-react";
 import { parseYouTubeVideoId } from "@/lib/videoHelpers";
+import {
+  autoCacheVideoOnPlay,
+  getOfflineVideoBlobUrl,
+  isLessonVideoDownloaded,
+} from "@/lib/offlineVideoManager";
 
 const POS_STORAGE_PREFIX = "gyan_vid_pos_";
 
@@ -70,6 +76,8 @@ export default function LessonVideoPlayer({
   const [controlsVisible, setControlsVisible] = useState(true);
   const [networkStatus, setNetworkStatus] = useState("online");
   const [dataSaver, setDataSaver] = useState(initialDataSaver);
+  const [resolvedOfflineBlob, setResolvedOfflineBlob] = useState(null);
+  const [isStoredOffline, setIsStoredOffline] = useState(false);
 
   const lastSavedPositionRef = useRef(0);
   const progressTimerRef = useRef(null);
@@ -84,6 +92,7 @@ export default function LessonVideoPlayer({
   // Determine media URL
   const mediaUrl = React.useMemo(() => {
     if (offlineBlobUrl) return offlineBlobUrl;
+    if (resolvedOfflineBlob) return resolvedOfflineBlob;
     if (isOffline && (ytVideoId || !src)) {
       return "/home.mp4";
     }
@@ -94,7 +103,7 @@ export default function LessonVideoPlayer({
       return `/api/media/video/${encodeURIComponent(src)}`;
     }
     return src;
-  }, [src, videoId, ytVideoId, isOffline, offlineBlobUrl]);
+  }, [src, videoId, ytVideoId, isOffline, offlineBlobUrl, resolvedOfflineBlob]);
 
   // Read saved local position on initial mount
   const getSavedPosition = useCallback(() => {
@@ -162,6 +171,41 @@ export default function LessonVideoPlayer({
       }
     };
   }, []);
+
+  // Check offline storage and resolve cached blob URL
+  useEffect(() => {
+    let active = true;
+    async function checkOffline() {
+      try {
+        const stored = await isLessonVideoDownloaded(effectiveId, src);
+        if (active) setIsStoredOffline(Boolean(stored));
+        if (isOffline || stored) {
+          const blobUrl = await getOfflineVideoBlobUrl(effectiveId, src);
+          if (active && blobUrl) {
+            setResolvedOfflineBlob(blobUrl);
+          }
+        }
+      } catch (e) {
+        console.warn("[LessonVideoPlayer] Offline check notice:", e);
+      }
+    }
+    checkOffline();
+
+    const handleCached = (e) => {
+      if (e.detail?.lessonId === effectiveId || e.detail?.videoUrl === src) {
+        setIsStoredOffline(true);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("offline-video-cached", handleCached);
+    }
+    return () => {
+      active = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("offline-video-cached", handleCached);
+      }
+    };
+  }, [effectiveId, src, isOffline]);
 
   // Initialize Video & HLS (Low memory configuration)
   useEffect(() => {
@@ -314,6 +358,17 @@ export default function LessonVideoPlayer({
   const handlePlay = () => {
     setIsPlaying(true);
     setIsBuffering(false);
+    if (!isOffline && (src || mediaUrl)) {
+      autoCacheVideoOnPlay({
+        lessonId: effectiveId,
+        videoUrl: src || mediaUrl,
+        title: title || "Lesson Video",
+      })
+        .then((res) => {
+          if (res?.isOfflineReady) setIsStoredOffline(true);
+        })
+        .catch(() => {});
+    }
   };
 
   const handlePause = () => {
@@ -471,7 +526,13 @@ export default function LessonVideoPlayer({
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
-        <div className="absolute top-3 right-3 z-20">
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+          {isStoredOffline && (
+            <div className="px-2.5 py-1 text-[11px] font-medium bg-slate-900/80 text-emerald-400 rounded-lg backdrop-blur-md border border-slate-700 shadow-md flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Stored Offline</span>
+            </div>
+          )}
           <button
             onClick={() => setNetworkStatus("offline")}
             className="px-2.5 py-1 text-[11px] font-medium bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md transition-colors flex items-center gap-1.5"
@@ -513,10 +574,10 @@ export default function LessonVideoPlayer({
       />
 
       {/* Network / Offline Banner */}
-      {isOffline && (
-        <div className="absolute top-3 left-3 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/95 text-white text-xs font-semibold backdrop-blur-md shadow-md">
+      {isOffline ? (
+        <div className="absolute top-3 left-3 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600/95 text-white text-xs font-semibold backdrop-blur-md shadow-md">
           <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline Mode • Playing Core Lesson Video</span>
+          <span>Offline Mode • Playing Stored Video (No Internet Needed)</span>
           {ytVideoId && (
             <button
               onClick={() => setNetworkStatus("online")}
@@ -526,7 +587,19 @@ export default function LessonVideoPlayer({
             </button>
           )}
         </div>
-      )}
+      ) : isStoredOffline ? (
+        <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/85 text-emerald-400 text-xs font-semibold backdrop-blur-md border border-slate-700 shadow-md">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          <span>Stored for Offline Replay</span>
+          <button
+            onClick={() => setNetworkStatus("offline")}
+            className="ml-1 text-[10px] text-slate-300 hover:text-white underline"
+            title="Test offline replay mode"
+          >
+            Play Offline
+          </button>
+        </div>
+      ) : null}
 
       {/* Loading / Buffering Spinner */}
       {(isLoading || isBuffering) && !error && (
