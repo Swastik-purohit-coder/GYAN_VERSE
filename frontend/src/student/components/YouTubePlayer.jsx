@@ -145,7 +145,12 @@ export default function YouTubePlayer({
       if (playerRef.current || !containerRef.current) return;
 
       try {
-        playerRef.current = new window.YT.Player(containerRef.current, {
+        containerRef.current.innerHTML = "";
+        const playerMount = document.createElement("div");
+        playerMount.id = `yt-mount-${effectiveId || videoId}`;
+        containerRef.current.appendChild(playerMount);
+
+        playerRef.current = new window.YT.Player(playerMount, {
           videoId: videoId,
           playerVars: {
             autoplay: autoPlay && !dataSaver ? 1 : 0,
@@ -197,9 +202,18 @@ export default function YouTubePlayer({
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
-      if (playerRef.current && playerRef.current.destroy) {
-        playerRef.current.destroy();
+      if (playerRef.current) {
+        try {
+          if (typeof playerRef.current.destroy === "function") {
+            playerRef.current.destroy();
+          }
+        } catch {}
         playerRef.current = null;
+      }
+      if (containerRef.current) {
+        try {
+          containerRef.current.innerHTML = "";
+        } catch {}
       }
     };
   }, [videoId, autoPlay, dataSaver, effectiveId, courseVideoId, onProgress, onEnded, isOffline, url]);
