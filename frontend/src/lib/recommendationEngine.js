@@ -134,7 +134,7 @@ export function getPersonalizedExamRecommendations(studentProfile, examsList) {
     const isLowIncome = familyIncome === "below_1_5L" || familyIncome === "1_5L_to_3_5L";
 
     if (incomeCap && isLowIncome) {
-      financialScore = 10;
+      financialScore = 12; // Extra boost for income-capped direct scholarships
       reasons.push(`Qualifies for income cap criteria (family income < ₹${(incomeCap / 100000).toFixed(1)}L)`);
     } else if (exam.benefits?.type === "free_education" && isLowIncome) {
       financialScore = 10;
@@ -146,19 +146,26 @@ export function getPersonalizedExamRecommendations(studentProfile, examsList) {
       financialScore = 5;
     }
 
-    // 5. State / Domicile Boost (Max 5 pts)
+    // 5. State / Domicile Boost (Max 8 pts)
     let stateScore = 0;
     if (domicile && state) {
       if (domicile.toLowerCase().includes(state.toLowerCase()) || state.toLowerCase().includes(domicile.toLowerCase())) {
-        stateScore = 5;
+        stateScore = 8;
         reasons.push(`State honor for students in ${state}`);
       }
     } else if (!domicile || domicile === "All India") {
-      stateScore = 3;
+      stateScore = 2;
+    }
+
+    // 6. Specific Class Focus Bonus (Prioritize exams specifically tailored to this class)
+    let specificityBonus = 0;
+    if (eligibleClasses.length === 1 && eligibleClasses[0] === studentClass) {
+      specificityBonus = 4;
+      reasons.push(`Specifically designed for Class ${studentClass}`);
     }
 
     // Compute final aggregate match score (capped at 100%)
-    const rawScore = classScore + streamScore + aspirationScore + financialScore + stateScore;
+    const rawScore = classScore + streamScore + aspirationScore + financialScore + stateScore + specificityBonus;
     const matchScore = Math.min(100, Math.max(10, Math.round(rawScore)));
 
     // Urgency Level
@@ -186,6 +193,7 @@ export function getPersonalizedExamRecommendations(studentProfile, examsList) {
     recommendations.push({
       exam,
       matchScore,
+      rawScore,
       matchReasons: reasons,
       eligibilityStatus,
       urgencyLevel,
@@ -193,11 +201,26 @@ export function getPersonalizedExamRecommendations(studentProfile, examsList) {
     });
   }
 
-  // Sort descending by matchScore; if tied, sort by stipend amount or title
+  // Sort descending by rawScore; break ties with eligibility status, state, specificity, and benefit amount
   recommendations.sort((a, b) => {
-    if (b.matchScore !== a.matchScore) {
-      return b.matchScore - a.matchScore;
+    if (b.rawScore !== a.rawScore) {
+      return b.rawScore - a.rawScore;
     }
+    // Direct class over feeder class
+    if (a.eligibilityStatus === "eligible" && b.eligibilityStatus !== "eligible") return -1;
+    if (b.eligibilityStatus === "eligible" && a.eligibilityStatus !== "eligible") return 1;
+
+    // State domicile match priority
+    const aState = a.exam.eligibility?.domicile && state && a.exam.eligibility.domicile.toLowerCase().includes(state.toLowerCase());
+    const bState = b.exam.eligibility?.domicile && state && b.exam.eligibility.domicile.toLowerCase().includes(state.toLowerCase());
+    if (aState && !bState) return -1;
+    if (bState && !aState) return 1;
+
+    // Specificity of class (single class targeted over wide multi-class range)
+    const aLen = a.exam.eligibleClasses?.length || 99;
+    const bLen = b.exam.eligibleClasses?.length || 99;
+    if (aLen !== bLen) return aLen - bLen;
+
     const bAmt = b.exam.benefits?.monetaryAmountPerYear || 0;
     const aAmt = a.exam.benefits?.monetaryAmountPerYear || 0;
     return bAmt - aAmt;

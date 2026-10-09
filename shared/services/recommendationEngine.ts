@@ -111,7 +111,7 @@ export function getPersonalizedExamRecommendations(
     const isLowIncome = familyIncome === 'below_1_5L' || familyIncome === '1_5L_to_3_5L';
 
     if (incomeCap && isLowIncome) {
-      financialScore = 10;
+      financialScore = 12;
       reasons.push(`Qualifies for income criteria (< ₹${(incomeCap / 100000).toFixed(1)}L)`);
     } else if (exam.benefits?.type === 'free_education' && isLowIncome) {
       financialScore = 10;
@@ -127,14 +127,21 @@ export function getPersonalizedExamRecommendations(
     let stateScore = 0;
     if (domicile && state) {
       if (domicile.toLowerCase().includes(state.toLowerCase()) || state.toLowerCase().includes(domicile.toLowerCase())) {
-        stateScore = 5;
+        stateScore = 8;
         reasons.push(`State honor for students in ${state}`);
       }
     } else if (!domicile || domicile === 'All India') {
-      stateScore = 3;
+      stateScore = 2;
     }
 
-    const rawScore = classScore + streamScore + aspirationScore + financialScore + stateScore;
+    // 6. Specificity Bonus
+    let specificityBonus = 0;
+    if (eligibleClasses.length === 1 && eligibleClasses[0] === studentClass) {
+      specificityBonus = 4;
+      reasons.push(`Specifically designed for Class ${studentClass}`);
+    }
+
+    const rawScore = classScore + streamScore + aspirationScore + financialScore + stateScore + specificityBonus;
     const matchScore = Math.min(100, Math.max(10, Math.round(rawScore)));
 
     let urgencyLevel: 'open_now' | 'closing_soon' | 'upcoming' | 'planning_ahead' = 'planning_ahead';
@@ -167,7 +174,21 @@ export function getPersonalizedExamRecommendations(
     });
   }
 
-  recommendations.sort((a, b) => b.matchScore - a.matchScore);
+  recommendations.sort((a, b) => {
+    if (b.matchScore !== a.matchScore) {
+      return b.matchScore - a.matchScore;
+    }
+    if (a.eligibilityStatus === 'eligible' && b.eligibilityStatus !== 'eligible') return -1;
+    if (b.eligibilityStatus === 'eligible' && a.eligibilityStatus !== 'eligible') return 1;
+
+    const aLen = a.exam.eligibleClasses?.length || 99;
+    const bLen = b.exam.eligibleClasses?.length || 99;
+    if (aLen !== bLen) return aLen - bLen;
+
+    const bAmt = b.exam.benefits?.monetaryAmountPerYear || 0;
+    const aAmt = a.exam.benefits?.monetaryAmountPerYear || 0;
+    return bAmt - aAmt;
+  });
   return recommendations;
 }
 
