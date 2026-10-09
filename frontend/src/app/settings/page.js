@@ -80,43 +80,84 @@ export default function SettingsPage() {
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      const meta = user.unsafeMetadata || {};
-      setRole(meta.role || "student");
-      setName(user.fullName || user.firstName || "");
-      setSchoolName(meta.schoolId || "");
-      setSelectedClass(meta.class || "Class 10");
-      setMediumLanguage(meta.mediumLanguage || "English");
-      setDepartment(meta.department || "");
-      setDesignation(meta.designation || "");
+    if (!user) return;
+    let active = true;
 
-      setDob(meta.dob || "");
-      setFatherName(meta.fatherName || "");
-      setParentPhone(meta.parentPhone || "");
-      setParentEmail(meta.parentEmail || "");
-      setStudentPhone(meta.studentPhone || "");
-      setAddress(meta.address || "");
+    const meta = user.unsafeMetadata || {};
+    setRole(meta.role || "student");
+    setName(user.fullName || user.firstName || "");
+    setSchoolName(meta.schoolId || "");
+    setSelectedClass(meta.class || "Class 10");
+    setMediumLanguage(meta.mediumLanguage || "English");
+    setDepartment(meta.department || "");
+    setDesignation(meta.designation || "");
 
-      if (meta.parentalControl) {
-        setParentalControl({
-          weeklyReports: meta.parentalControl.weeklyReports ?? true,
-          dailyStudyLimit: meta.parentalControl.dailyStudyLimit || "2 Hours / Day",
-          safetyMode: meta.parentalControl.safetyMode ?? true,
-          quizAlerts: meta.parentalControl.quizAlerts ?? true,
-          quietHours: meta.parentalControl.quietHours ?? false,
-        });
-      }
+    setDob(meta.dob || "");
+    setFatherName(meta.fatherName || "");
+    setParentPhone(meta.parentPhone || "");
+    setParentEmail(meta.parentEmail || "");
+    setStudentPhone(meta.studentPhone || "");
+    setAddress(meta.address || "");
 
-      setSection(meta.section || "");
-      setRollNumber(meta.rollNumber || "");
-      setSelectedInterests(
-        Array.isArray(meta.selectedInterests)
-          ? meta.selectedInterests
-          : ["🤖 AI & Prompt Engineering"]
-      );
-      setPrimaryGoal(meta.primaryGoal || "");
-      setSpecialization(meta.specialization || "");
+    if (meta.parentalControl) {
+      setParentalControl({
+        weeklyReports: meta.parentalControl.weeklyReports ?? true,
+        dailyStudyLimit: meta.parentalControl.dailyStudyLimit || "2 Hours / Day",
+        safetyMode: meta.parentalControl.safetyMode ?? true,
+        quizAlerts: meta.parentalControl.quizAlerts ?? true,
+        quietHours: meta.parentalControl.quietHours ?? false,
+      });
     }
+
+    setSection(meta.section || "");
+    setRollNumber(meta.rollNumber || "");
+    setSelectedInterests(
+      Array.isArray(meta.selectedInterests)
+        ? meta.selectedInterests
+        : ["🤖 AI & Prompt Engineering"]
+    );
+    setPrimaryGoal(meta.primaryGoal || "");
+    setSpecialization(meta.specialization || "");
+
+    // Also populate fresh details from Supabase user_roles database
+    fetchUserRole(user.id)
+      .then((dbDoc) => {
+        if (!active || !dbDoc) return;
+        if (dbDoc.role) setRole(dbDoc.role);
+        if (dbDoc.name) setName(dbDoc.name);
+        if (dbDoc.schoolId || dbDoc.school_id) setSchoolName(dbDoc.schoolId || dbDoc.school_id);
+        if (dbDoc.class) setSelectedClass(dbDoc.class);
+        if (dbDoc.mediumLanguage) setMediumLanguage(dbDoc.mediumLanguage);
+        if (dbDoc.department) setDepartment(dbDoc.department);
+        if (dbDoc.designation) setDesignation(dbDoc.designation);
+
+        if (dbDoc.dob) setDob(dbDoc.dob);
+        if (dbDoc.fatherName) setFatherName(dbDoc.fatherName);
+        if (dbDoc.parentPhone || dbDoc.parent_phone) setParentPhone(dbDoc.parentPhone || dbDoc.parent_phone);
+        if (dbDoc.parentEmail || dbDoc.parent_email) setParentEmail(dbDoc.parentEmail || dbDoc.parent_email);
+        if (dbDoc.studentPhone || dbDoc.phone) setStudentPhone(dbDoc.studentPhone || dbDoc.phone);
+        if (dbDoc.address) setAddress(dbDoc.address);
+
+        if (dbDoc.parentalControl) {
+          setParentalControl((prev) => ({
+            ...prev,
+            ...dbDoc.parentalControl,
+          }));
+        }
+
+        if (dbDoc.section) setSection(dbDoc.section);
+        if (dbDoc.rollNumber) setRollNumber(dbDoc.rollNumber);
+        if (dbDoc.selectedInterests && Array.isArray(dbDoc.selectedInterests)) {
+          setSelectedInterests(dbDoc.selectedInterests);
+        }
+        if (dbDoc.primaryGoal) setPrimaryGoal(dbDoc.primaryGoal);
+        if (dbDoc.specialization) setSpecialization(dbDoc.specialization);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   const toggleInterest = (tag) => {
@@ -139,7 +180,10 @@ export default function SettingsPage() {
     setSavedSuccess(false);
 
     try {
+      const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || undefined;
+
       const profileMetadata = {
+        email,
         dob: role === "student" ? dob : undefined,
         fatherName: role === "student" ? fatherName : undefined,
         parentPhone: role === "student" ? parentPhone : undefined,

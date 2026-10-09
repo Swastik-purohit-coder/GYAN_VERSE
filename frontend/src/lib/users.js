@@ -146,7 +146,10 @@ export async function saveUserRole(payload) {
 
     try {
       const { db } = await import("@/lib/offlineDb");
+      const existing = await db.userProfile.get(userId).catch(() => null);
       await db.userProfile.put({
+        ...(existing || {}),
+        ...extraProfile,
         userId,
         role: finalRole,
         name: name || null,
@@ -170,7 +173,13 @@ export async function saveUserRole(payload) {
     });
 
     if (res.ok) {
-      return await res.json();
+      const serverResult = await res.json();
+      if (serverResult?.user) {
+        try {
+          await saveLocalUserProfile(serverResult.user);
+        } catch {}
+      }
+      return serverResult;
     }
     console.warn(`[saveUserRole] Server responded with status ${res.status}, continuing with local cache`);
   } catch (err) {

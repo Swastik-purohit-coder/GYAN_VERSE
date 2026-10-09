@@ -25,7 +25,7 @@ export async function GET(_request, context) {
     const rows = await run(
       supabase
         .from("user_roles")
-        .select("user_id, name, class, school_id, created_at")
+        .select("user_id, name, email, phone, parent_email, parent_phone, class, school_id, metadata, created_at")
         .eq("school_id", schoolId)
         .eq("role", "student")
     );
@@ -37,6 +37,20 @@ export async function GET(_request, context) {
         name: row.name,
         class: row.class,
         schoolId: row.school_id,
+        email: row.email || row.metadata?.email || null,
+        phone: row.phone || row.metadata?.studentPhone || null,
+        studentPhone: row.phone || row.metadata?.studentPhone || null,
+        parentEmail: row.parent_email || row.metadata?.parentEmail || null,
+        parentPhone: row.parent_phone || row.metadata?.parentPhone || null,
+        dob: row.metadata?.dob || null,
+        fatherName: row.metadata?.fatherName || null,
+        address: row.metadata?.address || null,
+        section: row.metadata?.section || null,
+        rollNumber: row.metadata?.rollNumber || null,
+        mediumLanguage: row.metadata?.mediumLanguage || "English",
+        selectedInterests: row.metadata?.selectedInterests || [],
+        primaryGoal: row.metadata?.primaryGoal || null,
+        parentalControl: row.metadata?.parentalControl || null,
         createdAt: row.created_at,
       }))
     );

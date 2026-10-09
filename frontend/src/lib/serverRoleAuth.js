@@ -76,7 +76,7 @@ export async function getServerUserRole(userId, hintRoleOrOptions = null, option
   try {
     const endpoint = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/user_roles?user_id=eq.${encodeURIComponent(
       userId
-    )}&select=user_id,role,school_id,class,name`;
+    )}&select=user_id,role,school_id,class,name,email,phone,parent_email,parent_phone,metadata`;
 
     // Timeout signal so offline requests don't hang for 30s
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
@@ -117,10 +117,18 @@ export async function getServerUserRole(userId, hintRoleOrOptions = null, option
       resolvedRole = roleDoc.class;
     }
 
+    const metaObj = roleDoc.metadata && typeof roleDoc.metadata === "object" ? roleDoc.metadata : {};
+
     const finalDoc = {
+      ...metaObj,
       ...roleDoc,
       role: resolvedRole,
       class: roleDoc.class?.startsWith("role:") ? null : roleDoc.class,
+      email: roleDoc.email || metaObj.email || null,
+      phone: roleDoc.phone || metaObj.studentPhone || null,
+      parentEmail: roleDoc.parent_email || metaObj.parentEmail || null,
+      parentPhone: roleDoc.parent_phone || metaObj.parentPhone || null,
+      metadata: metaObj,
     };
 
     if (finalDoc.role === "unassigned") {
