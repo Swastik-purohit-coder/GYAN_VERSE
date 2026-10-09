@@ -28,6 +28,7 @@ import {
   WifiOff,
   GraduationCap,
   Brain,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/student/components/ui/input";
 import { useI18n } from "@/i18n/useI18n";
@@ -39,6 +40,7 @@ const makeNavItems = (t) => [
   { href: "/student", label: t?.nav?.dashboard ? t.nav.dashboard() : "Dashboard", icon: Home },
   { href: "/student/learn-with-ai", label: "Learn with AI", icon: Brain },
   { href: "/student/courses", label: t?.nav?.courses ? t.nav.courses() : "Courses", icon: BookOpen },
+  { href: "/student/skills", label: "Skill Tracks", icon: Sparkles },
   { href: "/student/exams", label: "Exams & Scholarships", icon: GraduationCap },
   { href: "/student/achievements", label: t?.nav?.achievements ? t.nav.achievements() : "Achievements", icon: Star },
   { href: "/student/leaderboard", label: t?.nav?.leaderboard ? t.nav.leaderboard() : "Leaderboard", icon: Trophy },

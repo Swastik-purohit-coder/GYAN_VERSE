@@ -267,6 +267,32 @@ export async function POST(request) {
       return NextResponse.json({ error: "Skill course title is required" }, { status: 400 });
     }
 
+    const modCount = Number(body.modules_count) || (Array.isArray(curriculum) && curriculum.length) || 4;
+    const durHours = Number(duration_hours) || (Number(body.duration_weeks) ? Number(body.duration_weeks) * 2.5 : 8);
+
+    let resolvedCurriculum = Array.isArray(curriculum) && curriculum.length > 0 ? curriculum : [];
+    if (resolvedCurriculum.length === 0) {
+      const defaultTemplates = [
+        { id: "m1", title: `Introduction & Foundational Concepts of ${title.trim()}`, duration: "1.5h", description: "Core concepts, fundamental terminology, and real-world applications." },
+        { id: "m2", title: "Tools, Frameworks & Practical Hands-on Setup", duration: "2h", description: "Step-by-step setup, workspace preparation, and practical exercises." },
+        { id: "m3", title: "Deep Dive: Intermediate Techniques & Problem Solving", duration: "2.5h", description: "Hands-on projects, problem breakdown, and guided solutions." },
+        { id: "m4", title: "Advanced Best Practices & Capstone Project", duration: "2h", description: "Showcase submission, review, and certification assessment." },
+        { id: "m5", title: "Industry Mentorship & Next Steps Exploration", duration: "1.5h", description: "Career pathways, peer collaboration, and continuous mastery." },
+      ];
+      resolvedCurriculum = defaultTemplates.slice(0, Math.min(Math.max(2, modCount), defaultTemplates.length));
+    }
+
+    const defaultIcons = {
+      ai_tech: "⚡",
+      coding: "🔧",
+      leadership: "🎙️",
+      finance: "📈",
+      design: "🎨",
+    };
+    const normCat = String(category || "").toLowerCase();
+    const resolvedBadgeIcon = badge_icon !== "⭐" ? badge_icon : (defaultIcons[normCat] || "🏆");
+    const resolvedBadgeName = badge_name !== "Skill Certificate" ? badge_name : `${title.trim()} Specialist`;
+
     const now = nowIso();
     const newCourse = {
       id: normalizeId("skill", title),
@@ -279,15 +305,15 @@ export async function POST(request) {
       author_name: author_name || instructor_name || "Faculty In-Charge",
       author_role: author_role || "Educator",
       instructor_name: instructor_name || author_name || "Lead Faculty",
-      duration_hours: Number(duration_hours) || 10,
+      duration_hours: durHours,
       target_grade_min: Number(target_grade_min) || 1,
       target_grade_max: Number(target_grade_max) || 12,
-      badge_icon,
-      badge_name,
-      modules_count: curriculum.length || 4,
+      badge_icon: resolvedBadgeIcon,
+      badge_name: resolvedBadgeName,
+      modules_count: resolvedCurriculum.length,
       enrolled_count: 0,
       published: Boolean(published),
-      curriculum,
+      curriculum: resolvedCurriculum,
       created_at: now,
       updated_at: now,
     };
@@ -297,7 +323,7 @@ export async function POST(request) {
         const inserted = await run(
           supabase.from("skill_courses").insert(newCourse).select().maybeSingle()
         );
-        if (inserted) {
+        if (inserted && typeof inserted === "object" && !Array.isArray(inserted) && inserted.id) {
           inMemorySkills = [inserted, ...inMemorySkills];
           return NextResponse.json(inserted, { status: 201 });
         }

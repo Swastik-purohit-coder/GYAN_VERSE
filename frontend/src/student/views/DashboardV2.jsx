@@ -44,6 +44,7 @@ import { useTheme } from '@/components/ThemeProvider';
 
 import StudentLearningModules from '../components/StudentLearningModules';
 import SkillTrackCard from '../components/SkillTrackCard';
+import DashboardSkillCoursesPreview from '../components/DashboardSkillCoursesPreview';
 import FloatingGyanBot from '../components/FloatingGyanBot';
 import MyDoubtSessionsSection from '../components/MyDoubtSessionsSection';
 import MyMentorCard from '../components/MyMentorCard';
@@ -674,6 +675,14 @@ export default function DashboardV2({ user = {} }) {
             </div>
           )}
         </div>
+
+        {/* =========================================
+            SKILL MICRO-COURSES & TRACKS (TEACHER & MENTOR)
+           ========================================= */}
+        <DashboardSkillCoursesPreview
+          studentClass={studentClassDisplay}
+          studentId={clerkUser?.id || "guest_student"}
+        />
 
         {/* =========================================
             MY DOUBT SESSIONS (1-ON-1 WITH TEACHER)
