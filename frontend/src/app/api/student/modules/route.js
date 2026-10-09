@@ -114,7 +114,7 @@ export async function GET(request) {
           ? supabase.from("subjects").select("id, name, code, icon, color").in("id", subjectIds)
           : Promise.resolve({ data: [] }),
 
-        // Subquery B: Lessons (with video_type resiliency)
+        // Subquery B: Lessons (with video_type and audio resiliency)
         supabase
           .from("lessons")
           .select(`
@@ -125,6 +125,8 @@ export async function GET(request) {
             video_path,
             video_url,
             video_type,
+            audio_path,
+            audio_url,
             duration,
             order_index,
             is_required,
@@ -135,7 +137,7 @@ export async function GET(request) {
           .or("published.eq.true,published.is.null")
           .order("order_index", { ascending: true })
           .then(async (lRes) => {
-            if (lRes.error && (lRes.error.code === "42703" || lRes.error.message?.includes("video_type"))) {
+            if (lRes.error && (lRes.error.code === "42703" || lRes.error.message?.includes("video_type") || lRes.error.message?.includes("audio"))) {
               const fallback = await supabase
                 .from("lessons")
                 .select(`
@@ -159,6 +161,8 @@ export async function GET(request) {
                   data: fallback.data.map((l) => ({
                     ...l,
                     video_type: l.video_url && (l.video_url.includes("youtube") || l.video_url.includes("youtu.be")) ? "youtube" : "uploaded",
+                    audio_url: l.audio_url || null,
+                    audio_path: l.audio_path || null,
                   })),
                   error: null,
                 };

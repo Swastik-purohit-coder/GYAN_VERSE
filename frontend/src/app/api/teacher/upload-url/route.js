@@ -20,7 +20,21 @@ async function ensureBucketExists() {
       await supabase.storage.createBucket(BUCKET_NAME, {
         public: true,
         fileSizeLimit: 104857600, // 100MB
-        allowedMimeTypes: ["video/mp4", "video/webm", "video/ogg", "video/quicktime", "video/x-msvideo"],
+        allowedMimeTypes: [
+          "video/mp4",
+          "video/webm",
+          "video/ogg",
+          "video/quicktime",
+          "video/x-msvideo",
+          "audio/mpeg",
+          "audio/mp3",
+          "audio/wav",
+          "audio/ogg",
+          "audio/aac",
+          "audio/m4a",
+          "audio/webm",
+          "audio/x-m4a"
+        ],
       });
     }
   } catch (err) {

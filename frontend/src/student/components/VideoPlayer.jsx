@@ -3,14 +3,16 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/student/components/ui/badge";
 import { Button } from "@/student/components/ui/button";
-import { X, CheckCircle2, Circle, Loader2, Video, Wifi, WifiOff } from "lucide-react";
+import { X, CheckCircle2, Circle, Loader2, Video, Headphones, Wifi, WifiOff } from "lucide-react";
 import { getVideoType } from "@/lib/videoHelpers";
 import { saveLocalLessonProgress } from "@/lib/offlineDb";
 import LessonVideoPlayer from "@/components/media/LessonVideoPlayer";
+import LessonAudioPlayer from "@/components/media/LessonAudioPlayer";
 
 export default function VideoPlayer({
   lesson,
   module,
+  initialMode = "video",
   offlineBlobUrl,
   onClose,
   onComplete,
@@ -47,10 +49,16 @@ export default function VideoPlayer({
 
   if (!lesson) return null;
 
-  // Determine media URL (cached offline blob URL if downloaded, otherwise streaming API endpoint or direct URL)
-  const rawUrl = offlineBlobUrl || lesson.video_url || lesson.video_path;
-  const vType = getVideoType(rawUrl);
+  const rawVideo = offlineBlobUrl || lesson.video_url || lesson.video_path || lesson.videoUrl;
+  const rawAudio = lesson.audio_url || lesson.audio_path || lesson.audioUrl;
+  const hasVideo = Boolean(rawVideo);
+  const hasAudio = Boolean(rawAudio);
 
+  const [mediaMode, setMediaMode] = useState(
+    initialMode === "audio" && hasAudio ? "audio" : hasVideo ? "video" : hasAudio ? "audio" : "video"
+  );
+
+  const vType = getVideoType(rawVideo);
   const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
 
   const resolvedStreamUrl = offlineBlobUrl
@@ -58,10 +66,16 @@ export default function VideoPlayer({
     : isOffline
     ? "/home.mp4"
     : vType === "youtube"
-    ? rawUrl
-    : rawUrl && rawUrl.startsWith("http")
-    ? rawUrl
-    : `/api/media/video/${encodeURIComponent(lesson.id || rawUrl)}`;
+    ? rawVideo
+    : rawVideo && rawVideo.startsWith("http")
+    ? rawVideo
+    : `/api/media/video/${encodeURIComponent(lesson.id || rawVideo)}`;
+
+  const resolvedAudioUrl = rawAudio && rawAudio.startsWith("http")
+    ? rawAudio
+    : rawAudio
+    ? `/api/media/audio/${encodeURIComponent(lesson.id || rawAudio)}`
+    : null;
 
   const posterUrl = lesson.thumbnail_url || `/api/media/thumbnail/${encodeURIComponent(lesson.id)}`;
 
@@ -85,8 +99,8 @@ export default function VideoPlayer({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-4xl bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden text-white flex flex-col max-h-[95vh]">
         {/* Modal Header */}
-        <div className="p-3 sm:p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0">
-          <div className="space-y-0.5 min-w-0 pr-4">
+        <div className="p-3 sm:p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 shrink-0 gap-3">
+          <div className="space-y-0.5 min-w-0 pr-2">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge className="bg-indigo-600 text-white text-[10px]">
                 {module?.title || "Module"}
@@ -109,39 +123,100 @@ export default function VideoPlayer({
               {lesson.title}
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-            aria-label="Close video player"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Live Media Switcher when both Video & Audio exist */}
+            {hasVideo && hasAudio && (
+              <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setMediaMode("video")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    mediaMode === "video"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Video</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMediaMode("audio")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    mediaMode === "audio"
+                      ? "bg-violet-600 text-white shadow-xs"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Headphones className="w-3.5 h-3.5" />
+                  <span>Audio Track</span>
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+              aria-label="Close media player"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Video Player Area */}
-        <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-          {!resolvedStreamUrl ? (
-            <div className="p-8 text-center text-slate-400 space-y-2">
-              <Video className="w-12 h-12 mx-auto text-slate-600" />
-              <p>Video content is currently processing or unavailable.</p>
+        {/* Media Player Area: Video or Audio */}
+        {mediaMode === "video" ? (
+          <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+            {!resolvedStreamUrl ? (
+              <div className="p-8 text-center text-slate-400 space-y-2">
+                <Video className="w-12 h-12 mx-auto text-slate-600" />
+                <p>Video content is currently processing or unavailable.</p>
+                {hasAudio && (
+                  <Button
+                    size="sm"
+                    onClick={() => setMediaMode("audio")}
+                    className="bg-violet-600 hover:bg-violet-700 text-white text-xs mt-2"
+                  >
+                    <Headphones className="w-3.5 h-3.5 mr-1" /> Listen to Audio Version
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <LessonVideoPlayer
+                src={resolvedStreamUrl}
+                lessonId={lesson.id}
+                videoId={lesson.id}
+                title={lesson.title}
+                poster={posterUrl}
+                initialPosition={lesson.progress?.lastPosition || 0}
+                duration={lesson.duration || 0}
+                autoPlay={!dataSaver}
+                onProgressUpdate={handleProgressUpdate}
+                onComplete={handleLessonAutoCompleted}
+                offlineBlobUrl={offlineBlobUrl}
+                className="w-full h-full"
+              />
+            )}
+          </div>
+        ) : (
+          <div className="p-4 sm:p-6 bg-slate-950 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="w-full max-w-xl">
+              <LessonAudioPlayer
+                src={resolvedAudioUrl || rawAudio}
+                lessonId={lesson.id}
+                audioId={lesson.id}
+                title={lesson.title}
+                duration={lesson.duration || 0}
+                initialPosition={lesson.progress?.lastPosition || 0}
+                onProgressUpdate={handleProgressUpdate}
+                onComplete={handleLessonAutoCompleted}
+                autoPlay={true}
+                className="w-full"
+              />
             </div>
-          ) : (
-            <LessonVideoPlayer
-              src={resolvedStreamUrl}
-              lessonId={lesson.id}
-              videoId={lesson.id}
-              title={lesson.title}
-              poster={posterUrl}
-              initialPosition={lesson.progress?.lastPosition || 0}
-              duration={lesson.duration || 0}
-              autoPlay={!dataSaver}
-              onProgressUpdate={handleProgressUpdate}
-              onComplete={handleLessonAutoCompleted}
-              offlineBlobUrl={offlineBlobUrl}
-              className="w-full h-full"
-            />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Lower Controls & Info */}
         <div className="p-3 sm:p-4 bg-slate-900/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 border-t border-slate-800/80">

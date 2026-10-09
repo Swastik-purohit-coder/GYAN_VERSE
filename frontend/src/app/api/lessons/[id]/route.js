@@ -27,14 +27,24 @@ export async function GET(request, context) {
   let lessonData = null;
 
   // 1. Try fetching from Supabase Database
-  try {
-    const dbLesson = await runSingle(
-      supabase
-        .from('lessons')
-        .select('id, module_id, title, description, video_path, video_url, video_type, duration, order_index, is_required, published, created_at, updated_at')
-        .eq('id', cleanId)
-        .maybeSingle()
-    );
+    let dbLesson = null;
+    try {
+      dbLesson = await runSingle(
+        supabase
+          .from('lessons')
+          .select('id, module_id, title, description, video_path, video_url, video_type, audio_path, audio_url, duration, order_index, is_required, published, created_at, updated_at')
+          .eq('id', cleanId)
+          .maybeSingle()
+      );
+    } catch (colErr) {
+      dbLesson = await runSingle(
+        supabase
+          .from('lessons')
+          .select('id, module_id, title, description, video_path, video_url, duration, order_index, is_required, published, created_at, updated_at')
+          .eq('id', cleanId)
+          .maybeSingle()
+      );
+    }
 
     if (dbLesson) {
       let progress = 0;
@@ -59,7 +69,8 @@ export async function GET(request, context) {
       const isYt = dbLesson.video_type === 'youtube' || rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be');
       const isHls = dbLesson.video_type === 'hls' || rawUrl.includes('.m3u8');
 
-      // Check if local audio or thumbnail exists
+      // Check if audio exists in db or local media
+      const rawAudio = dbLesson.audio_url || dbLesson.audio_path || '';
       const localAudio = await findLocalMediaFile(cleanId, 'audio');
       const localThumb = await findLocalMediaFile(cleanId, 'thumbnail');
 
@@ -69,8 +80,8 @@ export async function GET(request, context) {
         title: dbLesson.title,
         description: dbLesson.description || '',
         duration: dbLesson.duration || 0,
-        videoUrl: isYt ? rawUrl : `/api/media/video/${encodeURIComponent(dbLesson.id)}`,
-        audioUrl: localAudio ? `/api/media/audio/${encodeURIComponent(cleanId)}` : null,
+        videoUrl: isYt ? rawUrl : rawUrl.startsWith('http') ? rawUrl : `/api/media/video/${encodeURIComponent(dbLesson.id)}`,
+        audioUrl: rawAudio ? rawAudio : localAudio ? `/api/media/audio/${encodeURIComponent(cleanId)}` : null,
         thumbnail: localThumb ? `/api/media/thumbnail/${encodeURIComponent(cleanId)}` : null,
         videoType: isYt ? 'youtube' : isHls ? 'hls' : 'mp4',
         completed,

@@ -38,6 +38,7 @@ import {
   ChevronDown,
   Filter,
   Youtube,
+  Headphones,
   Clock,
   Sparkles,
   RefreshCw,
@@ -65,6 +66,10 @@ function defaultLessonForm() {
     videoFile: null,
     videoPath: "",
     videoUrl: "",
+    audioSource: "none", // 'none' | 'url' | 'uploaded'
+    audioFile: null,
+    audioPath: "",
+    audioUrl: "",
     duration: 300,
     orderIndex: 1,
     isRequired: true,
@@ -337,6 +342,52 @@ function ModuleManager() {
     }
   };
 
+  // Upload audio to Supabase Storage
+  const handleUploadAudio = async (file) => {
+    if (!file) return null;
+    setUploadProgress(10);
+    setUploadStatus("Requesting audio upload ticket...");
+
+    try {
+      const mime = file.type || "audio/mpeg";
+      const { signedUploadUrl, storagePath, publicUrl } = await apiClient.getSignedVideoUploadUrl(
+        file.name,
+        mime
+      );
+
+      setUploadProgress(40);
+      setUploadStatus("Uploading audio lecture to Supabase Storage...");
+
+      if (signedUploadUrl) {
+        const response = await fetch(signedUploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": mime,
+          },
+          body: file,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Audio storage upload failed (${response.status})`);
+        }
+      } else {
+        throw new Error("Upload configuration failed: Missing signed upload URL.");
+      }
+
+      setUploadProgress(100);
+      setUploadStatus("Audio upload complete!");
+
+      return {
+        storagePath,
+        publicUrl,
+      };
+    } catch (err) {
+      setUploadStatus("");
+      setUploadProgress(0);
+      throw err;
+    }
+  };
+
   // Submit Lesson (Create or Update)
   const handleSaveLesson = async (e) => {
     e.preventDefault();
@@ -353,6 +404,8 @@ function ModuleManager() {
     try {
       let finalVideoPath = lessonForm.videoPath;
       let finalVideoUrl = lessonForm.videoUrl;
+      let finalAudioPath = lessonForm.audioPath;
+      let finalAudioUrl = lessonForm.audioUrl;
 
       // Handle video file upload if file selected
       if (lessonForm.videoFile) {
@@ -363,12 +416,23 @@ function ModuleManager() {
         }
       }
 
+      // Handle audio file upload if file selected
+      if (lessonForm.audioFile) {
+        const audioUploadResult = await handleUploadAudio(lessonForm.audioFile);
+        if (audioUploadResult) {
+          finalAudioPath = audioUploadResult.storagePath;
+          finalAudioUrl = audioUploadResult.publicUrl || finalAudioUrl;
+        }
+      }
+
       const payload = {
         title: lessonForm.title.trim(),
         description: lessonForm.description.trim() || null,
         videoType: lessonForm.videoType,
         videoPath: finalVideoPath || null,
         videoUrl: finalVideoUrl ? finalVideoUrl.trim() : null,
+        audioPath: finalAudioPath || null,
+        audioUrl: finalAudioUrl ? finalAudioUrl.trim() : null,
         duration: Number(lessonForm.duration) || 0,
         orderIndex: Number(lessonForm.orderIndex) || 1,
         isRequired: Boolean(lessonForm.isRequired),
@@ -402,7 +466,12 @@ function ModuleManager() {
   const startEditLesson = (les) => {
     setEditingLessonId(les.id);
     const resolvedType = getVideoType(les);
-    const formVideoType = resolvedType === 'youtube' ? 'youtube' : 'uploaded';
+    const formVideoType = resolvedType === "youtube" ? "youtube" : "uploaded";
+    const hasAudio = Boolean(les.audio_url || les.audio_path || les.audioUrl || les.audioPath);
+    const audioUrlVal = les.audio_url || les.audioUrl || "";
+    const audioPathVal = les.audio_path || les.audioPath || "";
+    const audioSrc = hasAudio ? (audioPathVal ? "uploaded" : "url") : "none";
+
     setLessonForm({
       title: les.title || "",
       description: les.description || "",
@@ -410,6 +479,10 @@ function ModuleManager() {
       videoFile: null,
       videoPath: les.video_path || les.videoPath || "",
       videoUrl: les.video_url || les.videoUrl || "",
+      audioSource: audioSrc,
+      audioFile: null,
+      audioPath: audioPathVal,
+      audioUrl: audioUrlVal,
       duration: les.duration || 300,
       orderIndex: les.order_index || les.orderIndex || 1,
       isRequired: les.is_required ?? true,
@@ -939,6 +1012,94 @@ function ModuleManager() {
                       </div>
                     )}
 
+                    {/* Lesson Audio Lecture Selector (Pill Switcher) */}
+                    <div className="space-y-1.5 pt-2 border-t border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                          <Headphones className="w-3.5 h-3.5 text-[#635BFF]" />
+                          <span>Audio Track (Optional / Alternative)</span>
+                        </label>
+                        <span className="text-[10px] text-slate-400 font-medium">OR operation supported</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-200/60 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setLessonForm((p) => ({ ...p, audioSource: "none" }))}
+                          className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            lessonForm.audioSource === "none"
+                              ? "bg-white text-slate-800 shadow-2xs"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          <span>None</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLessonForm((p) => ({ ...p, audioSource: "url" }))}
+                          className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            lessonForm.audioSource === "url"
+                              ? "bg-white text-[#635BFF] shadow-2xs"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          <span>Audio Link</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLessonForm((p) => ({ ...p, audioSource: "uploaded" }))}
+                          className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            lessonForm.audioSource === "uploaded"
+                              ? "bg-white text-violet-600 shadow-2xs"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          <span>Upload File</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {lessonForm.audioSource === "url" && (
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-slate-700">Audio Stream / Podcast URL</label>
+                        <Input
+                          value={lessonForm.audioUrl}
+                          onChange={(e) => setLessonForm((p) => ({ ...p, audioUrl: e.target.value }))}
+                          placeholder="https://... direct .mp3 or audio stream URL"
+                          className="bg-white border-slate-200 focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 text-slate-900 text-xs h-9 rounded-xl placeholder:text-slate-400"
+                        />
+                      </div>
+                    )}
+
+                    {lessonForm.audioSource === "uploaded" && (
+                      <div className="space-y-2">
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Upload Audio Lecture (.mp3, .wav, .m4a, .aac)
+                        </label>
+                        <div className="border border-dashed border-slate-300 rounded-xl p-3 bg-white hover:border-[#635BFF] transition-colors">
+                          <input
+                            type="file"
+                            accept="audio/mp3,audio/mpeg,audio/wav,audio/m4a,audio/aac,audio/ogg"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setLessonForm((p) => ({ ...p, audioFile: file }));
+                              }
+                            }}
+                            className="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-violet-600 file:text-white hover:file:bg-violet-700 cursor-pointer"
+                          />
+                        </div>
+                        <div className="pt-1">
+                          <label className="block text-[11px] text-slate-500 mb-1">Direct Storage Audio URL (Optional Override)</label>
+                          <Input
+                            value={lessonForm.audioUrl}
+                            onChange={(e) => setLessonForm((p) => ({ ...p, audioUrl: e.target.value }))}
+                            placeholder="https://... direct .mp3 URL"
+                            className="bg-white border-slate-200 focus:border-[#635BFF] text-slate-900 text-xs h-9 rounded-xl placeholder:text-slate-400"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">Duration (seconds)</label>
@@ -1103,15 +1264,22 @@ function ModuleManager() {
                               ) : (
                                 <span className="text-slate-400">Optional</span>
                               )}
-                              {les.video_url && (
-                                <span className={`px-1.5 py-0.2 rounded font-semibold ${
-                                  vType === 'youtube'
-                                    ? 'bg-red-50 text-red-600 border border-red-200'
-                                    : 'bg-violet-50 text-[#635BFF] border border-violet-200'
-                                }`}>
-                                  {vType === 'youtube' ? '📹 YouTube' : '📁 Video'}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {les.video_url && (
+                                  <span className={`px-1.5 py-0.2 rounded font-semibold ${
+                                    vType === 'youtube'
+                                      ? 'bg-red-50 text-red-600 border border-red-200'
+                                      : 'bg-violet-50 text-[#635BFF] border border-violet-200'
+                                  }`}>
+                                    {vType === 'youtube' ? '📹 YouTube' : '📁 Video'}
+                                  </span>
+                                )}
+                                {(les.audio_url || les.audio_path) && (
+                                  <span className="bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded font-semibold flex items-center gap-0.5">
+                                    <Headphones className="w-2.5 h-2.5" /> Audio
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
