@@ -119,6 +119,9 @@ export default function ServiceWorkerRegister() {
     const warmList = [
       "/",
       "/student",
+      "/student/dashboard",
+      "/student/exams",
+      "/exams",
       "/student/lessons",
       "/student/courses",
       "/student/quiz",
@@ -135,16 +138,39 @@ export default function ServiceWorkerRegister() {
         navigator.serviceWorker
           .register("/sw.js")
           .then((registration) => {
+            const captureCurrentChunks = () => {
+              try {
+                if (navigator.serviceWorker.controller) {
+                  const chunkUrls = Array.from(
+                    document.querySelectorAll('script[src*="/_next/"], link[href*="/_next/"]')
+                  )
+                    .map((el) => el.src || el.href)
+                    .filter(Boolean);
+
+                  if (chunkUrls.length > 0) {
+                    navigator.serviceWorker.controller.postMessage({
+                      type: "cache-chunks",
+                      urls: chunkUrls,
+                    });
+                  }
+                }
+              } catch (e) {}
+            };
+
+            // Capture current chunks immediately
+            captureCurrentChunks();
+
             // Defer silent background warming so user's dashboard is completely instant
             setTimeout(async () => {
               // Only warm cache if network is available and has decent speed
               if (isNetworkQualityDecent() && navigator.serviceWorker.controller) {
+                captureCurrentChunks();
                 navigator.serviceWorker.controller.postMessage({
                   type: "warm-cache",
                   urls: warmList,
                 });
               }
-            }, 3000);
+            }, 2000);
           })
           .catch((err) => console.warn("SW registration failed:", err));
       };

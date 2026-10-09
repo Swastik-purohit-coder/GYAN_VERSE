@@ -3,11 +3,37 @@
   - Next.js chunk handling to prevent chunk load errors
   - Request queue for offline POST/PUT/DELETE with background sync
 */
-const VERSION = 'v11';
+const VERSION = 'v12';
 const APP_SHELL_CACHE = `glp-shell-${VERSION}`;
 const STATIC_CACHE = `glp-static-${VERSION}`;
 const DATA_CACHE = `glp-data-${VERSION}`;
 const VIDEO_CACHE = 'glp-videos-v1';
+
+// Helper to extract and precache Next.js static scripts and stylesheets from HTML
+async function extractAndPrecacheHtmlAssets(htmlText, staticCache) {
+  if (!htmlText || typeof htmlText !== 'string') return;
+  try {
+    const assetMatches = htmlText.match(/(?:src|href)="(\/_next\/static\/[^"]+)"/g) || [];
+    const urlsToFetch = new Set();
+    for (const m of assetMatches) {
+      const matchedUrl = m.replace(/^(?:src|href)="/, '').replace(/"$/, '');
+      if (matchedUrl && !matchedUrl.includes('.map')) {
+        urlsToFetch.add(matchedUrl);
+      }
+    }
+    for (const assetUrl of urlsToFetch) {
+      try {
+        const aRes = await fetch(assetUrl);
+        if (aRes.ok) {
+          await staticCache.put(assetUrl, aRes.clone());
+          const aParsed = new URL(assetUrl, self.location.origin);
+          await staticCache.put(aParsed.pathname, aRes.clone());
+          await staticCache.put(self.location.origin + aParsed.pathname, aRes.clone());
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+}
 
 // Range request helper for playing cached videos in HTML5 video tags
 async function handleVideoRangeRequest(request, cachedResponse) {
@@ -81,6 +107,7 @@ const APP_ROUTES = [
   '/student/quiz',
   '/student/quiz/results',
   '/student/exams',
+  '/exams',
   '/student/search',
   '/student/study-buddy',
   '/subjects',
@@ -245,28 +272,46 @@ async function flushRequestQueue() {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(APP_SHELL_CACHE);
+      const shellCache = await caches.open(APP_SHELL_CACHE);
+      const staticCache = await caches.open(STATIC_CACHE);
+
       try {
-        await Promise.allSettled(CORE_ASSETS.map((asset) => cache.add(asset)));
+        await Promise.allSettled(CORE_ASSETS.map((asset) => shellCache.add(asset)));
         console.log('[SW] Core app shell cached.');
       } catch (err) {
         console.warn('[SW] Core asset precache issue:', err);
       }
-      // Pre-cache key app routes for better offline experience
+
       try {
-        const routes = [...new Set(APP_ROUTES)];
-        await Promise.allSettled(routes.map((r) => cache.add(r)));
-        console.log('[SW] Pre-cached app routes');
-      } catch (e) {
-        console.log('[SW] Could not pre-cache routes (server may be down)');
-      }
-      try {
-        const staticCache = await caches.open(STATIC_CACHE);
         await Promise.allSettled([...new Set(STATIC_WARM_ASSETS)].map((asset) => staticCache.add(asset)));
         console.log('[SW] Pre-cached static assets');
       } catch (e) {
         console.log('[SW] Could not pre-cache static assets');
       }
+
+      // Pre-cache key app routes and extract their static subresources
+      try {
+        const routes = [...new Set(APP_ROUTES)];
+        for (const r of routes) {
+          try {
+            const res = await fetch(r, { cache: 'no-store' });
+            if (res.ok) {
+              await shellCache.put(r, res.clone());
+              const parsed = new URL(r, self.location.origin);
+              await shellCache.put(parsed.pathname, res.clone());
+              const ct = res.headers.get('content-type') || '';
+              if (ct.includes('text/html')) {
+                const text = await res.text();
+                await extractAndPrecacheHtmlAssets(text, staticCache);
+              }
+            }
+          } catch (e) {}
+        }
+        console.log('[SW] Pre-cached app routes and subresources');
+      } catch (e) {
+        console.log('[SW] Could not pre-cache routes (server may be offline)');
+      }
+
       await self.skipWaiting();
     })()
   );
@@ -276,7 +321,48 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter(k => ![APP_SHELL_CACHE, STATIC_CACHE, DATA_CACHE, VIDEO_CACHE].includes(k)).map(k => caches.delete(k)));
+      const currentCaches = [APP_SHELL_CACHE, STATIC_CACHE, DATA_CACHE, VIDEO_CACHE];
+
+      // Migrate existing cached assets from prior static and shell caches to prevent offline chunk loss
+      try {
+        const newStatic = await caches.open(STATIC_CACHE);
+        const oldStaticKeys = keys.filter(k => k.startsWith('glp-static-') && k !== STATIC_CACHE);
+        for (const oldKey of oldStaticKeys) {
+          const oldCache = await caches.open(oldKey);
+          const reqs = await oldCache.keys();
+          for (const req of reqs) {
+            const match = await oldCache.match(req);
+            if (match) {
+              await newStatic.put(req, match.clone());
+              try {
+                const u = new URL(req.url);
+                await newStatic.put(u.pathname, match.clone());
+              } catch (e) {}
+            }
+          }
+        }
+
+        const newShell = await caches.open(APP_SHELL_CACHE);
+        const oldShellKeys = keys.filter(k => k.startsWith('glp-shell-') && k !== APP_SHELL_CACHE);
+        for (const oldKey of oldShellKeys) {
+          const oldCache = await caches.open(oldKey);
+          const reqs = await oldCache.keys();
+          for (const req of reqs) {
+            const match = await oldCache.match(req);
+            if (match) {
+              await newShell.put(req, match.clone());
+              try {
+                const u = new URL(req.url);
+                await newShell.put(u.pathname, match.clone());
+              } catch (e) {}
+            }
+          }
+        }
+      } catch (migErr) {
+        console.warn('[SW] Cache migration notice:', migErr);
+      }
+
+      await Promise.all(keys.filter(k => !currentCaches.includes(k)).map(k => caches.delete(k)));
       await self.clients.claim();
     })()
   );
@@ -361,43 +447,165 @@ self.addEventListener('fetch', (event) => {
     }
   }
 
+  // Handle manifest.json explicitly for offline PWA support
+  if (url.pathname === '/manifest.json' || url.pathname.endsWith('/manifest.json') || request.destination === 'manifest') {
+    event.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(request);
+          if (res.ok) {
+            const cache = await caches.open(STATIC_CACHE);
+            await cache.put(request, res.clone());
+            await cache.put('/manifest.json', res.clone());
+            await cache.put(url.origin + '/manifest.json', res.clone());
+            return res;
+          }
+        } catch (e) {}
+
+        const cached = (await caches.match(request, { ignoreSearch: true })) ||
+                       (await caches.match('/manifest.json', { ignoreSearch: true })) ||
+                       (await caches.match(url.pathname, { ignoreSearch: true }));
+        if (cached) return cached;
+
+        return new Response(JSON.stringify({
+          name: "Gamified Learning Platform",
+          short_name: "GLP",
+          start_url: "/",
+          scope: "/",
+          display: "standalone",
+          background_color: "#ffffff",
+          theme_color: "#0f172a",
+          icons: [
+            { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+            { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }
+          ]
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/manifest+json' }
+        });
+      })()
+    );
+    return;
+  }
+
   // Handle Next.js chunks - improved error handling and fallbacks
   if (url.pathname.startsWith('/_next/') && url.hostname === self.location.hostname) {
     event.respondWith(
       (async () => {
         try {
           const res = await fetch(request);
-          // Cache successful chunks for offline use
+          // Cache successful chunks for offline use under multiple keys
           if (res.ok) {
             try {
               const cache = await caches.open(STATIC_CACHE);
               await cache.put(request, res.clone());
+              await cache.put(url.pathname, res.clone());
+              await cache.put(url.origin + url.pathname, res.clone());
             } catch (e) {}
           }
           return res;
         } catch (err) {
-          console.log('[SW] Chunk fetch failed:', url.pathname);
-          // Try cached version first
-          const cached = await caches.match(request);
+          console.log('[SW] Chunk fetch offline, matching cache:', url.pathname);
+          // Try cached version across keys with ignoreSearch: true
+          let cached = (await caches.match(request, { ignoreSearch: true })) ||
+                       (await caches.match(url.pathname, { ignoreSearch: true })) ||
+                       (await caches.match(url.origin + url.pathname, { ignoreSearch: true }));
+          
+          if (!cached) {
+            // Search all available caches (including static, shell, and previous versions)
+            const allCaches = await caches.keys();
+            for (const cName of allCaches) {
+              const c = await caches.open(cName);
+              const m = (await c.match(request, { ignoreSearch: true })) ||
+                        (await c.match(url.pathname, { ignoreSearch: true })) ||
+                        (await c.match(url.origin + url.pathname, { ignoreSearch: true }));
+              if (m) {
+                cached = m;
+                try {
+                  const staticCache = await caches.open(STATIC_CACHE);
+                  await staticCache.put(url.pathname, m.clone());
+                } catch (e) {}
+                break;
+              }
+            }
+          }
+
           if (cached) {
             console.log('[SW] Serving cached chunk:', url.pathname);
             return cached;
           }
-          
-          // For JS chunks, return a more robust fallback
-          if (url.pathname.endsWith('.js')) {
-            console.log('[SW] Creating JS fallback for:', url.pathname);
-            const fallbackJS = `
-              console.warn('Chunk unavailable offline: ${url.pathname}');
-              // Export empty module to prevent import errors
-              if (typeof module !== 'undefined' && module.exports) {
-                module.exports = {};
-              }
-              if (typeof window !== 'undefined') {
-                window.__CHUNK_LOAD_ERROR__ = true;
-              }
+
+          // Special runtime fallback for webpack.js if not in cache
+          if (url.pathname.includes('webpack.js')) {
+            console.log('[SW] Serving Webpack runtime offline fallback');
+            const webpackStub = `
+              /* Offline Webpack Runtime Fallback */
+              (function() {
+                var g = typeof window !== "undefined" ? window : (typeof self !== "undefined" ? self : this);
+                if (g) {
+                  g.webpackChunk_N_E = g.webpackChunk_N_E || [];
+                  if (!g.__webpack_require__) {
+                    g.__webpack_require__ = function(moduleId) {
+                      return {};
+                    };
+                    g.__webpack_require__.d = function(exports, definition) {
+                      for (var key in definition) {
+                        if (Object.prototype.hasOwnProperty.call(definition, key) && !Object.prototype.hasOwnProperty.call(exports, key)) {
+                          Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+                        }
+                      }
+                    };
+                    g.__webpack_require__.r = function(exports) {
+                      if (typeof Symbol !== "undefined" && Symbol.toStringTag) {
+                        Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+                      }
+                      Object.defineProperty(exports, "__esModule", { value: true });
+                    };
+                    g.__webpack_require__.m = {};
+                    g.__webpack_require__.c = {};
+                  }
+                }
+              })();
             `;
-            return new Response(fallbackJS, {
+            return new Response(webpackStub, {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/javascript',
+                'Cache-Control': 'no-cache',
+              },
+            });
+          }
+
+          // For JS chunks, return a resilient module stub that registers into webpackChunk_N_E
+          if (url.pathname.endsWith('.js')) {
+            console.log('[SW] Serving safe module stub for:', url.pathname);
+            const chunkMatch = url.pathname.match(/([a-zA-Z0-9_\-\.]+)\.js$/);
+            const chunkId = chunkMatch ? chunkMatch[1] : 'chunk';
+            const stubCode = `
+              /* Offline Next.js chunk stub for ${url.pathname} */
+              (function() {
+                var target = typeof window !== "undefined" ? window : (typeof self !== "undefined" ? self : this);
+                if (target) {
+                  if (!target.webpackChunk_N_E) target.webpackChunk_N_E = [];
+                  if (typeof target.webpackChunk_N_E.push === "function") {
+                    try {
+                      target.webpackChunk_N_E.push([
+                        [${JSON.stringify(chunkId)}],
+                        {
+                          ${JSON.stringify(chunkId)}: function(e, t, r) {}
+                        }
+                      ]);
+                    } catch(e) {}
+                  }
+                  if (!target.Clerk) target.Clerk = {};
+                }
+                if (typeof module !== 'undefined' && module.exports) {
+                  module.exports = {};
+                }
+              })();
+            `;
+            return new Response(stubCode, {
+              status: 200,
               headers: { 
                 'Content-Type': 'application/javascript',
                 'Cache-Control': 'no-cache'
@@ -407,8 +615,9 @@ self.addEventListener('fetch', (event) => {
           
           // For CSS chunks
           if (url.pathname.endsWith('.css')) {
-            console.log('[SW] Creating CSS fallback for:', url.pathname);
+            console.log('[SW] Serving safe CSS fallback for:', url.pathname);
             return new Response('/* Offline: chunk styles unavailable */', {
+              status: 200,
               headers: { 
                 'Content-Type': 'text/css',
                 'Cache-Control': 'no-cache'
@@ -416,8 +625,7 @@ self.addEventListener('fetch', (event) => {
             });
           }
           
-          // For other assets, throw to trigger normal error handling
-          throw err;
+          return new Response('', { status: 200 });
         }
       })()
     );
@@ -502,39 +710,45 @@ self.addEventListener('fetch', (event) => {
           try {
             const cache = await caches.open(APP_SHELL_CACHE);
             await cache.put(request, res.clone());
+            await cache.put(url.pathname, res.clone());
+            await cache.put(url.origin + url.pathname, res.clone());
+
+            // Extract and precache chunks in background
+            const staticCache = await caches.open(STATIC_CACHE);
+            res.clone().text().then(text => {
+              extractAndPrecacheHtmlAssets(text, staticCache);
+            }).catch(() => {});
           } catch (e) {}
         }
         return res;
       } catch (e) {
         console.warn('[SW] Navigation fetch failed, checking cache:', url.href);
         
-        // First try: exact page match
-        const exactMatch = await caches.match(request);
+        // First try: exact page match with ignoreSearch
+        let exactMatch = (await caches.match(request, { ignoreSearch: true })) ||
+                         (await caches.match(url.pathname, { ignoreSearch: true })) ||
+                         (await caches.match(url.origin + url.pathname, { ignoreSearch: true }));
         if (exactMatch) {
           console.log('[SW] Serving cached page:', url.pathname);
           return exactMatch;
         }
         
-        // Second try: try without query params for dynamic routes
-        const urlWithoutQuery = new URL(url.pathname, url.origin);
-        const pageMatch = await caches.match(urlWithoutQuery.href);
-        if (pageMatch) {
-          console.log('[SW] Serving cached page (no query):', url.pathname);
-          return pageMatch;
-        }
-        
-        // Third try: for student routes, serve the student shell
-        if (url.pathname.startsWith('/student')) {
-          const studentShell = (await caches.match('/student')) || (await caches.match('/student/dashboard'));
+        // Second try: for student and exams routes, serve student dashboard or exams
+        if (url.pathname.startsWith('/student') || url.pathname.startsWith('/exams')) {
+          const studentShell = (await caches.match('/student/dashboard', { ignoreSearch: true })) ||
+                               (await caches.match('/student/exams', { ignoreSearch: true })) ||
+                               (await caches.match('/exams', { ignoreSearch: true })) ||
+                               (await caches.match('/student', { ignoreSearch: true }));
           if (studentShell) {
             console.log('[SW] Serving cached student shell for:', url.pathname);
             return studentShell;
           }
         }
 
-        // Fourth try: for other app routes, try to serve the main shell
+        // Third try: for other app routes, try to serve the main shell
         if (url.pathname !== '/' && !url.pathname.startsWith('/api/')) {
-          const shell = await caches.match('/');
+          const shell = (await caches.match('/', { ignoreSearch: true })) ||
+                        (await caches.match('/student/dashboard', { ignoreSearch: true }));
           if (shell) {
             console.log('[SW] Serving app shell for:', url.pathname);
             return shell;
@@ -543,7 +757,7 @@ self.addEventListener('fetch', (event) => {
         
         // Last resort: offline page
         console.log('[SW] Serving offline page for:', url.pathname);
-        const offline = await caches.match('/offline.html');
+        const offline = await caches.match('/offline.html', { ignoreSearch: true });
         if (offline) {
           console.log('[SW] Offline fallback from cache');
           return offline;
@@ -558,22 +772,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (images, css, js, fonts) – cache-first
-  if (['image', 'style', 'font', 'script'].includes(request.destination) || /\.(png|jpg|jpeg|gif|webp|svg|css|js|woff2?|ico)$/.test(url.pathname)) {
+  // Static assets (images, css, js, fonts, json, manifest) – cache-first
+  if (
+    ['image', 'style', 'font', 'script', 'manifest'].includes(request.destination) ||
+    /\.(png|jpg|jpeg|gif|webp|svg|css|js|woff2?|ico|json|webmanifest|mp4|webm)$/.test(url.pathname)
+  ) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(STATIC_CACHE);
-        const cached = await cache.match(request);
+        let cached = (await cache.match(request, { ignoreSearch: true })) ||
+                     (await cache.match(url.pathname, { ignoreSearch: true })) ||
+                     (await cache.match(url.origin + url.pathname, { ignoreSearch: true })) ||
+                     (await caches.match(request, { ignoreSearch: true })) ||
+                     (await caches.match(url.pathname, { ignoreSearch: true }));
         if (cached) return cached;
+
         try {
           const res = await fetch(request);
           if (res.ok) {
-            try { await cache.put(request, res.clone()); } catch (e) {}
+            try {
+              await cache.put(request, res.clone());
+              await cache.put(url.pathname, res.clone());
+              await cache.put(url.origin + url.pathname, res.clone());
+            } catch (e) {}
           }
           return res;
         } catch (err) {
-          // Return cached version or create fallback for common assets
           if (cached) return cached;
+
           // Fallback for missing images
           if (['image'].includes(request.destination) || /\.(png|jpg|jpeg|gif|webp|svg|ico)$/.test(url.pathname)) {
             return new Response(
@@ -584,34 +810,28 @@ self.addEventListener('fetch', (event) => {
 
           // Fallback for missing scripts & Webpack / Clerk chunks (prevents ChunkLoadError offline)
           if (request.destination === 'script' || url.pathname.endsWith('.js') || url.hostname.includes('clerk')) {
-            const chunkMatch = url.pathname.match(/(\d+)\.js$/) || url.pathname.match(/_([a-f0-9]+)_[^/]*\.js$/);
-            const chunkId = chunkMatch ? chunkMatch[1] : 6722;
+            const chunkMatch = url.pathname.match(/([a-zA-Z0-9_\-\.]+)\.js$/);
+            const chunkId = chunkMatch ? chunkMatch[1] : 'chunk';
             const stubCode = `
               /* Offline script fallback */
               (function() {
-                if (typeof window !== "undefined") {
-                  window.__OFFLINE_CHUNK_STUB__ = true;
-                  if (!window.Clerk) window.Clerk = {};
-                }
                 var target = typeof window !== "undefined" ? window : (typeof self !== "undefined" ? self : this);
                 if (target) {
-                  var safePush = function(prop) {
+                  if (!target.webpackChunk_N_E) target.webpackChunk_N_E = [];
+                  if (typeof target.webpackChunk_N_E.push === "function") {
                     try {
-                      if (!target[prop]) target[prop] = [];
-                      if (typeof target[prop].push === "function") {
-                        target[prop].push([
-                          [${JSON.stringify(chunkId)}, 6722, "6722"],
-                          {
-                            ${JSON.stringify(chunkId)}: function(e, t, r) {},
-                            6722: function(e, t, r) {}
-                          }
-                        ]);
-                      }
+                      target.webpackChunk_N_E.push([
+                        [${JSON.stringify(chunkId)}],
+                        {
+                          ${JSON.stringify(chunkId)}: function(e, t, r) {}
+                        }
+                      ]);
                     } catch(e) {}
-                  };
-                  safePush("webpackChunk_clerk_clerk_js");
-                  safePush("webpackChunk_N_E");
-                  safePush("webpackChunk_clerk_nextjs");
+                  }
+                  if (!target.Clerk) target.Clerk = {};
+                }
+                if (typeof module !== 'undefined' && module.exports) {
+                  module.exports = {};
                 }
               })();
             `;
@@ -624,7 +844,11 @@ self.addEventListener('fetch', (event) => {
             });
           }
 
-          return cached || new Response('/* Offline asset unavailable */', { status: 200 });
+          if (url.pathname.endsWith('.json') || request.destination === 'manifest') {
+            return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+
+          return new Response('/* Offline asset unavailable */', { status: 200 });
         }
       })()
     );
@@ -661,8 +885,20 @@ self.addEventListener('message', (event) => {
           try {
             const res = await fetch(u, { cache: 'no-store' });
             if (res.ok) {
-              const dest = (u.endsWith('.js') || u.endsWith('.css') || u.endsWith('.woff2') || u.endsWith('.png') || u.endsWith('.webp')) ? staticCache : shell;
+              const isStatic = (u.endsWith('.js') || u.endsWith('.css') || u.endsWith('.woff2') || u.endsWith('.png') || u.endsWith('.webp') || u.includes('/_next/'));
+              const dest = isStatic ? staticCache : shell;
               await dest.put(u, res.clone());
+              try {
+                const parsed = new URL(u, self.location.origin);
+                await dest.put(parsed.pathname, res.clone());
+                await dest.put(self.location.origin + parsed.pathname, res.clone());
+              } catch (e) {}
+
+              const ct = res.headers.get('content-type') || '';
+              if (ct.includes('text/html')) {
+                const text = await res.text();
+                await extractAndPrecacheHtmlAssets(text, staticCache);
+              }
             }
           } catch (e) {
             // ignore individual asset failure
@@ -683,13 +919,33 @@ self.addEventListener('message', (event) => {
             });
           }
 
-          // Gentle delay to keep main thread and server completely responsive
-          await new Promise((resolve) => setTimeout(resolve, 35));
+          await new Promise((resolve) => setTimeout(resolve, 25));
         }
 
         clients.forEach((client) => {
           client.postMessage({ type: 'cache-complete', total });
         });
+      })()
+    );
+    return;
+  }
+  if (data.type === 'cache-chunks' && Array.isArray(data.urls)) {
+    event.waitUntil(
+      (async () => {
+        const staticCache = await caches.open(STATIC_CACHE);
+        for (const u of data.urls) {
+          try {
+            const res = await fetch(u);
+            if (res.ok) {
+              await staticCache.put(u, res.clone());
+              try {
+                const parsed = new URL(u, self.location.origin);
+                await staticCache.put(parsed.pathname, res.clone());
+                await staticCache.put(self.location.origin + parsed.pathname, res.clone());
+              } catch (e) {}
+            }
+          } catch (e) {}
+        }
       })()
     );
     return;
