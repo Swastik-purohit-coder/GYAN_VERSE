@@ -35,8 +35,16 @@ export async function GET(request) {
     }
 
     const studentName = roleDoc?.name || "Student";
-    const studentClass = roleDoc?.class || null;
+    let studentClass = roleDoc?.class || null;
     const schoolId = roleDoc?.school_id || null;
+
+    if (!studentClass) {
+      try {
+        const { currentUser } = await import("@clerk/nextjs/server");
+        const clerkUser = await currentUser();
+        studentClass = clerkUser?.unsafeMetadata?.class || clerkUser?.publicMetadata?.class || null;
+      } catch {}
+    }
 
 
     // 2. Fetch Subjects strictly for Student's Class & School

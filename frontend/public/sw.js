@@ -61,6 +61,9 @@ const APP_ROUTES = [
   '/progress',
   '/quiz',
   '/student',
+  '/student/dashboard',
+  '/student/resources',
+  '/student/groups',
   '/student/achievements',
   '/student/adventures',
   '/student/challenges',
@@ -457,7 +460,16 @@ self.addEventListener('fetch', (event) => {
           return pageMatch;
         }
         
-        // Third try: for app routes like /student, /teacher, try to serve the main shell
+        // Third try: for student routes, serve the student shell
+        if (url.pathname.startsWith('/student')) {
+          const studentShell = (await caches.match('/student')) || (await caches.match('/student/dashboard'));
+          if (studentShell) {
+            console.log('[SW] Serving cached student shell for:', url.pathname);
+            return studentShell;
+          }
+        }
+
+        // Fourth try: for other app routes, try to serve the main shell
         if (url.pathname !== '/' && !url.pathname.startsWith('/api/')) {
           const shell = await caches.match('/');
           if (shell) {

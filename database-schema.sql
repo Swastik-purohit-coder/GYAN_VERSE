@@ -186,14 +186,55 @@ CREATE TABLE IF NOT EXISTS student_progress (
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS user_roles (
   user_id TEXT PRIMARY KEY,
-  role TEXT CHECK (role IN ('teacher', 'student', 'unassigned')),
+  role TEXT CHECK (role IN ('teacher', 'student', 'principal', 'admin', 'higher_body', 'unassigned')),
   name TEXT,
+  email TEXT,
+  phone TEXT,
+  parent_email TEXT,
+  parent_phone TEXT,
   class TEXT,
   school_id TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
   provisional BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure upgrade schema carries all roles, contact, and metadata columns
+ALTER TABLE user_roles
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS parent_email TEXT,
+  ADD COLUMN IF NOT EXISTS parent_phone TEXT,
+  ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS school_id TEXT,
+  ADD COLUMN IF NOT EXISTS class TEXT,
+  ADD COLUMN IF NOT EXISTS name TEXT,
+  ADD COLUMN IF NOT EXISTS provisional BOOLEAN DEFAULT FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_user_roles_email ON user_roles(email);
+CREATE INDEX IF NOT EXISTS idx_user_roles_phone ON user_roles(phone);
+CREATE INDEX IF NOT EXISTS idx_user_roles_parent_email ON user_roles(parent_email);
+CREATE INDEX IF NOT EXISTS idx_user_roles_parent_phone ON user_roles(parent_phone);
+CREATE INDEX IF NOT EXISTS idx_user_roles_school_id ON user_roles(school_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role);
+
+-- Drop obsolete check constraint if present and re-add updated constraint
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_schema = 'public'
+      AND table_name = 'user_roles'
+      AND constraint_name = 'user_roles_role_check'
+  ) THEN
+    ALTER TABLE user_roles DROP CONSTRAINT user_roles_role_check;
+  END IF;
+  
+  ALTER TABLE user_roles
+    ADD CONSTRAINT user_roles_role_check
+    CHECK (role IN ('teacher', 'student', 'principal', 'admin', 'higher_body', 'unassigned'));
+END $$;
 
 -- ============================================================================
 -- ACHIEVEMENTS TABLE

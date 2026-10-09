@@ -7,6 +7,9 @@ const __dirname = path.dirname(__filename);
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   devIndicators: false,
+  allowedDevOrigins: [
+    'http://192.168.0.47:3000', // Replace with your target local IP
+  ],
   // Silence monorepo root inference warning; set tracing root to repo root
   outputFileTracingRoot: path.resolve(__dirname, '..'),
   webpack: (config) => {

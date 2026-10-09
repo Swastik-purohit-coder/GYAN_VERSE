@@ -338,15 +338,13 @@ const QuizCard = ({ quiz, onClick }) => {
   );
 };
 
+import StudentAuthGuard from "@/student/components/StudentAuthGuard";
+
 export default function Page() {
   return (
-    <>
-      <SignedIn>
-        <StudentDashboard />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
+    <StudentAuthGuard>
+      <StudentDashboard />
+    </StudentAuthGuard>
   );
 }
+

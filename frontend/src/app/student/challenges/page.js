@@ -1,18 +1,13 @@
 "use client";
-import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/nextjs";
+import StudentAuthGuard from "@/student/components/StudentAuthGuard";
 import dynamic from "next/dynamic";
 
 const ChallengeArena = dynamic(() => import("@/student/components/challenge-arena"), { ssr: false });
 
 export default function Page() {
   return (
-    <>
-      <SignedIn>
-        <ChallengeArena />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
+    <StudentAuthGuard>
+      <ChallengeArena />
+    </StudentAuthGuard>
   );
 }

@@ -17,7 +17,7 @@ export async function GET(request, context) {
       const caller = await runSingle(
         supabase.from("user_roles").select("role").eq("user_id", authUserId).maybeSingle()
       );
-      if (!caller || !["teacher", "admin"].includes(caller.role)) {
+      if (!caller || !["teacher", "admin", "principal", "higher_body"].includes(caller.role)) {
         return NextResponse.json(
           { error: "Forbidden: Cannot access another student's progress" },
           { status: 403 }

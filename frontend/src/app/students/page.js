@@ -28,8 +28,11 @@ export default function StudentsPage() {
       body: JSON.stringify({ name, class: className }),
     });
 
-    const newStudent = await res.json();
-    setStudents([...students, newStudent]);
+    const data = await res.json();
+    const newStudent = data.student || data;
+    if (newStudent && newStudent.id) {
+      setStudents([...students, newStudent]);
+    }
     setName("");
     setClassName("");
   };

@@ -84,7 +84,7 @@ export async function GET(request) {
           supabase
             .from("user_roles")
             .select("*")
-            .in("role", ["teacher", "admin", "principal"])
+            .in("role", ["teacher", "admin", "principal", "higher_body"])
         );
         if (teachers && teachers.length > 0) {
           const mapped = teachers.map((t, idx) => ({

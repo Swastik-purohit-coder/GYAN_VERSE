@@ -7,6 +7,9 @@ import {
   getOfflineSubjects,
   getOfflineQuizzes,
   getOfflineQuizQuestions,
+  getOfflineStudentDashboard,
+  getOfflineStudentProgress,
+  getOfflineSchoolContent,
 } from '@/lib/offline/offlineRepository';
 
 // Custom hook for subjects data
@@ -411,10 +414,10 @@ export function useStudentProgress(studentId) {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getStudentProgress(studentId);
+      const data = await getOfflineStudentProgress(studentId);
       setProgress(data);
     } catch (err) {
-      console.error('Failed to fetch student progress:', err);
+      console.warn('Failed to fetch student progress from network/offline:', err);
       setError(err.message);
       setProgress(null);
     } finally {
@@ -526,10 +529,10 @@ export function useSchoolContent(schoolId, options = {}) {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getSchoolContent(schoolId, { type, limit });
+      const data = await getOfflineSchoolContent(schoolId, { type, limit });
       setContent(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Failed to fetch school content:', err);
+      console.warn('Failed to fetch school content from network/offline:', err);
       setError(err.message);
       setContent([]);
     } finally {
@@ -601,10 +604,10 @@ export function useStudentDashboard(studentId) {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getStudentDashboard(studentId);
+      const data = await getOfflineStudentDashboard(studentId);
       setDashboardData(data);
     } catch (err) {
-      console.error('Failed to fetch student dashboard:', err);
+      console.warn('Failed to fetch student dashboard from network/offline:', err);
       setError(err.message);
       setDashboardData(null);
     } finally {

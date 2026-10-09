@@ -1,16 +1,11 @@
 "use client";
-import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/nextjs";
+import StudentAuthGuard from "@/student/components/StudentAuthGuard";
 import DashboardV2 from "@/student/views/DashboardV2";
 
 export default function Page() {
   return (
-    <>
-      <SignedIn>
-        <DashboardV2 />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
+    <StudentAuthGuard>
+      <DashboardV2 />
+    </StudentAuthGuard>
   );
 }

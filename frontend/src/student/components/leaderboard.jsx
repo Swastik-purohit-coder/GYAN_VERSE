@@ -3,6 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Trophy } from "lucide-react";
 import { useI18n } from "@/i18n/useI18n";
+import { cacheApiResponse, getCachedApiResponse } from "@/lib/offlineDb";
+
+const DEFAULT_OFFLINE_LEADERS = [
+  { studentId: "lead_1", name: "Aarav Sharma", class: "Class 8", xp: 1450 },
+  { studentId: "lead_2", name: "Priya Patel", class: "Class 8", xp: 1320 },
+  { studentId: "lead_3", name: "Rohan Verma", class: "Class 8", xp: 1180 },
+  { studentId: "lead_4", name: "Ananya Mishra", class: "Class 8", xp: 950 },
+  { studentId: "lead_5", name: "Student (You)", class: "Class 8", xp: 820 },
+];
 
 export default function Leaderboard() {
 	const { t } = useI18n();
@@ -10,15 +19,35 @@ export default function Leaderboard() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		fetch("/api/leaderboard", { cache: "no-store" })
-			.then((res) => res.json())
-			.then((data) => {
-				if (Array.isArray(data)) {
-					setLeaders(data);
+		async function loadLeaderboard() {
+			const cacheKey = "student_leaderboard";
+			try {
+				if (typeof navigator !== "undefined" && navigator.onLine) {
+					const res = await fetch("/api/leaderboard", { cache: "no-store" });
+					if (res.ok) {
+						const data = await res.json();
+						if (Array.isArray(data) && data.length > 0) {
+							setLeaders(data);
+							await cacheApiResponse(cacheKey, data);
+							return;
+						}
+					}
 				}
-			})
-			.catch((err) => console.error("Error fetching leaderboard:", err))
-			.finally(() => setLoading(false));
+			} catch (e) {
+				console.warn("Leaderboard network fetch failed, using cache:", e);
+			}
+
+			// Read cache
+			const cached = await getCachedApiResponse(cacheKey);
+			if (Array.isArray(cached) && cached.length > 0) {
+				setLeaders(cached);
+			} else {
+				setLeaders(DEFAULT_OFFLINE_LEADERS);
+			}
+			setLoading(false);
+		}
+
+		loadLeaderboard().finally(() => setLoading(false));
 	}, []);
 
 	return (

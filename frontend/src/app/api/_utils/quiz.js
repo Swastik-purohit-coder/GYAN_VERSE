@@ -65,7 +65,7 @@ export async function recordQuizCompletionInternal(
     };
 
     try {
-      await run(supabase.from("quiz_responses").insert(responseDoc));
+      await run(supabase.from("quiz_responses").upsert(responseDoc, { onConflict: "id" }));
     } catch (responseError) {
       console.error("Failed to record quiz response snapshot", responseError);
     }

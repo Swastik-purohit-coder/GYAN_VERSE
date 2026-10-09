@@ -178,13 +178,17 @@ export default function StudentResourcesPage() {
     setActiveMediaModal(item);
   };
 
-  if (!isSignedIn && isLoaded) {
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  const hasCachedRole = typeof window !== "undefined" && (localStorage.getItem("userRole") === "student" || Boolean(localStorage.getItem("userName")));
+
+  if (!isSignedIn && isLoaded && !isOffline && !hasCachedRole) {
     return (
       <SignedOut>
         <RedirectToSignIn />
       </SignedOut>
     );
   }
+
 
   return (
     <div className="space-y-6 pb-12">
