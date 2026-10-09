@@ -21,6 +21,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import YouTubePlayer from "./YouTubePlayer";
 import { useCourses } from "@/hooks/useCourses";
+import StudentSkillCoursesSection from "./StudentSkillCoursesSection";
 
 // Map subject icons cleanly
 const getSubjectIcon = (iconName, subjectName) => {
@@ -53,6 +54,19 @@ export function CourseSelection() {
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
+  const [activeTab, setActiveTab] = useState(
+    searchParams?.get("tab") === "skills" ? "skills" : "curriculum"
+  );
+
+  // Sync tab with URL search parameter
+  useEffect(() => {
+    const tabParam = searchParams?.get("tab");
+    if (tabParam === "skills") {
+      setActiveTab("skills");
+    } else if (tabParam === "curriculum") {
+      setActiveTab("curriculum");
+    }
+  }, [searchParams]);
 
   // Derive the active subject object
   const selectedSubject = useMemo(() => {
@@ -114,12 +128,58 @@ export function CourseSelection() {
               {!selectedSubject && (
                 <div className="mt-2 sm:mt-0 flex items-center gap-2">
                   <Badge variant="outline" className="border-indigo-200 dark:border-indigo-500/40 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1 text-xs">
-                    <Sparkles className="w-3.5 h-3.5 mr-1 text-[#635BFF] dark:text-indigo-400" /> Curated YouTube Curriculum
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-[#635BFF] dark:text-indigo-400" />
+                    {activeTab === "skills" ? "Teacher & Mentor Micro-Courses" : "Curated YouTube Curriculum"}
                   </Badge>
                 </div>
               )}
             </div>
           </div>
+
+          {/* SECTION SWITCHER TABS (Academic Curriculum vs Skill Micro-Courses) */}
+          {!selectedSubject && (
+            <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 w-fit mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("curriculum");
+                  router.replace("/student/courses?tab=curriculum");
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === "curriculum"
+                    ? "bg-white dark:bg-slate-900 text-[#635BFF] dark:text-indigo-400 shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Academic Curriculum</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("skills");
+                  router.replace("/student/courses?tab=skills");
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === "skills"
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Skill Micro-Courses &amp; Tracks</span>
+                <span className="text-[10px] bg-amber-400/20 text-amber-500 font-extrabold px-1.5 py-0.5 rounded-full border border-amber-400/30">
+                  TEACHER ADDED
+                </span>
+              </button>
+            </div>
+          )}
+
+          {/* TAB 2: SKILL MICRO-COURSES CONTENT */}
+          {!selectedSubject && activeTab === "skills" && (
+            <StudentSkillCoursesSection initialClass={currentClassTitle} />
+          )}
 
           {/* Loading State */}
           {loading && (
@@ -169,8 +229,8 @@ export function CourseSelection() {
             </div>
           )}
 
-          {/* VIEW 1: SUBJECTS OVERVIEW GRID */}
-          {!loading && !error && !selectedSubject && subjects.length > 0 && (
+          {/* VIEW 1: SUBJECTS OVERVIEW GRID (ACADEMIC CURRICULUM) */}
+          {!loading && !error && !selectedSubject && activeTab === "curriculum" && subjects.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {subjects.map((subject) => {
                 const total = subject.totalVideos || 0;
