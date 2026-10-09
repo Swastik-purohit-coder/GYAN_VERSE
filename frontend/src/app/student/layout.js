@@ -1,5 +1,6 @@
 "use client";
-import { SignedIn, SignedOut, RedirectToSignIn, useClerk, useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
+import OfflineSafeAuthGuard from "@/components/OfflineSafeAuthGuard";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/student/components/ui/button";
@@ -137,8 +138,7 @@ export default function StudentLayout({ children }) {
   };
 
   return (
-    <>
-      <SignedIn>
+    <OfflineSafeAuthGuard>
         <div className="min-h-screen bg-[#F7F8FC] text-[#172033] transition-colors duration-200">
           {/* =========================================
               DESKTOP SIDEBAR
@@ -473,29 +473,6 @@ export default function StudentLayout({ children }) {
               </div>
             </nav>
           </div>
-        </div>
-      </SignedIn>
-      <SignedOut>
-        {isOffline || hasOfflineSession ? (
-          <div className="min-h-screen bg-[#F7F8FC] text-[#172033]">
-            {/* Offline alert notice */}
-            <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>
-                  <strong>Offline Student Mode:</strong> Accessing cached curriculum offline.
-                </span>
-              </div>
-              <SyncStatusBadge />
-            </div>
-            <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              {children}
-            </main>
-          </div>
-        ) : (
-          <RedirectToSignIn />
-        )}
-      </SignedOut>
-    </>
+    </OfflineSafeAuthGuard>
   );
 }

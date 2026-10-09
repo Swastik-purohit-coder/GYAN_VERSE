@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import { useSchoolProgress } from "@/hooks/useApi";
 import { useRealtimeQuizProgress } from "@/hooks/useRealtimeQuizProgress";
@@ -922,14 +922,5 @@ function StudentsContent() {
 }
 
 export default function StudentsPage() {
-  return (
-    <>
-      <SignedIn>
-        <StudentsContent />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  return <StudentsContent />;
 }

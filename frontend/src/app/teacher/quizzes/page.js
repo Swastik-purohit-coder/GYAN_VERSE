@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import { useSubjects, useQuizzes, useQuizQuestions, useTeacherModules } from "@/hooks/useApi";
 import { getQuizResults } from "@/lib/api";
@@ -1090,14 +1090,5 @@ function QuizManager() {
 }
 
 export default function TeacherQuizzesPage() {
-  return (
-    <>
-      <SignedIn>
-        <QuizManager />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  return <QuizManager />;
 }

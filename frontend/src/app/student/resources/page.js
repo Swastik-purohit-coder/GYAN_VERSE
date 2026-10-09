@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import { useSchoolContent } from "@/hooks/useApi";
 import { useTheme } from "@/components/ThemeProvider";
@@ -182,11 +182,10 @@ export default function StudentResourcesPage() {
   const hasCachedRole = typeof window !== "undefined" && (localStorage.getItem("userRole") === "student" || Boolean(localStorage.getItem("userName")));
 
   if (!isSignedIn && isLoaded && !isOffline && !hasCachedRole) {
-    return (
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    );
+    if (typeof window !== "undefined") {
+      window.location.href = "/sign-in";
+    }
+    return null;
   }
 
 

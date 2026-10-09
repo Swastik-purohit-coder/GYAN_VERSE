@@ -11,7 +11,7 @@
 // 6. Pass a "reason" message in the URL query to tell the user *why* they were redirected.
 
 // 1. Import dependencies
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/student/components/ui/card";
@@ -44,7 +44,7 @@ const gameRecommendationMap = {
 };
 
 // 3. Define the component
-export default function QuizResultsPage() {
+function QuizResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -249,5 +249,13 @@ export default function QuizResultsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function QuizResultsPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner text="Calculating your results..." />}>
+      <QuizResultsContent />
+    </Suspense>
   );
 }

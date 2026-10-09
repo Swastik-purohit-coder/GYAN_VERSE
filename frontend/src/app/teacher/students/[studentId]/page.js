@@ -1,6 +1,6 @@
 "use client";
 import { use, useEffect, useMemo, useState } from "react";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { Card, CardContent } from "@teacher/components/ui/card";
 import { fetchUserRole } from "@/lib/users";
 import { useStudentsBySchool } from "@/hooks/useApi";
@@ -44,7 +44,9 @@ function TeacherGuard({ children }) {
     };
   }, [isLoaded, isSignedIn, user?.id]);
 
-  if (!isSignedIn) {
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+  if (!isSignedIn && !isOffline) {
     return null;
   }
 
@@ -142,17 +144,10 @@ export default function TeacherStudentReportPage({ params }) {
   const studentId = resolvedParams?.studentId;
 
   return (
-    <>
-      <SignedIn>
-        <TeacherGuard>
-          {({ roleDoc }) => (
-            <TeacherStudentReportInner studentId={studentId} roleDoc={roleDoc} />
-          )}
-        </TeacherGuard>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
+    <TeacherGuard>
+      {({ roleDoc }) => (
+        <TeacherStudentReportInner studentId={studentId} roleDoc={roleDoc || { role: "teacher" }} />
+      )}
+    </TeacherGuard>
   );
 }

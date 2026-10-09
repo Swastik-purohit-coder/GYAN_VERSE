@@ -15,7 +15,7 @@ export default function FooterNav() {
   );
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 bg-white border-t">
+    <footer className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-40">
       <div className="max-w-5xl mx-auto flex items-center justify-between p-3">
         <nav className="flex gap-4 text-sm">
           <Item to="/student" label="Home" />

@@ -1,26 +1,119 @@
 "use client";
 
 import { useEffect } from "react";
-import { isNetworkQualityDecent } from "@/lib/syncEngine";
+import { isNetworkQualityDecent, initSyncEngine } from "@/lib/syncEngine";
+import { seedOfflineDatabaseIfEmpty } from "@/lib/offlineDb";
+import { installClientFetchInterceptor } from "@/lib/clientFetchInterceptor";
+
+// Immediate early installation in browser before any child components render
+if (typeof window !== "undefined") {
+  try {
+    installClientFetchInterceptor();
+  } catch (e) {}
+
+  const updateOfflineCookie = () => {
+    try {
+      if (typeof document !== "undefined") {
+        if (!navigator.onLine) {
+          document.cookie = "gyan_offline=true; path=/; max-age=86400; SameSite=Lax";
+        } else {
+          document.cookie = "gyan_offline=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        }
+      }
+    } catch (e) {}
+  };
+  updateOfflineCookie();
+  window.addEventListener("online", updateOfflineCookie);
+  window.addEventListener("offline", updateOfflineCookie);
+
+  const isChunkOrClerkError = (errObj, messageStr) => {
+    const msg = String(messageStr || errObj?.message || errObj || "").toLowerCase();
+    const name = String(errObj?.name || "").toLowerCase();
+    return (
+      name.includes("chunkloaderror") ||
+      msg.includes("loading chunk") ||
+      msg.includes("clerk.accounts.dev") ||
+      msg.includes("signin_clerk") ||
+      msg.includes("failed to fetch dynamically imported module")
+    );
+  };
+
+  const earlyOnError = (event) => {
+    if (isChunkOrClerkError(event.error, event.message)) {
+      console.warn("[Offline Recovery] Early suppressed ChunkLoadError:", event.message || event.error?.message);
+      event.preventDefault();
+      event.stopImmediatePropagation?.();
+    }
+  };
+
+  const earlyOnRejection = (event) => {
+    if (isChunkOrClerkError(event.reason, event.reason?.message)) {
+      console.warn("[Offline Recovery] Early suppressed rejection:", event.reason?.message || event.reason);
+      event.preventDefault();
+      event.stopImmediatePropagation?.();
+    }
+  };
+
+  window.addEventListener("error", earlyOnError, true);
+  window.addEventListener("unhandledrejection", earlyOnRejection, true);
+}
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Handle chunk load errors gracefully
-    window.addEventListener("error", (event) => {
-      if (event.message && event.message.includes("Loading chunk")) {
-        console.warn("Chunk load error detected, attempting recovery");
-        event.preventDefault();
-      }
-    });
+    // 1. Install client-side fetch interceptor for IndexedDB local database support
+    try {
+      installClientFetchInterceptor();
+    } catch (e) {
+      console.warn("Client fetch interceptor init error:", e);
+    }
 
-    window.addEventListener("unhandledrejection", (event) => {
-      if (event.reason && event.reason.message && event.reason.message.includes("Loading chunk")) {
-        console.warn("Dynamic import error:", event.reason);
+    // 2. Pre-seed IndexedDB database if empty so full web app works offline on fresh launch
+    try {
+      seedOfflineDatabaseIfEmpty();
+    } catch (e) {
+      console.warn("Offline database seeding error:", e);
+    }
+
+    // 3. Initialize background sync engine
+    try {
+      initSyncEngine();
+    } catch (e) {
+      console.warn("Sync engine init error:", e);
+    }
+
+    // Robust ChunkLoadError & Clerk script recovery when offline
+    const isChunkOrClerkError = (errObj, messageStr) => {
+      const msg = String(messageStr || errObj?.message || errObj || "").toLowerCase();
+      const name = String(errObj?.name || "").toLowerCase();
+      return (
+        name.includes("chunkloaderror") ||
+        msg.includes("loading chunk") ||
+        msg.includes("clerk.accounts.dev") ||
+        msg.includes("signin_clerk") ||
+        msg.includes("failed to fetch dynamically imported module")
+      );
+    };
+
+    const onErrorHandler = (event) => {
+      if (isChunkOrClerkError(event.error, event.message)) {
+        console.warn("[Offline Recovery] Suppressed ChunkLoadError:", event.message || event.error?.message);
         event.preventDefault();
+        event.stopImmediatePropagation?.();
       }
-    });
+    };
+
+    const onUnhandledRejectionHandler = (event) => {
+      if (isChunkOrClerkError(event.reason, event.reason?.message)) {
+        console.warn("[Offline Recovery] Suppressed dynamic chunk rejection:", event.reason?.message || event.reason);
+        event.preventDefault();
+        event.stopImmediatePropagation?.();
+      }
+    };
+
+    window.addEventListener("error", onErrorHandler, true);
+    window.addEventListener("unhandledrejection", onUnhandledRejectionHandler, true);
 
     // Essential core routes to warm-cache silently in background without blocking network
     const warmList = [
@@ -30,6 +123,8 @@ export default function ServiceWorkerRegister() {
       "/student/courses",
       "/student/quiz",
       "/student/games",
+      "/student/groups",
+      "/teacher",
       "/manifest.json",
       "/logo.webp",
       "/fonts/KFOmCnqEu92Fr1Mu4mxK.woff2",
@@ -49,7 +144,7 @@ export default function ServiceWorkerRegister() {
                   urls: warmList,
                 });
               }
-            }, 4000);
+            }, 3000);
           })
           .catch((err) => console.warn("SW registration failed:", err));
       };
@@ -90,4 +185,3 @@ export default function ServiceWorkerRegister() {
 
   return null;
 }
-

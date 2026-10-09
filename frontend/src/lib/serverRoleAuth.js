@@ -1,27 +1,51 @@
-// Server-side role resolution directly from Supabase user_roles table
+// Server-side role resolution directly from Supabase user_roles table with robust offline caching
 // This module runs in both Edge runtime (Next.js middleware) and Node.js runtime.
-// It bypasses client state and reads user_roles as the single source of truth.
+// Once a user has logged in once, their role is permanently cached for offline compatibility.
 
-const roleCache = new Map();
-const CACHE_TTL_MS = 5 * 1000; // 5 seconds for fast transitions
+if (!globalThis.__gyanRoleCache) {
+  globalThis.__gyanRoleCache = new Map();
+}
+const roleCache = globalThis.__gyanRoleCache;
+
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes normal online TTL
+const OFFLINE_BACKOFF_MS = 60 * 1000; // Do not retry remote fetch for 60 seconds once offline
+let lastOfflineErrorTimestamp = 0;
 
 /**
  * Fetches the user's role record directly from the `user_roles` table in Supabase.
- * Returns { role: "student" | "teacher" | "principal" | "admin" | "unassigned", school_id, class, ... } or null.
+ * Returns { role: "student" | "teacher" | "principal" | "higher_body" | "admin" | "unassigned", school_id, class, ... } or null.
+ * 
+ * Offline compatible: Once resolved, will never fail when offline.
  *
  * @param {string} userId - Clerk user ID
- * @param {{ forceFresh?: boolean }} options
- * @returns {Promise<{ role: string, user_id?: string, school_id?: string, class?: string } | null>}
+ * @param {string|object} [hintRoleOrOptions] - Optional fallback role string, or options object { forceFresh }
+ * @param {object} [options] - Optional options { forceFresh?: boolean }
+ * @returns {Promise<{ role: string, user_id?: string, school_id?: string, class?: string, offline?: boolean } | null>}
  */
-export async function getServerUserRole(userId, { forceFresh = false } = {}) {
+export async function getServerUserRole(userId, hintRoleOrOptions = null, options = {}) {
   if (!userId) return null;
 
+  let hintRole = null;
+  let forceFresh = false;
+
+  if (typeof hintRoleOrOptions === "object" && hintRoleOrOptions !== null) {
+    forceFresh = Boolean(hintRoleOrOptions.forceFresh);
+  } else {
+    hintRole = typeof hintRoleOrOptions === "string" ? hintRoleOrOptions : null;
+    forceFresh = Boolean(options?.forceFresh);
+  }
+
   const now = Date.now();
-  if (!forceFresh) {
-    const cached = roleCache.get(userId);
-    if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-      return cached.data;
-    }
+  const cached = roleCache.get(userId);
+
+  // 1. Return fresh cached data if still within TTL
+  if (!forceFresh && cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  // 2. If recent network error occurred (offline mode), return cached data without attempting fetch
+  if (!forceFresh && cached && now - lastOfflineErrorTimestamp < OFFLINE_BACKOFF_MS) {
+    return cached.data;
   }
 
   const supabaseUrl = (
@@ -38,14 +62,25 @@ export async function getServerUserRole(userId, { forceFresh = false } = {}) {
   ).trim();
 
   if (!supabaseUrl || !serviceRoleKey) {
-    console.warn("[serverRoleAuth] Missing Supabase credentials in environment");
+    // Missing credentials - fallback to cached role or hint
+    if (cached) return cached.data;
+    if (hintRole) {
+      const fallback = { role: hintRole, user_id: userId, offline: true };
+      roleCache.set(userId, { data: fallback, timestamp: now });
+      return fallback;
+    }
     return null;
   }
 
+  // 3. Attempt Supabase fetch
   try {
     const endpoint = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/user_roles?user_id=eq.${encodeURIComponent(
       userId
     )}&select=user_id,role,school_id,class,name`;
+
+    // Timeout signal so offline requests don't hang for 30s
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 3500) : null;
 
     const res = await fetch(endpoint, {
       method: "GET",
@@ -54,11 +89,16 @@ export async function getServerUserRole(userId, { forceFresh = false } = {}) {
         Authorization: `Bearer ${serviceRoleKey}`,
         "Content-Type": "application/json",
       },
+      signal: controller?.signal,
       cache: "no-store",
     });
 
+    if (timeoutId) clearTimeout(timeoutId);
+
     if (!res.ok) {
-      console.warn(`[serverRoleAuth] Supabase returned status ${res.status}`);
+      // Remote returned error status - reuse cached role if available
+      if (cached) return cached.data;
+      if (hintRole) return { role: hintRole, user_id: userId, offline: true };
       return null;
     }
 
@@ -66,7 +106,7 @@ export async function getServerUserRole(userId, { forceFresh = false } = {}) {
     if (!Array.isArray(rows) || rows.length === 0) {
       // NEVER cache unassigned or missing roles so freshly onboarding users are recognized immediately
       roleCache.delete(userId);
-      return { role: "unassigned", provisional: true, user_id: userId };
+      return { role: hintRole || "unassigned", provisional: true, user_id: userId };
     }
 
     const roleDoc = rows[0];
@@ -90,13 +130,40 @@ export async function getServerUserRole(userId, { forceFresh = false } = {}) {
     }
     return finalDoc;
   } catch (err) {
-    console.error("[serverRoleAuth] Error fetching user role from Supabase:", err?.message || err);
-    return null;
+    // Network failure / Offline detected
+    lastOfflineErrorTimestamp = Date.now();
+
+    // If we have ANY previous role for this user, reuse it indefinitely offline!
+    if (cached && cached.data) {
+      cached.timestamp = now; // renew timestamp so we don't attempt repeatedly
+      return cached.data;
+    }
+
+    // If caller provided a hint role (e.g. from gyan_role cookie), use and cache it
+    if (hintRole) {
+      const fallback = { role: hintRole, user_id: userId, offline: true };
+      roleCache.set(userId, { data: fallback, timestamp: now });
+      return fallback;
+    }
+
+    // Default to student in offline mode rather than failing completely
+    const offlineDefault = { role: "student", user_id: userId, offline: true };
+    roleCache.set(userId, { data: offlineDefault, timestamp: now });
+    return offlineDefault;
   }
 }
 
 /**
- * Manually invalidate cached role (e.g. after role update in /api/users/role).
+ * Manually update or pre-cache user role (used during login or client sync).
+ */
+export function setServerUserRoleCache(userId, roleDoc) {
+  if (userId && roleDoc) {
+    roleCache.set(userId, { data: roleDoc, timestamp: Date.now() });
+  }
+}
+
+/**
+ * Manually invalidate cached role.
  */
 export function invalidateServerUserRoleCache(userId) {
   if (userId) {

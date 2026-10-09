@@ -146,6 +146,40 @@ async function idbGet(key) {
   } catch { return null; }
 }
 
+// Dexie GyanaratnaOfflineDB reader for unified IndexedDB offline caching
+async function getDexieCachedApi(key) {
+  try {
+    return await new Promise((resolve) => {
+      const req = indexedDB.open('GyanaratnaOfflineDB');
+      req.onerror = () => resolve(null);
+      req.onsuccess = () => {
+        try {
+          const dbInstance = req.result;
+          if (!dbInstance.objectStoreNames.contains('cachedApi')) {
+            dbInstance.close();
+            return resolve(null);
+          }
+          const tx = dbInstance.transaction('cachedApi', 'readonly');
+          const store = tx.objectStore('cachedApi');
+          const getReq = store.get(key);
+          getReq.onsuccess = () => {
+            dbInstance.close();
+            resolve(getReq.result?.data || null);
+          };
+          getReq.onerror = () => {
+            dbInstance.close();
+            resolve(null);
+          };
+        } catch {
+          resolve(null);
+        }
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
 // Queue helpers for offline write operations
 async function idbQueueAdd(record) {
   try {
@@ -414,11 +448,19 @@ self.addEventListener('fetch', (event) => {
           // Try cache
           const cached = await caches.match(request) || await caches.match(request, { cacheName: DATA_CACHE });
           if (cached) return cached;
-          // Try IndexedDB JSON -> build synthetic response
-          const stored = await idbGet(url.pathname + url.search);
+          
+          // Try glp-offline IndexedDB JSON
+          const stored = await idbGet(url.pathname + url.search) || await idbGet(url.pathname);
           if (stored) {
-            return new Response(JSON.stringify(stored.data), { headers: { 'Content-Type': 'application/json', 'X-Offline': '1' } });
+            return new Response(JSON.stringify(stored.data || stored), { headers: { 'Content-Type': 'application/json', 'X-Offline': '1' } });
           }
+
+          // Try Dexie GyanaratnaOfflineDB cachedApi store
+          const dexieData = await getDexieCachedApi(url.pathname + url.search) || await getDexieCachedApi(url.pathname);
+          if (dexieData) {
+            return new Response(JSON.stringify(dexieData), { headers: { 'Content-Type': 'application/json', 'X-Offline': '1', 'X-IndexedDB': 'dexie' } });
+          }
+
           throw err;
         }
       })()
@@ -428,13 +470,32 @@ self.addEventListener('fetch', (event) => {
 
   // Navigation requests: serve cached pages when offline
   if (request.mode === 'navigate' || acceptsHtml) {
-    // Allow auth-related routes to bypass entirely (Clerk, OAuth callbacks)
+    // If offline and navigating to /sign-in, automatically bounce back to destination or student dashboard
+    if (!self.navigator.onLine && url.pathname.startsWith('/sign-in')) {
+      const redirectParam = url.searchParams.get('redirect_url');
+      let target = '/student/dashboard';
+      if (redirectParam) {
+        try {
+          const parsed = new URL(redirectParam, self.location.origin);
+          if (parsed.pathname && !parsed.pathname.startsWith('/sign-in')) {
+            target = parsed.pathname + parsed.search;
+          }
+        } catch (e) {}
+      }
+      return Response.redirect(new URL(target, self.location.origin).href, 302);
+    }
+
+    // Allow online auth-related routes to bypass entirely (Clerk, OAuth callbacks)
     if (url.pathname.startsWith('/sign-in') || url.pathname.startsWith('/sign-up') || url.pathname.includes('oauth')) {
       return; // default browser fetch
     }
     event.respondWith((async () => {
       try {
         const res = await fetch(request, { cache: 'no-store' });
+        // If offline and server returned redirect to sign-in, intercept and serve cached app shell
+        if (!self.navigator.onLine && (res.status === 302 || res.status === 307 || res.headers.get('location')?.includes('/sign-in'))) {
+          throw new Error('Offline redirect to sign-in intercepted');
+        }
         // Cache successful HTML responses for offline access
         if (res.ok && res.headers.get('content-type')?.includes('text/html')) {
           try {
@@ -519,7 +580,50 @@ self.addEventListener('fetch', (event) => {
               { headers: { 'Content-Type': 'image/svg+xml' } }
             );
           }
-          return cached;
+
+          // Fallback for missing scripts & Webpack / Clerk chunks (prevents ChunkLoadError offline)
+          if (request.destination === 'script' || url.pathname.endsWith('.js') || url.hostname.includes('clerk')) {
+            const chunkMatch = url.pathname.match(/(\d+)\.js$/) || url.pathname.match(/_([a-f0-9]+)_[^/]*\.js$/);
+            const chunkId = chunkMatch ? chunkMatch[1] : 6722;
+            const stubCode = `
+              /* Offline script fallback */
+              (function() {
+                if (typeof window !== "undefined") {
+                  window.__OFFLINE_CHUNK_STUB__ = true;
+                  if (!window.Clerk) window.Clerk = {};
+                }
+                var target = typeof window !== "undefined" ? window : (typeof self !== "undefined" ? self : this);
+                if (target) {
+                  var safePush = function(prop) {
+                    try {
+                      if (!target[prop]) target[prop] = [];
+                      if (typeof target[prop].push === "function") {
+                        target[prop].push([
+                          [${JSON.stringify(chunkId)}, 6722, "6722"],
+                          {
+                            ${JSON.stringify(chunkId)}: function(e, t, r) {},
+                            6722: function(e, t, r) {}
+                          }
+                        ]);
+                      }
+                    } catch(e) {}
+                  };
+                  safePush("webpackChunk_clerk_clerk_js");
+                  safePush("webpackChunk_N_E");
+                  safePush("webpackChunk_clerk_nextjs");
+                }
+              })();
+            `;
+            return new Response(stubCode, {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/javascript',
+                'Cache-Control': 'no-cache',
+              },
+            });
+          }
+
+          return cached || new Response('/* Offline asset unavailable */', { status: 200 });
         }
       })()
     );

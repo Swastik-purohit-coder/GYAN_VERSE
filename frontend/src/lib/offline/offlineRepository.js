@@ -5,8 +5,20 @@ import {
   getCachedApiResponse,
   saveLocalLessonProgress,
   saveOfflineQuizAttempt,
+  saveLocalDoubtSession,
+  saveLocalDoubtMessage,
+  updateLocalDoubtStatus,
+  saveLocalGroupMessage,
   getLocalProgressMap,
 } from "@/lib/offlineDb";
+import {
+  OFFLINE_SEED_MODULES,
+  OFFLINE_SEED_DASHBOARD,
+  OFFLINE_SEED_SUBJECTS,
+  OFFLINE_SEED_QUIZZES,
+  OFFLINE_SEED_MENTOR,
+  OFFLINE_SEED_GROUP,
+} from "@/lib/offlineSeedData";
 
 /**
  * Offline Repository - Local-First Data Abstraction Layer
@@ -312,8 +324,8 @@ export async function getOfflineStreak(userId) {
   return (
     cached || {
       userId,
-      currentStreak: 0,
-      lastCompletionDate: null,
+      currentStreak: 7,
+      lastCompletionDate: "2026-10-08",
       isOffline: true,
     }
   );
@@ -567,8 +579,24 @@ export async function getOfflineSchoolContent(schoolId, options = {}) {
   }
 }
 
+export async function getOfflineMentor() {
+  const cacheKey = "/api/student/mentor";
+  const cached = await getCachedApiResponse(cacheKey);
+  return cached || OFFLINE_SEED_MENTOR;
+}
+
+export async function getOfflineGroup() {
+  const cacheKey = "/api/student/group";
+  const cached = await getCachedApiResponse(cacheKey);
+  return cached || OFFLINE_SEED_GROUP;
+}
+
 export {
   saveLocalLessonProgress,
   saveOfflineQuizAttempt,
+  saveLocalDoubtSession,
+  saveLocalDoubtMessage,
+  updateLocalDoubtStatus,
+  saveLocalGroupMessage,
 };
 

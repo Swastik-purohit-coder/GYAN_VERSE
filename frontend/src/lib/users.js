@@ -1,3 +1,5 @@
+import { saveLocalUserProfile, getLocalUserProfile } from "./offlineDb.js";
+
 const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.trim();
 const API_BASE_URL = (RAW_API_BASE_URL && RAW_API_BASE_URL.length
   ? RAW_API_BASE_URL.replace(/\/$/, '')
@@ -16,14 +18,13 @@ export async function fetchUserRole(userId) {
       // Also check IndexedDB Dexie db.userProfile
       let idbProfile = null;
       try {
-        const { db } = await import("@/lib/offlineDb");
-        idbProfile = await db.userProfile.get(userId);
+        idbProfile = await getLocalUserProfile(userId);
       } catch {}
 
       // Also check cookie if available
       let cookieRole = null;
       if (typeof document !== "undefined") {
-        const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+        const match = document.cookie.match(/(?:^|;\s*)(?:gyan_user_role|gyan_role)=([^;]+)/);
         if (match) cookieRole = decodeURIComponent(match[1]);
       }
 
@@ -87,6 +88,7 @@ export async function fetchUserRole(userId) {
     // Cache successful profile locally for offline use
     if (data && data.role && data.role !== "unassigned") {
       try {
+        await saveLocalUserProfile(data);
         if (typeof window !== "undefined") {
           localStorage.setItem("userRole", data.role);
           if (data.name) localStorage.setItem("userName", data.name);
@@ -95,16 +97,8 @@ export async function fetchUserRole(userId) {
             localStorage.setItem("schoolId", data.schoolId || data.school_id);
           }
           document.cookie = `gyan_user_role=${data.role}; path=/; max-age=604800; SameSite=Lax`;
+          document.cookie = `gyan_role=${encodeURIComponent(data.role)}; path=/; max-age=2592000; SameSite=Lax`;
         }
-        const { db } = await import("@/lib/offlineDb");
-        await db.userProfile.put({
-          userId,
-          role: data.role,
-          name: data.name || null,
-          class: data.class || null,
-          schoolId: data.schoolId || data.school_id || null,
-          updatedAt: new Date().toISOString(),
-        });
       } catch (cacheErr) {
         console.warn("[fetchUserRole] Error saving profile to local cache:", cacheErr);
       }
@@ -120,6 +114,23 @@ export async function fetchUserRole(userId) {
 }
 
 export async function saveUserRole(payload) {
+  // Always persist locally in IndexedDB first
+  try {
+    await saveLocalUserProfile(payload);
+  } catch {}
+
+  // Local storage fallback
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("userRole", payload.role || "student");
+      localStorage.setItem("userName", payload.name || "");
+      if (payload.class) localStorage.setItem("studentClass", payload.class);
+      if (typeof document !== "undefined" && payload.role) {
+        document.cookie = `gyan_role=${encodeURIComponent(payload.role)}; path=/; max-age=2592000; SameSite=Lax`;
+      }
+    }
+  } catch {}
+
   try {
     const { userId, role, name, schoolId, class: klass, ...extraProfile } = payload;
     const finalRole = role || "student";
@@ -163,7 +174,7 @@ export async function saveUserRole(payload) {
     }
     console.warn(`[saveUserRole] Server responded with status ${res.status}, continuing with local cache`);
   } catch (err) {
-    console.warn("[saveUserRole] Network/API exception, continuing with local cache:", err.message);
+    console.warn("[saveUserRole] Network exception, saved to local IndexedDB:", err.message);
   }
 
   return { success: true, user: payload, fallback: true };

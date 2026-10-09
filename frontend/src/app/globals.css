@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@variant dark (&:where(.dark, .dark *));
 
 .goog-te-banner-frame,
 .goog-te-banner-frame.skiptranslate,
@@ -139,12 +139,15 @@ body::-webkit-scrollbar,
 	background: transparent;
 }
 
-/* Dark mode hardening: if text becomes white, ensure base backgrounds go dark */
+/* Base theme body defaults */
 .dark body {
-	background-color: #0b0b0f !important;
-	color: #f4f4f5 !important;
+	background-color: #0B0F19;
+	color: #F8FAFC;
 }
-
+.light body {
+	background-color: #F8FAFC;
+	color: #0F172A;
+}
 .dark .bg-white {
 	background-color: #0f1115 !important;
 }

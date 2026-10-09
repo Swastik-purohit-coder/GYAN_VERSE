@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import {
   Card,
@@ -31,7 +31,9 @@ import {
   LineChart as LineChartIcon,
   TrendingUp,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
+import TeacherDoubtSessionsWidget from "./TeacherDoubtSessionsWidget";
 
 const StatCard = ({ icon: Icon, label, value }) => (
   <Card className="bg-white/95 border-slate-200 shadow-sm">
@@ -157,12 +159,10 @@ function DashboardContent() {
     []
   );
 
-  if (!isSignedIn) {
-    return (
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    );
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+  if (!isSignedIn && !isOffline) {
+    return null;
   }
 
   if (!loading && role && role !== "teacher" && role !== "admin") {
@@ -259,6 +259,11 @@ function DashboardContent() {
           <StatCard icon={BookOpen} label="Avg Progress" value={"80%"} />
           <StatCard icon={GraduationCap} label="STEM Classes" value={7} />
         </div>
+      </div>
+
+      {/* Student Doubt Sessions Widget */}
+      <div className="mt-6">
+        <TeacherDoubtSessionsWidget />
       </div>
 
       <div className="mt-6">
@@ -380,14 +385,5 @@ function DashboardContent() {
 }
 
 export default function STEMDashboardView() {
-  return (
-    <>
-      <SignedIn>
-        <DashboardContent />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  return <DashboardContent />;
 }

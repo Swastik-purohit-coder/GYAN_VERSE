@@ -112,29 +112,29 @@ export default function SyncStatusBadge() {
         <div className="flex flex-col min-w-0 pr-1">
           <span className="font-semibold truncate">
             {isOffline
-              ? "Offline Mode"
+              ? "Offline Mode (IndexedDB Active)"
               : isSyncing
-              ? "Auto-Syncing..."
+              ? "Auto-Syncing with Server..."
               : isPoorNetwork
-              ? "Slow Connection"
+              ? "Slow Connection (IndexedDB Cache Active)"
               : isError
               ? "Sync Retrying"
               : isPending
-              ? `${pendingCount} Change${pendingCount > 1 ? "s" : ""} Saved Locally`
-              : "All Changes Synced"}
+              ? `${pendingCount} Change${pendingCount > 1 ? "s" : ""} Saved in IndexedDB`
+              : "IndexedDB Synced & Online"}
           </span>
           <span className="text-[10px] opacity-80 truncate">
             {isOffline
-              ? "Auto-syncs when online"
+              ? "Local database active • Auto-syncs when online"
               : isSyncing
-              ? "Syncing in background"
+              ? "Syncing queued mutations in background"
               : isPoorNetwork
-              ? "Will sync when speed improves"
+              ? "Serving from local DB • Will sync when network improves"
               : isError
-              ? "Auto-retrying shortly"
+              ? "Auto-retrying in background"
               : isPending
-              ? "Auto-syncing in background"
-              : "Offline-ready"}
+              ? "Safely stored locally • Auto-syncs when online"
+              : "Full offline database ready"}
           </span>
         </div>
       </div>

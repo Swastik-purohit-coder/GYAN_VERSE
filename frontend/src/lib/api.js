@@ -1,3 +1,5 @@
+import { cacheApiResponse, getCachedApiResponse } from './offlineDb.js';
+
 // API client for the learning dashboard
 const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.trim();
 const API_BASE_URL = (RAW_API_BASE_URL && RAW_API_BASE_URL.length
@@ -11,6 +13,16 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    const method = (options.method || 'GET').toUpperCase();
+    const isGet = method === 'GET';
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    // Fast-path: If offline and GET, immediately retrieve from IndexedDB
+    if (isOffline && isGet) {
+      const cached = (await getCachedApiResponse(endpoint)) || (await getCachedApiResponse(url));
+      if (cached) return cached;
+    }
+
     const config = {
       cache: 'no-store',
       headers: {
@@ -59,9 +71,23 @@ class ApiClient {
         throw new Error(`HTTP ${response.status}: ${detail}${urlInfo}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      if (isGet) {
+        cacheApiResponse(endpoint, data).catch(() => {});
+        cacheApiResponse(url, data).catch(() => {});
+      }
+      return data;
     } catch (error) {
-  console.error(`API request failed: ${endpoint} (url: ${url})`, error);
+      // Check IndexedDB fallback before throwing
+      if (isGet) {
+        const cached = (await getCachedApiResponse(endpoint)) || (await getCachedApiResponse(url));
+        if (cached) {
+          console.log(`[ApiClient] Serving ${endpoint} from IndexedDB offline storage.`);
+          return cached;
+        }
+      }
+
+      console.error(`API request failed: ${endpoint} (url: ${url})`, error);
       
       // Handle network errors (API not reachable)
       if (error.message === 'Failed to fetch' || error.message.includes('fetch') || error.code === 'ECONNREFUSED') {
