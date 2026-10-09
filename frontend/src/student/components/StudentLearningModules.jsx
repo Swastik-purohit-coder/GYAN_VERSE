@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
@@ -49,10 +49,17 @@ function formatDuration(seconds) {
   return `${mins}m ${secs}s`;
 }
 
-export default function StudentLearningModules() {
+export default function StudentLearningModules({ studentClass: propClass, schoolId: propSchoolId }) {
   const router = useRouter();
+  const options = useMemo(
+    () => ({
+      ...(propClass ? { class: propClass } : {}),
+      ...(propSchoolId ? { schoolId: propSchoolId } : {}),
+    }),
+    [propClass, propSchoolId]
+  );
   const { modules, studentClass, schoolId, loading, error, markLessonProgress } =
-    useStudentModules();
+    useStudentModules(options);
 
   const [activeVideoLesson, setActiveVideoLesson] = useState(null);
   const [activeVideoModule, setActiveVideoModule] = useState(null);
@@ -68,16 +75,33 @@ export default function StudentLearningModules() {
 
     async function checkDownloads() {
       const stateMap = {};
+      const tasks = [];
       for (const mod of modules) {
         if (!mod.lessons) continue;
         for (const les of mod.lessons) {
           if (les.video_url || les.video_path || les.id) {
-            const isDownloaded = await isLessonVideoDownloaded(les.id, les.video_url);
-            stateMap[les.id] = { isDownloaded, isDownloading: false, progress: 0 };
+            tasks.push(
+              isLessonVideoDownloaded(les.id, les.video_url).then((isDownloaded) => {
+                stateMap[les.id] = { isDownloaded, isDownloading: false, progress: 0 };
+              })
+            );
           }
         }
       }
-      if (active) setDownloadStates(stateMap);
+      await Promise.all(tasks);
+      if (active) {
+        setDownloadStates((prev) => {
+          const prevKeys = Object.keys(prev);
+          const newKeys = Object.keys(stateMap);
+          if (
+            prevKeys.length === newKeys.length &&
+            newKeys.every((k) => prev[k]?.isDownloaded === stateMap[k]?.isDownloaded)
+          ) {
+            return prev;
+          }
+          return { ...prev, ...stateMap };
+        });
+      }
     }
 
     checkDownloads();
@@ -198,31 +222,50 @@ export default function StudentLearningModules() {
     }
   };
 
-  if (loading) {
+  if (loading && (!modules || modules.length === 0)) {
     return (
-      <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-        <p className="text-sm">Loading curriculum & learning modules...</p>
+      <div className="space-y-4">
+        {[1, 2].map((i) => (
+          <div
+            key={i}
+            className="p-5 rounded-2xl bg-white border border-[#E2E8F0] shadow-xs animate-pulse space-y-4"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 rounded-xl bg-slate-100 shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 bg-slate-100 rounded w-24" />
+                <div className="h-5 bg-slate-200 rounded w-2/3" />
+                <div className="h-3 bg-slate-100 rounded w-1/2" />
+              </div>
+            </div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <div className="h-3 bg-slate-100 rounded w-24" />
+              <div className="h-3 bg-slate-100 rounded w-16" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
-  if (error) {
+  if (error && (!modules || modules.length === 0)) {
     return (
-      <div className="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-center space-y-2">
-        <p className="font-semibold">Unable to load learning modules</p>
-        <p className="text-xs text-red-300/80">{error}</p>
+      <div className="p-6 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-center space-y-2">
+        <p className="font-semibold text-sm">Unable to load learning modules</p>
+        <p className="text-xs text-rose-600/80">{error}</p>
       </div>
     );
   }
 
   if (!modules || modules.length === 0) {
     return (
-      <Card className="bg-slate-800/40 border-slate-700/60 shadow-lg">
+      <Card className="bg-white border-[#E2E8F0] shadow-xs rounded-2xl">
         <CardContent className="p-8 text-center space-y-3">
-          <BookOpen className="w-12 h-12 mx-auto text-slate-500" />
-          <h3 className="text-lg font-bold text-white">No Learning Modules Assigned Yet</h3>
-          <p className="text-sm text-slate-400 max-w-md mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-[#F1EEFF] text-[#635BFF] flex items-center justify-center mx-auto">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-[#172033]">No Learning Modules Assigned Yet</h3>
+          <p className="text-xs text-[#64748B] max-w-md mx-auto">
             No learning modules have been published for {studentClass || "your class"} yet. Check back soon!
           </p>
         </CardContent>

@@ -183,10 +183,10 @@ function DashboardContent() {
   return (
     <div className="mx-auto max-w-6xl">
       <div className="flex items-center justify-between">
-        <div className="text-white/90 text-lg font-semibold">
+        <div className="text-black/90 text-lg font-semibold">
           STEM Dashboard
         </div>
-        <div className="text-white/80 text-sm">Grades 6–12</div>
+        <div className="text-black/80 text-sm">Grades 6–12</div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -250,7 +250,7 @@ function DashboardContent() {
       </div>
 
       <div className="mt-6">
-        <div className="text-white/90 font-semibold mb-2">
+        <div className="text-black/90 font-semibold mb-2">
           STEM Classes Overview
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -268,7 +268,7 @@ function DashboardContent() {
 
       <div className="mt-6">
         <div className="flex items-center justify-between mb-2">
-          <div className="text-white/90 font-semibold">
+          <div className="text-black/90 font-semibold">
             Student Progress Tracking
           </div>
           <Button
@@ -299,7 +299,7 @@ function DashboardContent() {
 
       <div className="mt-6">
         <div className="flex items-center justify-between mb-2">
-          <div className="text-white/90 font-semibold">
+          <div className="text-black/90 font-semibold">
             STEM Analytics & Reports
           </div>
           <Button

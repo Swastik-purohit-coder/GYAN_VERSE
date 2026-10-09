@@ -413,7 +413,7 @@ export default function StudentLayout({ children }) {
 
                 {/* Right controls: Sync status badge & Notifications */}
                 <div className="flex items-center gap-2">
-                  <SyncStatusBadge />
+                  <SyncStatusBadge inline />
                   <Link
                     href="/student/adventures"
                     className="relative flex items-center justify-center w-9 h-9 rounded-full text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF] transition-colors"

@@ -28,6 +28,9 @@ import {
   Download,
   School,
   ClipboardList,
+  Microscope,
+  Calculator,
+  Laptop,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -116,7 +119,7 @@ const getSubjectTheme = (subjectName = '', idx = 0) => {
       bgLight: 'bg-[#ECFDF3]',
       text: 'text-[#22C55E]',
       bar: 'bg-[#22C55E]',
-      iconChar: '🔬',
+      icon: Microscope,
     };
   }
   if (s.includes('math') || s.includes('alg') || s.includes('geom') || s.includes('calc')) {
@@ -124,7 +127,7 @@ const getSubjectTheme = (subjectName = '', idx = 0) => {
       bgLight: 'bg-[#EFF6FF]',
       text: 'text-[#3B82F6]',
       bar: 'bg-[#3B82F6]',
-      iconChar: 'π',
+      icon: Calculator,
     };
   }
   if (s.includes('eng') || s.includes('lit') || s.includes('lang') || s.includes('odia') || s.includes('hindi')) {
@@ -132,7 +135,7 @@ const getSubjectTheme = (subjectName = '', idx = 0) => {
       bgLight: 'bg-[#FFF0F5]',
       text: 'text-[#EC4899]',
       bar: 'bg-[#EC4899]',
-      iconChar: '📖',
+      icon: BookOpen,
     };
   }
   if (s.includes('comp') || s.includes('cs') || s.includes('code') || s.includes('tech') || s.includes('data')) {
@@ -140,14 +143,14 @@ const getSubjectTheme = (subjectName = '', idx = 0) => {
       bgLight: 'bg-[#F1EEFF]',
       text: 'text-[#635BFF]',
       bar: 'bg-[#635BFF]',
-      iconChar: '💻',
+      icon: Laptop,
     };
   }
   const fallback = [
-    { bgLight: 'bg-[#ECFDF3]', text: 'text-[#22C55E]', bar: 'bg-[#22C55E]', iconChar: '🔬' },
-    { bgLight: 'bg-[#EFF6FF]', text: 'text-[#3B82F6]', bar: 'bg-[#3B82F6]', iconChar: 'π' },
-    { bgLight: 'bg-[#FFF0F5]', text: 'text-[#EC4899]', bar: 'bg-[#EC4899]', iconChar: '📖' },
-    { bgLight: 'bg-[#FFF8E7]', text: 'text-[#F59E0B]', bar: 'bg-[#F59E0B]', iconChar: '🌟' },
+    { bgLight: 'bg-[#ECFDF3]', text: 'text-[#22C55E]', bar: 'bg-[#22C55E]', icon: Microscope },
+    { bgLight: 'bg-[#EFF6FF]', text: 'text-[#3B82F6]', bar: 'bg-[#3B82F6]', icon: Calculator },
+    { bgLight: 'bg-[#FFF0F5]', text: 'text-[#EC4899]', bar: 'bg-[#EC4899]', icon: BookOpen },
+    { bgLight: 'bg-[#FFF8E7]', text: 'text-[#F59E0B]', bar: 'bg-[#F59E0B]', icon: Sparkles },
   ];
   return fallback[idx % fallback.length];
 };
@@ -622,9 +625,15 @@ export default function DashboardV2({ user = {} }) {
                     <div>
                       {/* Subject Icon Box */}
                       <div
-                        className={`w-12 h-12 rounded-xl ${themeInfo.bgLight} ${themeInfo.text} flex items-center justify-center text-2xl font-bold mb-4 shadow-xs group-hover:scale-105 transition-transform`}
+                        className={`w-12 h-12 rounded-xl ${themeInfo.bgLight} ${themeInfo.text} flex items-center justify-center mb-4 shadow-xs group-hover:scale-105 transition-transform`}
                       >
-                        {subj.icon ? subj.icon : themeInfo.iconChar}
+                        {(() => {
+                          const IconComp = typeof subj.icon === 'function' ? subj.icon : themeInfo.icon;
+                          if (IconComp) {
+                            return <IconComp className="w-6 h-6" />;
+                          }
+                          return <Sparkles className="w-6 h-6" />;
+                        })()}
                       </div>
 
                       {/* Title & Mastery */}
@@ -710,7 +719,7 @@ export default function DashboardV2({ user = {} }) {
           </div>
 
           {/* Interactive Learning Modules Engine */}
-          <StudentLearningModules />
+          <StudentLearningModules studentClass={studentClassDisplay} schoolId={schoolId} />
         </div>
 
         {/* =========================================

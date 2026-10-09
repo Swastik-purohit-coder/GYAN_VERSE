@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '@/lib/api';
 import { saveLocalLessonProgress, getLocalProgressMap } from '@/lib/offlineDb';
 import { initSyncEngine, processSyncQueue } from '@/lib/syncEngine';
 import {
   getOfflineLearningModules,
+  getCachedLearningModules,
   getOfflineSubjects,
   getOfflineQuizzes,
   getOfflineQuizQuestions,
@@ -695,63 +696,168 @@ export function useTeacherModules(filters = {}) {
 
 // Custom hook for student learning modules & progress (Offline-First with Dexie IDB & Sync Engine)
 export function useStudentModules(options = {}) {
-  const { enabled = true } = options;
+  const { enabled = true, class: classFilter, schoolId: schoolFilter } = options;
   const [data, setData] = useState({ modules: [], studentClass: null, schoolId: null });
   const [loading, setLoading] = useState(Boolean(enabled));
   const [error, setError] = useState(null);
 
-  const fetchModules = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      setLoading(true);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const inFlightRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
+  const fetchModules = useCallback(
+    async (showLoadingSpinner = true) => {
+      if (!enabled || inFlightRef.current) return;
+      inFlightRef.current = true;
+
+      const currentModules = dataRef.current?.modules;
+      // Only set loading to true if we don't already have rendered modules
+      if (showLoadingSpinner && (!currentModules || currentModules.length === 0)) {
+        setLoading(true);
+      }
       setError(null);
 
-      const targetClass =
-        options?.class ||
-        (typeof window !== "undefined"
-          ? localStorage.getItem("studentClass") || localStorage.getItem("student_class")
-          : null) ||
-        "Class 8";
-      const targetSchool = options?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null);
+      try {
+        const targetClass =
+          classFilter ||
+          (typeof window !== "undefined"
+            ? localStorage.getItem("studentClass") || localStorage.getItem("student_class")
+            : null) ||
+          "Class 8";
+        const targetSchool =
+          schoolFilter || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null);
 
-      const res = await getOfflineLearningModules({ ...options, class: targetClass, schoolId: targetSchool });
-      setData({
-        modules: res?.modules || [],
-        studentClass: res?.studentClass || targetClass,
-        schoolId: res?.schoolId || targetSchool,
-      });
-    } catch (err) {
-      console.warn('Failed to load learning modules from network/offline:', err.message);
-      setError(err.message || 'Failed to load learning modules');
-    } finally {
-      setLoading(false);
-    }
-  }, [enabled, options]);
+        // 1. Fast Cache Hydration: If state is empty, immediately populate from local IndexedDB cache
+        if (!currentModules || currentModules.length === 0) {
+          try {
+            const cached = await getCachedLearningModules({
+              ...optionsRef.current,
+              class: targetClass,
+              schoolId: targetSchool,
+            });
+            if (cached?.modules && cached.modules.length > 0 && isMountedRef.current) {
+              setData({
+                modules: cached.modules,
+                studentClass: cached.studentClass || targetClass,
+                schoolId: cached.schoolId || targetSchool,
+              });
+              setLoading(false);
+            }
+          } catch (cErr) {
+            // cache read fallback ignored
+          }
+        }
 
-  useEffect(() => {
-    fetchModules();
-    initSyncEngine(() => fetchModules());
-  }, [fetchModules]);
+        // 2. Fetch fresh data from network / DB
+        const res = await getOfflineLearningModules({
+          ...optionsRef.current,
+          class: targetClass,
+          schoolId: targetSchool,
+        });
 
-  const markLessonProgress = useCallback(async (lessonId, completed = true, lastPosition = 0, action = "complete") => {
-    try {
-      // 1. Save to local IndexedDB first
-      await saveLocalLessonProgress({ lessonId, completed, lastPosition, action });
-
-      // 2. Immediate UI state refresh
-      await fetchModules();
-
-      // 3. Process sync queue if online
-      if (typeof navigator !== "undefined" && navigator.onLine) {
-        processSyncQueue().then(() => fetchModules());
+        if (isMountedRef.current && res?.modules) {
+          setData({
+            modules: res.modules,
+            studentClass: res.studentClass || targetClass,
+            schoolId: res.schoolId || targetSchool,
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to load learning modules from network/offline:", err.message);
+        if (isMountedRef.current) {
+          setError(err.message || "Failed to load learning modules");
+        }
+      } finally {
+        inFlightRef.current = false;
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
+    },
+    [enabled, classFilter, schoolFilter]
+  );
 
-      return { success: true };
-    } catch (err) {
-      console.error('Failed to update offline lesson progress:', err);
-      throw err;
-    }
-  }, [fetchModules]);
+  const fetchModulesRef = useRef(fetchModules);
+  fetchModulesRef.current = fetchModules;
+
+  // Initial mount effect: loads cached data immediately then syncs fresh DB data
+  useEffect(() => {
+    isMountedRef.current = true;
+    fetchModulesRef.current(true);
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [enabled, classFilter, schoolFilter]);
+
+  // Sync engine listener: registered once on mount, updates quietly in background
+  useEffect(() => {
+    const cleanup = initSyncEngine(() => {
+      fetchModulesRef.current?.(false);
+    });
+    return () => {
+      if (typeof cleanup === "function") cleanup();
+    };
+  }, []);
+
+  const markLessonProgress = useCallback(
+    async (lessonId, completed = true, lastPosition = 0, action = "complete") => {
+      try {
+        // Optimistic UI update: immediately update lesson state in memory
+        setData((prev) => {
+          if (!prev?.modules) return prev;
+          const updatedModules = prev.modules.map((mod) => {
+            let hasLesson = false;
+            const updatedLessons = (mod.lessons || []).map((l) => {
+              if (l.id === lessonId) {
+                hasLesson = true;
+                return {
+                  ...l,
+                  progress: {
+                    ...l.progress,
+                    completed,
+                    lastPosition,
+                  },
+                };
+              }
+              return l;
+            });
+            if (!hasLesson) return mod;
+            const totalLessons = updatedLessons.length;
+            const completedLessons = updatedLessons.filter((l) => l.progress?.completed).length;
+            return {
+              ...mod,
+              lessons: updatedLessons,
+              stats: {
+                ...mod.stats,
+                totalLessons,
+                completedLessons,
+                isCompleted: totalLessons > 0 && completedLessons === totalLessons,
+              },
+            };
+          });
+          return { ...prev, modules: updatedModules };
+        });
+
+        // 1. Save to local IndexedDB
+        await saveLocalLessonProgress({ lessonId, completed, lastPosition, action });
+
+        // 2. Process sync queue in background if online
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+          processSyncQueue().then(() => fetchModulesRef.current?.(false));
+        }
+
+        return { success: true };
+      } catch (err) {
+        console.error("Failed to update offline lesson progress:", err);
+        throw err;
+      }
+    },
+    []
+  );
 
   return {
     modules: data.modules,

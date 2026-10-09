@@ -176,9 +176,20 @@ export default function TeacherDoubtChatModal({
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
+  const handleCloseDoubt = async () => {
+    if (updatingStatus) return;
+    await handleStatusChange("closed");
+    if (typeof onOpenChange === "function") {
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-2xl flex flex-col max-h-[85vh]">
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-2xl p-0 overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-2xl flex flex-col max-h-[85vh] [&>button:last-child]:hidden"
+      >
         {/* Header */}
         <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -202,7 +213,7 @@ export default function TeacherDoubtChatModal({
 
           {/* Quick status actions */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {doubt?.status !== "answered" && (
+            {doubt?.status !== "answered" && doubt?.status !== "closed" && (
               <Button
                 size="sm"
                 variant="outline"
@@ -218,23 +229,33 @@ export default function TeacherDoubtChatModal({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => handleStatusChange("closed")}
+                onClick={handleCloseDoubt}
                 disabled={updatingStatus}
-                className="text-xs h-8 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-100"
+                className="text-xs h-8 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 font-medium cursor-pointer"
               >
                 Close Doubt
               </Button>
             ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleStatusChange("open")}
-                disabled={updatingStatus}
-                className="text-xs h-8 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center gap-1"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Reopen
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleStatusChange("open")}
+                  disabled={updatingStatus}
+                  className="text-xs h-8 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Reopen
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onOpenChange?.(false)}
+                  className="text-xs h-8 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-100"
+                >
+                  Close
+                </Button>
+              </div>
             )}
           </div>
         </div>
