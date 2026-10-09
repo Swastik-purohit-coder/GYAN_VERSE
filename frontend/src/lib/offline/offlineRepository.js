@@ -17,6 +17,16 @@ import {
  * 3. Enriches offline data with locally stored pending progress and quiz attempts.
  */
 
+export const DEFAULT_OFFLINE_SUBJECTS = [
+  { id: "subject:math", name: "Mathematics", description: "Arithmetic, Algebra, Geometry, and Problem Solving", class: "all", icon: "🔢", color: "#10b981" },
+  { id: "subject:science", name: "Science", description: "Physics, Chemistry, Biology, and Natural Sciences", class: "all", icon: "🔬", color: "#3b82f6" },
+  { id: "subject:social", name: "Social Science", description: "History, Geography, Civics, and Social Studies", class: "all", icon: "🌍", color: "#8b5cf6" },
+  { id: "subject:english", name: "English", description: "Grammar, Reading Comprehension, and Literature", class: "all", icon: "📚", color: "#f59e0b" },
+  { id: "subject:hindi", name: "Hindi / Local Language", description: "Language skills, literature, and regional studies", class: "all", icon: "✍️", color: "#ec4899" },
+  { id: "subject:cs", name: "Digital Literacy & Computer", description: "Computer basics, internet safety, and software tools", class: "all", icon: "💻", color: "#06b6d4" },
+  { id: "subject:evs", name: "Environmental Studies (EVS)", description: "Environment, ecology, health, and sustainability", class: "all", icon: "🌱", color: "#22c55e" },
+];
+
 export async function getOfflineLearningModules(options = {}) {
   const cacheKey = "student_learning_modules";
 
@@ -24,7 +34,7 @@ export async function getOfflineLearningModules(options = {}) {
   if (typeof navigator !== "undefined" && navigator.onLine) {
     try {
       const networkData = await apiClient.getStudentModules(options);
-      if (networkData && Array.isArray(networkData.modules)) {
+      if (networkData && Array.isArray(networkData.modules) && networkData.modules.length > 0) {
         await cacheApiResponse(cacheKey, networkData);
         return networkData;
       }
@@ -35,7 +45,7 @@ export async function getOfflineLearningModules(options = {}) {
 
   // 2. Read from IndexedDB cachedApi
   const cached = await getCachedApiResponse(cacheKey);
-  if (cached && Array.isArray(cached.modules)) {
+  if (cached && Array.isArray(cached.modules) && cached.modules.length > 0) {
     // Merge local lesson progress from IndexedDB
     const localProgressMap = await getLocalProgressMap();
     const enrichedModules = cached.modules.map((mod) => {
@@ -75,9 +85,63 @@ export async function getOfflineLearningModules(options = {}) {
     };
   }
 
-  // Fallback default offline modules so students always have access offline
-  const targetClass = options?.class || (typeof window !== "undefined" ? localStorage.getItem("studentClass") : null) || "Class 8";
+  // 3. Fallback default offline modules so students always have access offline
+  const rawTargetClass = options?.class || (typeof window !== "undefined" ? localStorage.getItem("studentClass") : null) || "Class 8";
+  const numMatch = String(rawTargetClass).match(/\d+/);
+  const canonicalNum = numMatch ? numMatch[0] : "8";
+  const targetClass = `Class ${canonicalNum}`;
   const localProgressMap = await getLocalProgressMap();
+
+  try {
+    const { DEFAULT_COURSE_SUBJECTS, DEFAULT_COURSE_VIDEOS } = await import("@/lib/coursesDefaultData");
+    const classSubjects = DEFAULT_COURSE_SUBJECTS.filter((s) => s.class === targetClass);
+
+    if (classSubjects.length > 0) {
+      const builtModules = classSubjects.map((subj) => {
+        const subjVideos = DEFAULT_COURSE_VIDEOS.filter((v) => v.subject_id === subj.id);
+        const enrichedLessons = (subjVideos.length > 0 ? subjVideos : []).map((v, idx) => ({
+          id: v.id,
+          module_id: subj.id,
+          title: v.title,
+          description: v.description,
+          video_url: v.youtube_url || "/home.mp4",
+          video_type: "youtube",
+          duration: v.duration || 480,
+          order_index: v.display_order || idx + 1,
+          is_required: true,
+          progress: {
+            completed: Boolean(localProgressMap[v.id]?.completed),
+            lastPosition: localProgressMap[v.id]?.lastPosition || 0,
+          },
+        }));
+
+        const totalLessons = enrichedLessons.length;
+        const completedLessons = enrichedLessons.filter((l) => l.progress?.completed).length;
+
+        return {
+          id: subj.id,
+          title: `${subj.subject_name} (${targetClass})`,
+          description: `Core curriculum lessons and interactive modules for ${targetClass} ${subj.subject_name}.`,
+          class: targetClass,
+          subject: { id: subj.id, name: subj.subject_name },
+          lessons: enrichedLessons,
+          stats: {
+            totalLessons,
+            completedLessons,
+            isCompleted: totalLessons > 0 && completedLessons === totalLessons,
+          },
+        };
+      });
+
+      return {
+        modules: builtModules,
+        studentClass: targetClass,
+        isOfflineFallback: true,
+      };
+    }
+  } catch (err) {
+    console.warn("[OfflineRepo] Failed to build default modules from coursesDefaultData:", err);
+  }
 
   const defaultLessons = [
     {
@@ -136,7 +200,7 @@ export async function getOfflineSubjects(filter = {}) {
   if (typeof navigator !== "undefined" && navigator.onLine) {
     try {
       const data = await apiClient.getSubjects(filter);
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         await cacheApiResponse(cacheKey, data);
         return data;
       }
@@ -146,7 +210,11 @@ export async function getOfflineSubjects(filter = {}) {
   }
 
   const cached = await getCachedApiResponse(cacheKey);
-  return Array.isArray(cached) ? cached : [];
+  if (Array.isArray(cached) && cached.length > 0) {
+    return cached;
+  }
+
+  return DEFAULT_OFFLINE_SUBJECTS;
 }
 
 export async function getOfflineQuizzes(filters = {}) {

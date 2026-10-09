@@ -516,20 +516,15 @@ export function useStudentsBySchool(schoolId) {
 export function useSchoolContent(schoolId, options = {}) {
   const { type = null, limit = null } = options;
   const [content, setContent] = useState([]);
-  const [loading, setLoading] = useState(Boolean(schoolId));
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchContent = useCallback(async () => {
-    if (!schoolId) {
-      setContent([]);
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
-      const data = await getOfflineSchoolContent(schoolId, { type, limit });
+      const targetSchoolId = schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null) || "all";
+      const data = await getOfflineSchoolContent(targetSchoolId, { type, limit });
       setContent(Array.isArray(data) ? data : []);
     } catch (err) {
       console.warn('Failed to fetch school content from network/offline:', err);
@@ -711,11 +706,19 @@ export function useStudentModules(options = {}) {
       setLoading(true);
       setError(null);
 
-      const res = await getOfflineLearningModules();
+      const targetClass =
+        options?.class ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("studentClass") || localStorage.getItem("student_class")
+          : null) ||
+        "Class 8";
+      const targetSchool = options?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null);
+
+      const res = await getOfflineLearningModules({ ...options, class: targetClass, schoolId: targetSchool });
       setData({
-        modules: res.modules || [],
-        studentClass: res.studentClass || null,
-        schoolId: res.schoolId || null,
+        modules: res?.modules || [],
+        studentClass: res?.studentClass || targetClass,
+        schoolId: res?.schoolId || targetSchool,
       });
     } catch (err) {
       console.warn('Failed to load learning modules from network/offline:', err.message);
@@ -723,7 +726,7 @@ export function useStudentModules(options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [enabled]);
+  }, [enabled, options]);
 
   useEffect(() => {
     fetchModules();

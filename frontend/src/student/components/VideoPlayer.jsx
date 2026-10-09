@@ -51,8 +51,12 @@ export default function VideoPlayer({
   const rawUrl = offlineBlobUrl || lesson.video_url || lesson.video_path;
   const vType = getVideoType(rawUrl);
 
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
   const resolvedStreamUrl = offlineBlobUrl
     ? offlineBlobUrl
+    : isOffline
+    ? "/home.mp4"
     : vType === "youtube"
     ? rawUrl
     : rawUrl && rawUrl.startsWith("http")
@@ -95,6 +99,11 @@ export default function VideoPlayer({
                   <CheckCircle2 className="w-3 h-3" /> Offline Ready
                 </Badge>
               )}
+              {isOffline && (
+                <Badge className="bg-amber-500 text-white text-[10px] flex items-center gap-1">
+                  <WifiOff className="w-3 h-3" /> Offline Mode
+                </Badge>
+              )}
             </div>
             <h3 className="text-base sm:text-lg font-bold text-white truncate">
               {lesson.title}
@@ -128,6 +137,7 @@ export default function VideoPlayer({
               autoPlay={!dataSaver}
               onProgressUpdate={handleProgressUpdate}
               onComplete={handleLessonAutoCompleted}
+              offlineBlobUrl={offlineBlobUrl}
               className="w-full h-full"
             />
           )}

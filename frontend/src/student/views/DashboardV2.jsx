@@ -216,6 +216,7 @@ export default function DashboardV2({ user = {} }) {
     fetchUserRole(clerkUser.id)
       .then((doc) => {
         if (!active) return;
+        const roleVal = typeof doc === "string" ? doc : doc?.role;
         const metaRole = clerkUser?.unsafeMetadata?.role;
         const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
         let cookieRole = null;
@@ -239,14 +240,17 @@ export default function DashboardV2({ user = {} }) {
           return;
         }
         setUserRoleDoc(doc || { role: effectiveRole });
-        const school = doc?.schoolId || doc?.school_id || clerkUser?.unsafeMetadata?.schoolId || null;
-        setSchoolId(school);
+        const school = doc?.schoolId || doc?.school_id || clerkUser?.unsafeMetadata?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null);
+        if (school) setSchoolId(school);
         setRoleError(null);
       })
       .catch((error) => {
         if (!active) return;
         const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : "student";
-        setUserRoleDoc({ role: localRole || "student" });
+        const localSchool = typeof window !== "undefined" ? localStorage.getItem("schoolId") : null;
+        const localClass = typeof window !== "undefined" ? (localStorage.getItem("studentClass") || localStorage.getItem("student_class")) : null;
+        setUserRoleDoc({ role: localRole || "student", school_id: localSchool, class: localClass });
+        if (localSchool) setSchoolId(localSchool);
         setRoleError(null);
       });
     return () => {
@@ -732,7 +736,7 @@ export default function DashboardV2({ user = {} }) {
                 </div>
               )}
 
-              {schoolId && !roleError && (
+              {!roleError && (
                 <div className="space-y-5">
                   {contentError && (
                     <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3.5">

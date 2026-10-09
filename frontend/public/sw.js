@@ -48,6 +48,7 @@ const CORE_ASSETS = [
   '/logo.webp',
   '/offline.html',
   '/favicon.ico',
+  '/home.mp4',
   // Fonts commonly used by the app
   '/fonts/KFOmCnqEu92Fr1Mu4mxK.woff2'
 ];

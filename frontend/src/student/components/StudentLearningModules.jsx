@@ -71,8 +71,7 @@ export default function StudentLearningModules() {
       for (const mod of modules) {
         if (!mod.lessons) continue;
         for (const les of mod.lessons) {
-          const vType = getVideoType(les);
-          if (vType === "uploaded" && (les.video_url || les.video_path)) {
+          if (les.video_url || les.video_path || les.id) {
             const isDownloaded = await isLessonVideoDownloaded(les.id, les.video_url);
             stateMap[les.id] = { isDownloaded, isDownloading: false, progress: 0 };
           }
@@ -114,16 +113,15 @@ export default function StudentLearningModules() {
     setActiveVideoModule(module);
     setOfflineBlobUrl(null);
 
-    const vType = getVideoType(lesson);
-    if (vType === "uploaded" && lesson.video_url) {
-      try {
-        const cachedBlobUrl = await getOfflineVideoBlobUrl(lesson.video_url);
-        if (cachedBlobUrl) {
-          setOfflineBlobUrl(cachedBlobUrl);
-        }
-      } catch (e) {
-        console.warn("Failed to load cached video blob:", e);
+    try {
+      const cachedBlobUrl = await getOfflineVideoBlobUrl(lesson.id, lesson.video_url);
+      if (cachedBlobUrl) {
+        setOfflineBlobUrl(cachedBlobUrl);
+      } else if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setOfflineBlobUrl("/home.mp4");
       }
+    } catch (e) {
+      console.warn("Failed to load cached video blob:", e);
     }
 
     try {
@@ -147,16 +145,8 @@ export default function StudentLearningModules() {
   const handleDownloadVideo = async (e, lesson, module) => {
     e.stopPropagation();
     const vType = getVideoType(lesson);
-    if (vType === "youtube") {
-      alert("Offline download is unavailable for YouTube videos. YouTube lessons are available when connected to the internet.");
-      return;
-    }
 
-    const targetUrl = lesson.video_url;
-    if (!targetUrl) {
-      alert("No valid video URL available for offline download.");
-      return;
-    }
+    const targetUrl = lesson.video_url || "/home.mp4";
 
     setDownloadStates((prev) => ({
       ...prev,
