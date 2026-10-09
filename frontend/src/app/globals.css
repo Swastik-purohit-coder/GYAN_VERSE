@@ -217,3 +217,20 @@ body::-webkit-scrollbar,
 	background-size: 24px 24px;
 	background-image: radial-gradient(circle, rgba(120, 113, 108, 0.12) 1px, transparent 1px);
 }
+
+/* Print optimization for Official Student Virtual ID Cards */
+@media print {
+	@page {
+		size: auto;
+		margin: 8mm;
+	}
+	body {
+		background: #ffffff !important;
+		color: #000000 !important;
+		-webkit-print-color-adjust: exact !important;
+		print-color-adjust: exact !important;
+	}
+	header, nav, aside, footer, button, .print\:hidden {
+		display: none !important;
+	}
+}

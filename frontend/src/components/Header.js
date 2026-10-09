@@ -58,6 +58,7 @@ export default function Header() {
     "/progress",
     "/settings",
   ].some((p) => pathname?.startsWith(p));
+  const isTeacherShell = pathname?.startsWith("/teacher");
   const isRoleSelect = pathname === "/role-select";
   const headerRightPad = pathname?.startsWith("/student") ? "pr-14 sm:pr-4" : "";
 
@@ -91,10 +92,9 @@ export default function Header() {
               <ThemeToggle />
             </div>
           ) : isStudentShell ? (
-            <ClientOnly fallback={<div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">{!pathname?.startsWith("/student") && <OnlineBadge />}<ThemeToggle /><PreHeader /></div>}>
+            <ClientOnly fallback={<div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">{!pathname?.startsWith("/student") && <OnlineBadge />}<PreHeader /></div>}>
               <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                 {!pathname?.startsWith("/student") && <OnlineBadge />}
-                <ThemeToggle />
                 <PreHeader />
                 <SignedIn>
                   <div className={headerStyles.profilePicture}>
@@ -107,7 +107,7 @@ export default function Header() {
               </div>
             </ClientOnly>
           ) : (
-            <ClientOnly fallback={<div className="flex items-center gap-4 flex-shrink-0"><ThemeToggle /></div>}>
+            <ClientOnly fallback={<div className="flex items-center gap-4 flex-shrink-0">{!isTeacherShell && !isStudentShell && <ThemeToggle />}</div>}>
               <div className="flex items-center gap-4 flex-shrink-0">
                 <ul className="hidden md:flex space-x-4 items-center">
                   <li>
@@ -146,7 +146,7 @@ export default function Header() {
                     <Link href="/contact">Contact</Link>
                   </li>
                 </ul>
-                <ThemeToggle />
+                {!isTeacherShell && !isStudentShell && <ThemeToggle />}
                 <SignedIn>
                   <div className={headerStyles.profilePicture}>
                     <UserButton afterSignOutUrl="/" />

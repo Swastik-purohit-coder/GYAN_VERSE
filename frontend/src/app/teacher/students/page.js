@@ -42,7 +42,10 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
+  IdCard,
 } from "lucide-react";
+import VirtualIdCardModal from "@/teacher/components/VirtualIdCardModal";
+import PhoneAutocompleteInput from "@/teacher/components/PhoneAutocompleteInput";
 import { clampPercent, formatLastActivity, initials } from "@/lib/studentFormat";
 
 const SCHOOL_CLASSES = Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`);
@@ -62,6 +65,7 @@ function defaultStudentForm() {
     parentEmail: "",
     studentPhone: "",
     address: "",
+    bloodGroup: "O+",
     parentalControl: {
       weeklyReports: true,
       dailyStudyLimit: "2 Hours / Day",
@@ -72,16 +76,17 @@ function defaultStudentForm() {
   };
 }
 
-function StudentCard({ student }) {
+function StudentCard({ student, onOpenIdCard }) {
   const [expanded, setExpanded] = useState(false);
   const progress = clampPercent(student.averageScore);
   const badgeValue = student.bestScore != null ? clampPercent(student.bestScore) : progress;
+  const uniqueId = student.id || student.studentId || student.rollNumber;
 
   return (
     <Card className="bg-white border-stone-200 shadow-sm hover:shadow-md transition-all">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start gap-3">
-          <Avatar className="w-10 h-10 border border-stone-200">
+          <Avatar className="w-10 h-10 border border-stone-200 shrink-0">
             <AvatarFallback className="bg-stone-900 text-white font-bold text-xs">
               {initials(student.name)}
             </AvatarFallback>
@@ -95,7 +100,7 @@ function StudentCard({ student }) {
             <div className="flex items-center gap-2 mt-0.5 text-xs text-stone-500">
               <span className="font-medium text-stone-700">{student.className || student.class}</span>
               {student.section && <span>• {student.section}</span>}
-              {student.rollNumber && <span className="text-stone-400">ID: {student.rollNumber}</span>}
+              <span className="text-stone-400 font-mono text-[11px]">ID: {uniqueId}</span>
             </div>
 
             <div className="text-xs text-stone-700 flex items-center gap-4 mt-2">
@@ -113,6 +118,12 @@ function StudentCard({ student }) {
         {/* Expandable Details (DOB, Parent Details, Parental Controls) */}
         {expanded && (
           <div className="pt-2 border-t border-stone-100 space-y-2 text-xs text-stone-600 bg-[#FAF8F5] p-3 rounded-lg animate-in fade-in duration-150">
+            <div className="flex items-center justify-between">
+              <span className="text-stone-500">Unique Student ID:</span>
+              <span className="font-mono font-bold text-stone-900 bg-white px-2 py-0.5 rounded border border-stone-200 text-[11px]">
+                {uniqueId}
+              </span>
+            </div>
             {student.dob && (
               <div className="flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5 text-stone-500 shrink-0" />
@@ -128,7 +139,13 @@ function StudentCard({ student }) {
             {student.parentPhone && (
               <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                <span>Parent Phone: <b>{student.parentPhone}</b></span>
+                <span>Parent Mobile: <b className="font-mono">{student.parentPhone}</b></span>
+              </div>
+            )}
+            {student.bloodGroup && (
+              <div className="flex items-center gap-2">
+                <span className="text-stone-500">Blood Group:</span>
+                <span className="font-bold text-rose-700">{student.bloodGroup}</span>
               </div>
             )}
             {student.parentEmail && (
@@ -172,7 +189,7 @@ function StudentCard({ student }) {
         )}
 
         {/* Card Footer Actions */}
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center justify-between pt-1 gap-2 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setExpanded(!expanded)}
             className="text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1 transition-colors"
@@ -184,9 +201,22 @@ function StudentCard({ student }) {
             )}
           </button>
 
-          <Button asChild variant="outline" size="sm" className="h-7 text-xs border-stone-200 bg-white hover:bg-stone-100">
-            <Link href={`/teacher/students/${student.id || student.studentId}`}>View Academic Report</Link>
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              onClick={() => onOpenIdCard && onOpenIdCard(student)}
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-900 font-bold flex items-center gap-1 shadow-2xs"
+            >
+              <IdCard className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Virtual ID Card</span>
+            </Button>
+
+            <Button asChild variant="outline" size="sm" className="h-7 text-xs border-stone-200 bg-white hover:bg-stone-100">
+              <Link href={`/teacher/students/${student.id || student.studentId}`}>Report</Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -210,6 +240,10 @@ function StudentsContent() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [formSuccess, setFormSuccess] = useState(null);
+
+  // Virtual ID Card Modal State
+  const [selectedCardStudent, setSelectedCardStudent] = useState(null);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -335,6 +369,8 @@ function StudentsContent() {
         studentPhone: reg.studentPhone || null,
         address: reg.address || null,
         mediumLanguage: reg.mediumLanguage || "English",
+        bloodGroup: reg.bloodGroup || "O+",
+        photoUrl: reg.photoUrl || null,
         parentalControl: reg.parentalControl || null,
         totalQuizzes: prog.totalQuizzes ?? 0,
         averageScore: typeof prog.averageScore === "number" ? prog.averageScore : 0,
@@ -538,17 +574,26 @@ function StudentsContent() {
           </p>
         </div>
 
-        <Button
-          onClick={() => {
-            setStudentForm(defaultStudentForm());
-            setFormError(null);
-            setFormSuccess(null);
-            setIsAddModalOpen(true);
-          }}
-          className="bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 shrink-0"
-        >
-          <UserPlus className="w-4 h-4" /> Add New Student
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button asChild variant="outline" className="border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-950 font-bold text-xs px-3.5 py-2.5 rounded-lg flex items-center gap-1.5 shadow-2xs">
+            <Link href="/teacher/id-cards">
+              <IdCard className="w-4 h-4 text-indigo-600" />
+              <span>Virtual ID Cards Hub</span>
+            </Link>
+          </Button>
+
+          <Button
+            onClick={() => {
+              setStudentForm(defaultStudentForm());
+              setFormError(null);
+              setFormSuccess(null);
+              setIsAddModalOpen(true);
+            }}
+            className="bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2"
+          >
+            <UserPlus className="w-4 h-4" /> Add New Student
+          </Button>
+        </div>
       </div>
 
       {/* Main Student Card Content */}
@@ -593,7 +638,14 @@ function StudentsContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredStudents.length ? (
                   filteredStudents.map((student) => (
-                    <StudentCard key={student.id} student={student} />
+                    <StudentCard
+                      key={student.id}
+                      student={student}
+                      onOpenIdCard={(st) => {
+                        setSelectedCardStudent(st);
+                        setIsCardModalOpen(true);
+                      }}
+                    />
                   ))
                 ) : (
                   <Card className="md:col-span-2 bg-[#FAF8F5] border-dashed border-stone-300">
@@ -754,17 +806,40 @@ function StudentsContent() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-stone-500" />
-                    <span>Parent Phone Number <span className="text-rose-600">*</span></span>
-                  </label>
-                  <Input
-                    type="tel"
+                  <PhoneAutocompleteInput
                     value={studentForm.parentPhone}
-                    onChange={(e) => updateFormField("parentPhone", e.target.value)}
-                    placeholder="+91 98765 43210 (SMS / WhatsApp alerts)"
-                    className="bg-[#FAF8F5] border-stone-200 text-xs"
-                    required
+                    onChange={(val) => updateFormField("parentPhone", val)}
+                    onSelectPhone={(group) => {
+                      const firstStudent = group.students?.[0];
+                      updateFormField("parentPhone", group.phone);
+                      if (group.guardianName && !studentForm.fatherName) {
+                        updateFormField("fatherName", group.guardianName);
+                      }
+                      if (firstStudent?.parentEmail && !studentForm.parentEmail) {
+                        updateFormField("parentEmail", firstStudent.parentEmail);
+                      }
+                      if (firstStudent?.address && !studentForm.address) {
+                        updateFormField("address", firstStudent.address);
+                      }
+                    }}
+                    onSelectStudent={(st) => {
+                      updateFormField("parentPhone", st.parentPhone || st.phone || studentForm.parentPhone);
+                      if (st.fatherName && !studentForm.fatherName) {
+                        updateFormField("fatherName", st.fatherName);
+                      }
+                      if (st.parentEmail && !studentForm.parentEmail) {
+                        updateFormField("parentEmail", st.parentEmail);
+                      }
+                      if (st.address && !studentForm.address) {
+                        updateFormField("address", st.address);
+                      }
+                    }}
+                    mode="form"
+                    variant="light"
+                    showLabel={true}
+                    label="Parent Phone Number"
+                    required={true}
+                    placeholder="+91 98765 43210 (type to search DB)"
                   />
                 </div>
 
@@ -917,6 +992,18 @@ function StudentsContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Virtual ID Card Modal Dialog */}
+      <VirtualIdCardModal
+        isOpen={isCardModalOpen}
+        onClose={() => {
+          setIsCardModalOpen(false);
+          setSelectedCardStudent(null);
+        }}
+        student={selectedCardStudent}
+        allStudents={students}
+        onSelectStudent={(sib) => setSelectedCardStudent(sib)}
+      />
     </div>
   );
 }

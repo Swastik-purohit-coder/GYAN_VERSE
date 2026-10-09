@@ -1,4 +1,5 @@
 "use client";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
 
 function SunIcon(props) {
@@ -19,12 +20,20 @@ function MoonIcon(props) {
 }
 
 export default function ThemeToggle() {
+  const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+
+  // Completely remove dark mode toggle from both student dashboard and teacher dashboard
+  if (pathname?.startsWith("/student") || pathname?.startsWith("/teacher")) {
+    return null;
+  }
+
   const isDark = theme === "dark";
+
   return (
     <button
       onClick={toggleTheme}
-      className="border rounded inline-flex items-center text-sm px-1.5 py-1 gap-1.5 sm:px-2 sm:py-1 sm:gap-2"
+      className="border rounded inline-flex items-center text-sm px-1.5 py-1 gap-1.5 sm:px-2 sm:py-1 sm:gap-2 cursor-pointer transition-colors"
       title={isDark ? "Switch to light" : "Switch to dark"}
     >
       {isDark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}

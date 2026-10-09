@@ -1,5 +1,6 @@
 "use client";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const ThemeContext = createContext({ theme: "light", setTheme: () => {}, toggleTheme: () => {} });
 
@@ -8,10 +9,25 @@ export function useTheme() {
 }
 
 export default function ThemeProvider({ children }) {
+  const pathname = usePathname();
   const [theme, setTheme] = useState("light");
+
+  // Force light mode on student and teacher dashboards
+  useEffect(() => {
+    if (pathname?.startsWith("/student") || pathname?.startsWith("/teacher")) {
+      setTheme("light");
+      try {
+        localStorage.setItem("theme", "light");
+      } catch {}
+    }
+  }, [pathname]);
 
   // Initialize from localStorage or system preference
   useEffect(() => {
+    if (pathname?.startsWith("/student") || pathname?.startsWith("/teacher")) {
+      setTheme("light");
+      return;
+    }
     try {
       const saved = localStorage.getItem("theme");
       if (saved === "light" || saved === "dark") {
@@ -20,7 +36,7 @@ export default function ThemeProvider({ children }) {
       }
     } catch {}
     setTheme("light");
-  }, []);
+  }, [pathname]);
 
   // Apply class to html element and persist
   useEffect(() => {

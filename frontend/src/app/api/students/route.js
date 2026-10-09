@@ -11,14 +11,178 @@ import {
 
 export const runtime = "nodejs";
 
-// Server memory fallback store
-let globalStudentsRegistry = [];
+// Server memory fallback store with initial multi-student enrollment per mobile number
+let globalStudentsRegistry = [
+  {
+    id: "GYAN-2026-8A-042",
+    studentId: "GYAN-2026-8A-042",
+    userId: "GYAN-2026-8A-042",
+    name: "Aarav Sharma",
+    class: "Class 8",
+    className: "Class 8",
+    section: "Section A",
+    rollNumber: "2026-8A-042",
+    dob: "2012-05-14",
+    fatherName: "Mr. Rajesh Sharma",
+    parentPhone: "+91 98765 43210",
+    parentEmail: "rajesh.sharma@example.com",
+    studentPhone: "+91 98765 43211",
+    bloodGroup: "O+",
+    emergencyPhone: "+91 98765 43210",
+    address: "Plot 42, Shanti Vihar, Civil Lines, Jaipur",
+    mediumLanguage: "English",
+    schoolId: "default_school",
+    totalQuizzes: 14,
+    averageScore: 88,
+    bestScore: 96,
+    lastActivity: "2 hours ago",
+    created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+    parentalControl: {
+      weeklyReports: true,
+      dailyStudyLimit: "2 Hours / Day",
+      safetyMode: true,
+      quizAlerts: true,
+      quietHours: false,
+    },
+  },
+  {
+    id: "GYAN-2026-5B-108",
+    studentId: "GYAN-2026-5B-108",
+    userId: "GYAN-2026-5B-108",
+    name: "Ananya Sharma",
+    class: "Class 5",
+    className: "Class 5",
+    section: "Section B",
+    rollNumber: "2026-5B-108",
+    dob: "2015-09-22",
+    fatherName: "Mr. Rajesh Sharma",
+    parentPhone: "+91 98765 43210",
+    parentEmail: "rajesh.sharma@example.com",
+    studentPhone: "",
+    bloodGroup: "B+",
+    emergencyPhone: "+91 98765 43210",
+    address: "Plot 42, Shanti Vihar, Civil Lines, Jaipur",
+    mediumLanguage: "English",
+    schoolId: "default_school",
+    totalQuizzes: 9,
+    averageScore: 92,
+    bestScore: 100,
+    lastActivity: "4 hours ago",
+    created_at: new Date(Date.now() - 86400000 * 25).toISOString(),
+    parentalControl: {
+      weeklyReports: true,
+      dailyStudyLimit: "1.5 Hours / Day",
+      safetyMode: true,
+      quizAlerts: true,
+      quietHours: true,
+    },
+  },
+  {
+    id: "GYAN-2026-10A-015",
+    studentId: "GYAN-2026-10A-015",
+    userId: "GYAN-2026-10A-015",
+    name: "Kabir Verma",
+    class: "Class 10",
+    className: "Class 10",
+    section: "Section A",
+    rollNumber: "2026-10A-015",
+    dob: "2010-02-18",
+    fatherName: "Dr. Alok Verma",
+    parentPhone: "+91 91234 56780",
+    parentEmail: "alok.verma@example.com",
+    studentPhone: "+91 91234 56782",
+    bloodGroup: "A+",
+    emergencyPhone: "+91 91234 56780",
+    address: "15, Green Park Avenue, New Delhi",
+    mediumLanguage: "English",
+    schoolId: "default_school",
+    totalQuizzes: 22,
+    averageScore: 94,
+    bestScore: 98,
+    lastActivity: "1 hour ago",
+    created_at: new Date(Date.now() - 86400000 * 45).toISOString(),
+    parentalControl: {
+      weeklyReports: true,
+      dailyStudyLimit: "3 Hours / Day",
+      safetyMode: false,
+      quizAlerts: true,
+      quietHours: false,
+    },
+  },
+  {
+    id: "GYAN-2026-7C-089",
+    studentId: "GYAN-2026-7C-089",
+    userId: "GYAN-2026-7C-089",
+    name: "Rhea Verma",
+    class: "Class 7",
+    className: "Class 7",
+    section: "Section C",
+    rollNumber: "2026-7C-089",
+    dob: "2013-11-05",
+    fatherName: "Dr. Alok Verma",
+    parentPhone: "+91 91234 56780",
+    parentEmail: "alok.verma@example.com",
+    studentPhone: "",
+    bloodGroup: "AB+",
+    emergencyPhone: "+91 91234 56780",
+    address: "15, Green Park Avenue, New Delhi",
+    mediumLanguage: "English",
+    schoolId: "default_school",
+    totalQuizzes: 12,
+    averageScore: 85,
+    bestScore: 90,
+    lastActivity: "5 hours ago",
+    created_at: new Date(Date.now() - 86400000 * 40).toISOString(),
+    parentalControl: {
+      weeklyReports: true,
+      dailyStudyLimit: "2 Hours / Day",
+      safetyMode: true,
+      quizAlerts: true,
+      quietHours: false,
+    },
+  },
+  {
+    id: "GYAN-2026-9B-031",
+    studentId: "GYAN-2026-9B-031",
+    userId: "GYAN-2026-9B-031",
+    name: "Diya Patel",
+    class: "Class 9",
+    className: "Class 9",
+    section: "Section B",
+    rollNumber: "2026-9B-031",
+    dob: "2011-07-29",
+    fatherName: "Mr. Sanjay Patel",
+    parentPhone: "+91 98112 34567",
+    parentEmail: "sanjay.patel@example.com",
+    studentPhone: "+91 98112 34568",
+    bloodGroup: "O+",
+    emergencyPhone: "+91 98112 34567",
+    address: "88, Navrangpura, Ahmedabad, Gujarat",
+    mediumLanguage: "English",
+    schoolId: "default_school",
+    totalQuizzes: 18,
+    averageScore: 91,
+    bestScore: 95,
+    lastActivity: "Yesterday",
+    created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
+    parentalControl: {
+      weeklyReports: true,
+      dailyStudyLimit: "2.5 Hours / Day",
+      safetyMode: true,
+      quizAlerts: true,
+      quietHours: false,
+    },
+  },
+];
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get("schoolId");
     const classFilter = searchParams.get("class");
+    const uniqueIdFilter = searchParams.get("uniqueId");
+    const phoneFilter = searchParams.get("phone") || searchParams.get("parentPhone");
+    const searchFilter = searchParams.get("search");
 
     let dbStudents = [];
 
@@ -29,7 +193,8 @@ export async function GET(request) {
           .select("*")
           .eq("role", "student");
 
-        if (schoolId && schoolId !== "default_school") {
+        // When searching by phone, uniqueId, or search, query globally across all schools
+        if (schoolId && schoolId !== "default_school" && schoolId !== "all" && !phoneFilter && !uniqueIdFilter && !searchFilter) {
           query = query.or(`school_id.eq.${schoolId},school_id.is.null,school_id.eq.default_school`);
         }
 
@@ -58,6 +223,9 @@ export async function GET(request) {
             section: row.metadata?.section || row.section || null,
             rollNumber: row.metadata?.rollNumber || row.roll_number || row.user_id || null,
             mediumLanguage: row.metadata?.mediumLanguage || "English",
+            bloodGroup: row.metadata?.bloodGroup || "O+",
+            emergencyPhone: row.metadata?.emergencyPhone || row.parent_phone || null,
+            photoUrl: row.metadata?.photoUrl || null,
             parentalControl: row.metadata?.parentalControl || null,
             selectedInterests: row.metadata?.selectedInterests || [],
             primaryGoal: row.metadata?.primaryGoal || null,
@@ -80,7 +248,43 @@ export async function GET(request) {
       }
     });
 
-    const result = Array.from(map.values());
+    let result = Array.from(map.values());
+
+    // Apply uniqueId filter if provided
+    if (uniqueIdFilter) {
+      const uq = uniqueIdFilter.trim().toLowerCase();
+      result = result.filter(
+        (s) =>
+          String(s.id).toLowerCase() === uq ||
+          String(s.studentId).toLowerCase() === uq ||
+          String(s.rollNumber).toLowerCase() === uq
+      );
+    }
+
+    // Apply phone filter if provided
+    if (phoneFilter) {
+      const cleanPhone = phoneFilter.replace(/[^0-9]/g, "");
+      result = result.filter((s) => {
+        const p1 = (s.parentPhone || "").replace(/[^0-9]/g, "");
+        const p2 = (s.studentPhone || "").replace(/[^0-9]/g, "");
+        return (cleanPhone && (p1.includes(cleanPhone) || p2.includes(cleanPhone)));
+      });
+    }
+
+    // Apply search filter if provided
+    if (searchFilter) {
+      const q = searchFilter.trim().toLowerCase();
+      result = result.filter(
+        (s) =>
+          (s.name && s.name.toLowerCase().includes(q)) ||
+          (s.id && s.id.toLowerCase().includes(q)) ||
+          (s.studentId && s.studentId.toLowerCase().includes(q)) ||
+          (s.rollNumber && String(s.rollNumber).toLowerCase().includes(q)) ||
+          (s.fatherName && s.fatherName.toLowerCase().includes(q)) ||
+          (s.parentPhone && s.parentPhone.includes(q))
+      );
+    }
+
     return NextResponse.json(result, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -116,6 +320,9 @@ export async function POST(request) {
       parentPhone,
       parentEmail,
       studentPhone,
+      bloodGroup,
+      emergencyPhone,
+      photoUrl,
       address,
       className,
       class: klass,
@@ -140,6 +347,9 @@ export async function POST(request) {
       parentPhone: parentPhone || null,
       parentEmail: parentEmail || null,
       studentPhone: studentPhone || null,
+      bloodGroup: bloodGroup || "O+",
+      emergencyPhone: emergencyPhone || parentPhone || null,
+      photoUrl: photoUrl || null,
       address: address || null,
       section: section || null,
       rollNumber: rollNumber || studentId || null,
@@ -163,6 +373,9 @@ export async function POST(request) {
       class: assignedClass,
       className: assignedClass,
       schoolId: schoolId || "default_school",
+      bloodGroup: bloodGroup || "O+",
+      emergencyPhone: emergencyPhone || parentPhone || null,
+      photoUrl: photoUrl || null,
       ...metadata,
       totalQuizzes: 0,
       averageScore: 0,

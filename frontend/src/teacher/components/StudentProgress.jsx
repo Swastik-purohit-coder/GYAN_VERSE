@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, User, TrendingUp, TrendingDown, Minus, BookOpen, Award, Clock } from 'lucide-react';
+import { Search, Filter, User, TrendingUp, TrendingDown, Minus, BookOpen, Award, Clock, IdCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import VirtualIdCardModal from './VirtualIdCardModal';
 
 // STEM-focused student data
 const studentsData = [
@@ -95,6 +96,7 @@ export function StudentProgress({ compact = false }) {
   const [search, setSearch] = useState('');
   const [selectedClass, setSelectedClass] = useState('All Classes');
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedStudentForId, setSelectedStudentForId] = useState(null);
 
   const filteredStudents = useMemo(() => {
     return studentsData.filter(student => {
@@ -230,10 +232,49 @@ export function StudentProgress({ compact = false }) {
                   ))}
                 </div>
               </div>
+
+              {/* Virtual ID Card Action */}
+              <div className="pt-2.5 border-t border-slate-100">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSelectedStudentForId(student)}
+                  className="w-full text-xs font-bold border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-950 flex items-center justify-center gap-1.5 h-8 shadow-2xs"
+                >
+                  <IdCard className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Virtual ID Card</span>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Virtual ID Card Modal Dialog */}
+      {selectedStudentForId && (
+        <VirtualIdCardModal
+          isOpen={!!selectedStudentForId}
+          onClose={() => setSelectedStudentForId(null)}
+          student={{
+            ...selectedStudentForId,
+            studentId: `GYAN-2026-${selectedStudentForId.grade || 8}A-00${selectedStudentForId.id}`,
+            rollNumber: `2026-${selectedStudentForId.grade || 8}A-00${selectedStudentForId.id}`,
+            parentPhone: "+91 98765 43210",
+            fatherName: "Mr. Parent / Guardian",
+            dob: "2012-04-12",
+            bloodGroup: "O+",
+            mediumLanguage: "English",
+            address: "Campus Residential Quarter, Vidyapeeth",
+          }}
+          allStudents={studentsData.map((s) => ({
+            ...s,
+            studentId: `GYAN-2026-${s.grade || 8}A-00${s.id}`,
+            rollNumber: `2026-${s.grade || 8}A-00${s.id}`,
+            parentPhone: s.id <= 2 ? "+91 98765 43210" : "+91 91234 56780",
+          }))}
+          onSelectStudent={(sib) => setSelectedStudentForId(sib)}
+        />
+      )}
     </div>
   );
 }
