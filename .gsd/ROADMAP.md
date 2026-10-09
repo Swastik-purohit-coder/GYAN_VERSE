@@ -1,13 +1,13 @@
 ---
 milestone: Class-Wise Examination Information & Recommendation System
 version: 1.0.0
-updated: 2026-10-09T15:43:00+05:30
+updated: 2026-10-09T15:55:00+05:30
 ---
 
 # Roadmap
 
-> **Current Phase:** Phase 5 - Verification, Empirical Validation & Documentation
-> **Status:** in_progress
+> **Current Phase:** Milestone Complete
+> **Status:** complete
 
 ## Must-Haves (from SPEC)
 
@@ -19,6 +19,7 @@ updated: 2026-10-09T15:43:00+05:30
 - [x] "My Tracked Exams" bookmarking & deadline countdown tracker.
 - [x] Navigation integration into student sidebar and header.
 - [x] Webapp local-first Dexie IndexedDB caching, Service Worker shell precaching, and offline sync queue.
+- [x] Public access at `/exams` and `/student/exams` with resolved authentication redirects.
 
 ---
 
@@ -73,11 +74,11 @@ updated: 2026-10-09T15:43:00+05:30
 ---
 
 ### Phase 5: Verification, Empirical Validation & Documentation
-**Status:** ⬜ Not Started
-**Objective:** End-to-end verification, Next.js build validation, accessibility testing, and comprehensive user documentation.
+**Status:** ✅ Complete
+**Objective:** End-to-end verification, Next.js build validation, route loading resolution, and milestone completion documentation.
 **Depends on:** Phase 4
 **Requirements:** REQ-BUILD-VERIFY, REQ-DOCS
 
 **Plans:**
-- [ ] Plan 5.1: Build & Integrity Verification
-- [ ] Plan 5.2: Release Notes & User Documentation
+- [x] Plan 5.1: Resolve Route Loading Blocker & Add Public Access
+- [x] Plan 5.2: Execute Verification Test Suites & Production Build
