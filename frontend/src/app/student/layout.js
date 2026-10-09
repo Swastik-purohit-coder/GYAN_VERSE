@@ -26,6 +26,7 @@ import {
   Bell,
   Users,
   WifiOff,
+  GraduationCap,
 } from "lucide-react";
 import { Input } from "@/student/components/ui/input";
 import { useI18n } from "@/i18n/useI18n";
@@ -36,6 +37,7 @@ import SyncStatusBadge from "@/components/SyncStatusBadge";
 const makeNavItems = (t) => [
   { href: "/student", label: t?.nav?.dashboard ? t.nav.dashboard() : "Dashboard", icon: Home },
   { href: "/student/courses", label: t?.nav?.courses ? t.nav.courses() : "Courses", icon: BookOpen },
+  { href: "/student/exams", label: "Exams & Scholarships", icon: GraduationCap },
   { href: "/student/groups", label: "Peer Groups", icon: Users },
   { href: "/student/quiz", label: "Quiz", icon: ClipboardList },
   { href: "/student/achievements", label: t?.nav?.achievements ? t.nav.achievements() : "Achievements", icon: Star },
