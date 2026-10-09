@@ -32,7 +32,9 @@ import {
   TrendingUp,
   ChevronRight,
   MessageSquare,
+  IdCard,
 } from "lucide-react";
+import Link from "next/link";
 import TeacherDoubtSessionsWidget from "./TeacherDoubtSessionsWidget";
 
 const StatCard = ({ icon: Icon, label, value }) => (
@@ -203,46 +205,51 @@ function DashboardContent() {
                 </div>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 {
                   icon: GraduationCap,
                   label: "Classes",
-                  desc: "STEM classes and quick actions",
+                  desc: "STEM curriculum & schedule",
+                  href: "/teacher/classes",
                 },
                 {
                   icon: Users,
                   label: "Students",
-                  desc: "Individual STEM progress tracking",
+                  desc: "Academic cohort & progress",
+                  href: "/teacher/students",
+                },
+                {
+                  icon: IdCard,
+                  label: "Virtual ID Cards",
+                  desc: "Issue & scan cards by unique ID",
+                  href: "/teacher/id-cards",
                 },
                 {
                   icon: LineChartIcon,
                   label: "Reports",
-                  desc: "STEM analytics and detailed reports",
+                  desc: "Institutional performance analytics",
+                  href: "/teacher/reports",
                 },
-              ].map(({ icon: Ico, label, desc }) => (
-                <Card key={label} className="border-slate-200">
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-md bg-violet-100 text-violet-700">
-                        <Ico className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-slate-900">
-                          {label}
+              ].map(({ icon: Ico, label, desc, href }) => (
+                <Link key={label} href={href} className="block group">
+                  <Card className="border-slate-200 h-full hover:border-violet-300 hover:shadow-sm transition-all">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-violet-100 text-violet-700 group-hover:bg-violet-600 group-hover:text-white transition-colors shrink-0">
+                          <Ico className="w-5 h-5" />
                         </div>
-                        <div className="text-xs text-slate-500">{desc}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-slate-900 text-sm truncate group-hover:text-violet-700 transition-colors">
+                            {label}
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate">{desc}</div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-violet-700 group-hover:translate-x-0.5 transition-all shrink-0" />
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-violet-700 hover:text-violet-800"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
           </CardContent>

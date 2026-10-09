@@ -23,6 +23,7 @@ import {
   GraduationCap,
   X,
   Menu,
+  IdCard,
 } from "lucide-react";
 
 // All Navigation items with granular role access definitions
@@ -48,6 +49,7 @@ const rawNavSections = [
   {
     title: "Academics & Classroom",
     items: [
+      { href: "/teacher/id-cards", label: "Virtual ID Cards", icon: IdCard, badge: "Smart ID" },
       { href: "/teacher/doubts", label: "Doubt Sessions", icon: MessageSquare, badge: "Doubts" },
       { href: "/teacher/classes", label: "Classes & Curriculum", icon: BookOpen },
       { href: "/teacher/students", label: "Student Progress", icon: Users },
