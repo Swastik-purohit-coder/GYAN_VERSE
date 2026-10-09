@@ -63,6 +63,12 @@ export default function OfflineSafeAuthGuard({ children, fallback = null }) {
     return <>{children}</>;
   }
 
+  // Educational Knowledge Base (/student/exams) is publicly accessible without forced sign-in
+  const isExamsPage = typeof window !== "undefined" && window.location.pathname.startsWith("/student/exams");
+  if (isExamsPage) {
+    return <>{children}</>;
+  }
+
   // Before hydration mounted, render children so SSR matches and offline users get instant content
   if (!mounted) {
     return <>{children}</>;

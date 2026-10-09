@@ -285,6 +285,47 @@ export async function POST(request) {
           }
           processedIds.push(id);
           results.push({ id, status: "group_message_synced" });
+        }
+        // =========================================================================
+        // 7. TRACK_EXAM & UNTRACK_EXAM
+        // =========================================================================
+        else if (action === "TRACK_EXAM") {
+          const examId = entityId || payload?.examId;
+          try {
+            if (examId) {
+              await run(
+                supabase
+                  .from("student_tracked_exams")
+                  .upsert({
+                    user_id: userId,
+                    exam_id: examId,
+                    tracked_at: payload?.trackedAt || nowIso(),
+                    updated_at: nowIso(),
+                  })
+              ).catch(() => {});
+            }
+          } catch (exErr) {
+            console.warn("[/api/sync] Track exam warning:", exErr.message);
+          }
+          processedIds.push(id);
+          results.push({ id, examId, status: "exam_tracked_synced" });
+        } else if (action === "UNTRACK_EXAM") {
+          const examId = entityId || payload?.examId;
+          try {
+            if (examId) {
+              await run(
+                supabase
+                  .from("student_tracked_exams")
+                  .delete()
+                  .eq("user_id", userId)
+                  .eq("exam_id", examId)
+              ).catch(() => {});
+            }
+          } catch (exErr) {
+            console.warn("[/api/sync] Untrack exam warning:", exErr.message);
+          }
+          processedIds.push(id);
+          results.push({ id, examId, status: "exam_untracked_synced" });
         } else {
           // Unknown action -> mark processed so queue is not stuck
           processedIds.push(id);

@@ -1,0 +1,84 @@
+---
+milestone: Class-Wise Examination Information & Recommendation System
+version: 1.0.0
+updated: 2026-10-09T15:55:00+05:30
+---
+
+# Roadmap
+
+> **Current Phase:** Milestone Complete
+> **Status:** complete
+
+## Must-Haves (from SPEC)
+
+- [x] Complete typed database of 20+ examinations covering Class 5-8, Class 9-10, and Class 11-12 (PMST, JNVST, NMMS, AISSEE, Olympiads, JEE, NEET, NDA, NEST, IAT, CUET, CLAT, etc.).
+- [x] Each exam includes: Overview, Conducting Body, How It Works, Tangible Benefits & Stipends, Exact Eligibility, Step-by-Step Timeline, Syllabus & Pattern, and Official Links.
+- [x] Intelligent Recommendation Engine matching students by Class, Stream, Aspiration, Income, and State with Match % and rationale.
+- [x] Interactive Web UI at `/student/exams` with Class-wise filters, Category tabs, Status filters, Recommendation spotlight, and Rich Detail Modal.
+- [x] 3-step "Find My Perfect Exams" Recommendation Wizard.
+- [x] "My Tracked Exams" bookmarking & deadline countdown tracker.
+- [x] Navigation integration into student sidebar and header.
+- [x] Webapp local-first Dexie IndexedDB caching, Service Worker shell precaching, and offline sync queue.
+- [x] Public access at `/exams` and `/student/exams` with resolved authentication redirects.
+
+---
+
+## Phases
+
+### Phase 1: Domain Modeling & Comprehensive Exam Knowledge Base
+**Status:** ✅ Complete
+**Objective:** Define TypeScript types and build the rich canonical dataset of 20+ class-wise examinations with deep metadata, step-by-step application timelines, exact benefit figures, and syllabus structures.
+**Requirements:** REQ-EXAM-DATA, REQ-EXAM-TYPES
+
+**Plans:**
+- [x] Plan 1.1: Core Types & Comprehensive Class-Wise Exam Dataset (`shared/types/exams.ts`, `frontend/src/data/examsData.js`)
+- [x] Plan 1.2: Data Integrity & Validation Verification
+
+---
+
+### Phase 2: Recommendation Engine & Interactive Wizard Logic
+**Status:** ✅ Complete
+**Objective:** Develop the deterministic recommendation algorithm calculating match percentages, eligibility gates, and personalized explanations, along with the interactive 3-step recommendation wizard.
+**Depends on:** Phase 1
+**Requirements:** REQ-RECOM-ENGINE, REQ-WIZARD-LOGIC
+
+**Plans:**
+- [x] Plan 2.1: Recommendation Algorithm & Eligibility Scoring Service
+- [x] Plan 2.2: Persona Verification Suite (Classes 6, 8, 10, 12 PCM/PCB/Arts/Commerce)
+
+---
+
+### Phase 3: Student Web Portal Implementation (`/student/exams`)
+**Status:** ✅ Complete
+**Objective:** Build the modern, responsive web interface in Next.js with Class filters, Category tabs, Search, Recommended Spotlight, Detailed Exam Modal, Interactive Roadmap Stepper, and "My Tracked Exams" system.
+**Depends on:** Phase 2
+**Requirements:** REQ-EXAM-UI, REQ-TIMELINE-STEPPER, REQ-TRACKER
+
+**Plans:**
+- [x] Plan 3.1: Exam Directory Page, Filters, Search & Recommendation Spotlight
+- [x] Plan 3.2: Interactive Exam Detail Modal, Timeline Stepper, Benefit Calculator & Bookmarking
+- [x] Plan 3.3: Sidebar & Header Navigation Integration (`frontend/src/app/student/layout.js`, `Header.js`)
+
+---
+
+### Phase 4: Offline Synchronization (Web Application)
+**Status:** ✅ Complete
+**Objective:** Establish web application local-first persistence with Dexie v4 stores (`examsCache`, `trackedExams`, `examRecommendations`), service worker shell precaching (`sw.js` v11), offline sync queue for tracking mutations (`/api/sync`), and live offline indicators.
+**Depends on:** Phase 3
+**Requirements:** REQ-OFFLINE-CACHE, REQ-TRACKER
+
+**Plans:**
+- [x] Plan 4.1: Dexie IndexedDB v4 Schema & Offline Repository Layer
+- [x] Plan 4.2: Service Worker Pre-caching, Offline UI Indicators & Sync Queueing
+
+---
+
+### Phase 5: Verification, Empirical Validation & Documentation
+**Status:** ✅ Complete
+**Objective:** End-to-end verification, Next.js build validation, route loading resolution, and milestone completion documentation.
+**Depends on:** Phase 4
+**Requirements:** REQ-BUILD-VERIFY, REQ-DOCS
+
+**Plans:**
+- [x] Plan 5.1: Resolve Route Loading Blocker & Add Public Access
+- [x] Plan 5.2: Execute Verification Test Suites & Production Build

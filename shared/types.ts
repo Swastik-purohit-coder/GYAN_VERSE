@@ -116,3 +116,5 @@ export interface StreakRecord {
   completedTasks: string[];
   synced: boolean;
 }
+
+export * from './types/exams';

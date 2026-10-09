@@ -74,6 +74,11 @@ export default isPlaceholderKey
 
       // 2. Unauthenticated user handling for protected pages
       if (!effectiveUserId) {
+        // Educational Knowledge Base & Examination Roadmap is publicly accessible
+        if (pathname.startsWith("/student/exams") || pathname === "/exams") {
+          return NextResponse.next();
+        }
+
         if (
           isPrincipalRoute(request) ||
           isTeacherRoute(request) ||
