@@ -67,6 +67,47 @@ db.version(3).stores({
   groupResources: "&id, group_id, file_name, file_type, file_size, file_url, created_at",
 });
 
+db.version(4).stores({
+  // Cached API GET data
+  cachedApi: "&key, endpoint, timestamp, ttl",
+
+  // Structured lesson progress
+  lessonProgress: "&lessonId, studentId, completed, lastPosition, completedAt, updatedAt, syncStatus",
+
+  // Offline quiz attempts & submissions
+  quizAttempts: "++id, quizId, studentId, score, completedAt, syncStatus, idempotentKey",
+
+  // Queue for offline sync operations (POST /api/sync)
+  syncQueue: "++id, action, entityType, entityId, idempotentKey, timestamp, status, retryCount, lastAttempt, error",
+
+  // Local metadata registry for downloaded offline videos & audio
+  downloadsMetadata: "&id, lessonId, type, url, title, moduleTitle, class, schoolId, sizeBytes, downloadedAt",
+
+  // Cached User Profile & Session info for offline authorization
+  userProfile: "&userId, role, name, class, schoolId, updatedAt",
+
+  // 1-on-1 Doubt Sessions
+  doubtSessions: "&id, student_id, teacher_id, subject, title, status, unread_by_student, unread_by_teacher, created_at, updated_at",
+
+  // Messages inside Doubt Sessions
+  doubtMessages: "++id, session_id, sender_id, sender_name, sender_role, message, created_at, syncStatus",
+
+  // Class Group Chat Messages
+  groupMessages: "++id, group_id, sender_id, sender_name, sender_role, message, created_at, syncStatus",
+
+  // Class Group Shared Resources
+  groupResources: "&id, group_id, file_name, file_type, file_size, file_url, created_at",
+
+  // Class-wise Examinations Knowledge Base
+  examsCache: "&id, slug, category, classBracket, title, lastCached",
+
+  // Tracked / Bookmarked Examinations with sync status
+  trackedExams: "&examId, studentId, trackedAt, syncStatus, reminderDate",
+
+  // Cached Recommendation Output Profiles
+  examRecommendations: "&profileKey, studentClass, stream, aspiration, recommendations, cachedAt",
+});
+
 /**
  * Cache arbitrary API response JSON in IndexedDB
  */
@@ -673,10 +714,163 @@ export async function seedOfflineDatabaseIfEmpty() {
       updatedAt: new Date().toISOString(),
     });
 
+    // 11. Examinations & Scholarships Knowledge Base
+    try {
+      const examsMod = await import("@/data/examsData").catch(() => null);
+      if (examsMod?.EXAMS_DATABASE && Array.isArray(examsMod.EXAMS_DATABASE)) {
+        await cacheAllExamsOffline(examsMod.EXAMS_DATABASE);
+      }
+    } catch (e) {
+      console.warn("[IndexedDB] Could not seed exams offline:", e);
+    }
+
     // Mark initialization complete
     await cacheApiResponse("seed_initialized", true);
     console.log("[IndexedDB] Offline dataset successfully populated.");
   } catch (err) {
     console.warn("[IndexedDB] Seed initialization error:", err);
+  }
+}
+
+/**
+ * Caches all examinations into IndexedDB Dexie examsCache store.
+ */
+export async function cacheAllExamsOffline(examsList) {
+  if (!Array.isArray(examsList) || examsList.length === 0) return;
+  try {
+    const records = examsList.map((exam) => ({
+      ...exam,
+      lastCached: Date.now(),
+    }));
+    await db.examsCache.bulkPut(records);
+    await cacheApiResponse("exams_database_all", examsList);
+  } catch (err) {
+    console.warn("[IndexedDB] Failed to cache exams offline:", err);
+  }
+}
+
+/**
+ * Retrieves all offline cached examinations with optional filtering.
+ */
+export async function getOfflineExams() {
+  try {
+    let exams = await db.examsCache.toArray();
+    if (!exams || exams.length === 0) {
+      const cached = await getCachedApiResponse("exams_database_all");
+      if (Array.isArray(cached) && cached.length > 0) {
+        exams = cached;
+      }
+    }
+    return exams || [];
+  } catch (err) {
+    console.warn("[IndexedDB] Failed to retrieve offline exams:", err);
+    return [];
+  }
+}
+
+/**
+ * Saves a tracked (bookmarked) exam in IndexedDB and enqueues sync operation.
+ */
+export async function saveTrackedExamOffline(examId, studentId = "current", metadata = {}) {
+  try {
+    const trackedAt = new Date().toISOString();
+    const record = {
+      examId,
+      studentId,
+      trackedAt,
+      syncStatus: "pending",
+      ...metadata,
+    };
+    await db.trackedExams.put(record);
+
+    // Enqueue for background sync
+    await enqueueSyncOperation({
+      action: "TRACK_EXAM",
+      entityType: "tracked_exam",
+      entityId: examId,
+      idempotentKey: `track_exam_${studentId}_${examId}`,
+      payload: {
+        examId,
+        studentId,
+        trackedAt,
+        metadata,
+      },
+    });
+
+    return record;
+  } catch (err) {
+    console.warn("[IndexedDB] Failed to save tracked exam offline:", err);
+    return null;
+  }
+}
+
+/**
+ * Removes a tracked exam in IndexedDB and enqueues untrack sync operation.
+ */
+export async function removeTrackedExamOffline(examId, studentId = "current") {
+  try {
+    await db.trackedExams.delete(examId);
+
+    // Enqueue for background sync
+    await enqueueSyncOperation({
+      action: "UNTRACK_EXAM",
+      entityType: "tracked_exam",
+      entityId: examId,
+      idempotentKey: `untrack_exam_${studentId}_${examId}_${Date.now()}`,
+      payload: {
+        examId,
+        studentId,
+        untrackedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    console.warn("[IndexedDB] Failed to remove tracked exam offline:", err);
+  }
+}
+
+/**
+ * Retrieves all tracked exam records from IndexedDB.
+ */
+export async function getTrackedExamsOffline(studentId = null) {
+  try {
+    const list = await db.trackedExams.toArray();
+    if (!studentId || studentId === "current") return list;
+    return list.filter((item) => item.studentId === studentId);
+  } catch (err) {
+    console.warn("[IndexedDB] Failed to get tracked exams offline:", err);
+    return [];
+  }
+}
+
+/**
+ * Caches calculated exam recommendations for a student profile.
+ */
+export async function cacheExamRecommendationsOffline(profile, recommendations) {
+  try {
+    const profileKey = `${profile.studentClass}_${profile.stream || "any"}_${profile.aspiration || "all"}`;
+    await db.examRecommendations.put({
+      profileKey,
+      studentClass: profile.studentClass,
+      stream: profile.stream || "any",
+      aspiration: profile.aspiration || "all",
+      recommendations,
+      cachedAt: Date.now(),
+    });
+  } catch (err) {
+    console.warn("[IndexedDB] Failed to cache exam recommendations offline:", err);
+  }
+}
+
+/**
+ * Retrieves cached exam recommendations for a student profile.
+ */
+export async function getCachedExamRecommendationsOffline(profile) {
+  try {
+    const profileKey = `${profile.studentClass}_${profile.stream || "any"}_${profile.aspiration || "all"}`;
+    const result = await db.examRecommendations.get(profileKey);
+    return result ? result.recommendations : null;
+  } catch (err) {
+    console.warn("[IndexedDB] Failed to retrieve cached exam recommendations:", err);
+    return null;
   }
 }

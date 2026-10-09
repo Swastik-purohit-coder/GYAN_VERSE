@@ -600,6 +600,100 @@ export async function getOfflineGroup() {
   return cached || OFFLINE_SEED_GROUP;
 }
 
+/**
+ * Retrieves all examinations from local-first storage or fallback seed database
+ */
+export async function getOfflineExamsList(filters = {}) {
+  try {
+    const { getOfflineExams, cacheAllExamsOffline } = await import("@/lib/offlineDb");
+    let exams = await getOfflineExams();
+
+    if (!exams || exams.length === 0) {
+      const { EXAMS_DATABASE } = await import("@/data/examsData");
+      if (Array.isArray(EXAMS_DATABASE) && EXAMS_DATABASE.length > 0) {
+        exams = EXAMS_DATABASE;
+        // Asynchronously populate cache
+        cacheAllExamsOffline(EXAMS_DATABASE).catch(() => {});
+      }
+    }
+
+    if (filters && Object.keys(filters).length > 0) {
+      const { filterExams } = await import("@/lib/recommendationEngine");
+      return filterExams(exams, filters);
+    }
+
+    return exams || [];
+  } catch (e) {
+    console.warn("[offlineRepository] Failed to fetch offline exams:", e);
+    const { EXAMS_DATABASE } = await import("@/data/examsData").catch(() => ({ EXAMS_DATABASE: [] }));
+    return EXAMS_DATABASE || [];
+  }
+}
+
+/**
+ * Toggles tracking an exam with local-first IndexedDB persistence and sync queuing
+ */
+export async function toggleTrackedExamLocalFirst(examId, studentId = "current") {
+  try {
+    const { saveTrackedExamOffline, removeTrackedExamOffline, getTrackedExamsOffline } = await import("@/lib/offlineDb");
+    const currentList = await getTrackedExamsOffline(studentId);
+    const isCurrentlyTracked = currentList.some((item) => item.examId === examId);
+
+    if (isCurrentlyTracked) {
+      await removeTrackedExamOffline(examId, studentId);
+      return { examId, isTracked: false };
+    } else {
+      await saveTrackedExamOffline(examId, studentId);
+      return { examId, isTracked: true };
+    }
+  } catch (e) {
+    console.warn("[offlineRepository] Failed to toggle tracked exam local-first:", e);
+    return { examId, isTracked: false };
+  }
+}
+
+/**
+ * Retrieves list of tracked exam IDs from IndexedDB or localStorage
+ */
+export async function getTrackedExamIdsLocalFirst(studentId = "current") {
+  try {
+    const { getTrackedExamsOffline } = await import("@/lib/offlineDb");
+    const list = await getTrackedExamsOffline(studentId);
+    if (list && list.length > 0) {
+      return list.map((item) => item.examId);
+    }
+  } catch (e) {}
+
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem("tracked_exams_list");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+  }
+  return [];
+}
+
+/**
+ * Generates personalized exam recommendations offline from local database
+ */
+export async function getPersonalizedRecommendationsLocalFirst(studentProfile) {
+  try {
+    const { getCachedExamRecommendationsOffline, cacheExamRecommendationsOffline } = await import("@/lib/offlineDb");
+    const cached = await getCachedExamRecommendationsOffline(studentProfile);
+    if (cached) return cached;
+
+    const exams = await getOfflineExamsList();
+    const { getPersonalizedExamRecommendations } = await import("@/lib/recommendationEngine");
+    const recs = getPersonalizedExamRecommendations(studentProfile, exams);
+
+    cacheExamRecommendationsOffline(studentProfile, recs).catch(() => {});
+    return recs;
+  } catch (e) {
+    console.warn("[offlineRepository] Recommendation generation fallback:", e);
+    return [];
+  }
+}
+
 export {
   saveLocalLessonProgress,
   saveOfflineQuizAttempt,

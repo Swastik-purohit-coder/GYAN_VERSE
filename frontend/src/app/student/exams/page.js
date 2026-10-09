@@ -19,12 +19,22 @@ import {
   ShieldAlert,
   ArrowRight,
   RotateCcw,
+  WifiOff,
+  CheckCircle2,
+  HardDriveDownload,
 } from "lucide-react";
 import { EXAMS_DATABASE } from "@/data/examsData";
 import {
   getPersonalizedExamRecommendations,
   filterExams,
 } from "@/lib/recommendationEngine";
+import {
+  cacheAllExamsOffline,
+  getOfflineExams,
+  saveTrackedExamOffline,
+  removeTrackedExamOffline,
+  getTrackedExamsOffline,
+} from "@/lib/offlineDb";
 import ExamCard from "@/components/exams/ExamCard";
 import ExamDetailModal from "@/components/exams/ExamDetailModal";
 import RecommendationWizardModal from "@/components/exams/RecommendationWizardModal";
@@ -44,7 +54,11 @@ export default function ExamsHubPage() {
   const [selectedExam, setSelectedExam] = useState(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
-  // 4. Student Profile for Personalization
+  // 4. Offline Connectivity & Cache State
+  const [isOffline, setIsOffline] = useState(false);
+  const [isOfflineCached, setIsOfflineCached] = useState(false);
+
+  // 5. Student Profile for Personalization
   const [studentProfile, setStudentProfile] = useState({
     studentClass: 10,
     stream: "general",
@@ -53,7 +67,7 @@ export default function ExamsHubPage() {
     state: "Odisha",
   });
 
-  // Load tracked exams and profile from localStorage on client mount
+  // Load tracked exams and profile from localStorage and IndexedDB
   useEffect(() => {
     try {
       const savedTracks = localStorage.getItem("tracked_exams_list");
@@ -67,20 +81,64 @@ export default function ExamsHubPage() {
     } catch (e) {
       console.warn("Could not load exam data from localStorage", e);
     }
+
+    // Network status listener
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    if (typeof navigator !== "undefined") {
+      setIsOffline(!navigator.onLine);
+    }
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Warm offline Dexie cache with authoritative examinations data
+    cacheAllExamsOffline(EXAMS_DATABASE)
+      .then(() => setIsOfflineCached(true))
+      .catch(() => {});
+
+    // Sync tracked exams from IndexedDB
+    getTrackedExamsOffline()
+      .then((records) => {
+        if (records && records.length > 0) {
+          const ids = records.map((r) => r.examId);
+          setTrackedExamIds((prev) => {
+            const merged = Array.from(new Set([...prev, ...ids]));
+            try {
+              localStorage.setItem("tracked_exams_list", JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
-  // Toggle Tracking an Exam
+  // Toggle Tracking an Exam (Local-First: State + LocalStorage + Dexie IndexedDB + SyncQueue)
   const handleToggleTrack = (examId) => {
     setTrackedExamIds((prev) => {
-      let next;
-      if (prev.includes(examId)) {
-        next = prev.filter((id) => id !== examId);
-      } else {
-        next = [...prev, examId];
-      }
+      const isCurrentlyTracked = prev.includes(examId);
+      const next = isCurrentlyTracked
+        ? prev.filter((id) => id !== examId)
+        : [...prev, examId];
+
       try {
         localStorage.setItem("tracked_exams_list", JSON.stringify(next));
       } catch (e) {}
+
+      // Persist in IndexedDB with sync queuing
+      if (isCurrentlyTracked) {
+        removeTrackedExamOffline(examId).catch(() => {});
+      } else {
+        saveTrackedExamOffline(examId).catch(() => {});
+      }
+
       return next;
     });
   };
@@ -141,9 +199,17 @@ export default function ExamsHubPage() {
         <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-purple-500/15 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-4xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-purple-200">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Authoritative National & State Examination Portal</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-purple-200">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Authoritative National & State Examination Portal</span>
+            </div>
+            {isOfflineCached && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold text-emerald-300">
+                <HardDriveDownload className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Offline Ready (23 Exams Cached)</span>
+              </div>
+            )}
           </div>
 
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
@@ -200,6 +266,16 @@ export default function ExamsHubPage() {
           </div>
         </div>
       </section>
+
+      {/* Offline Alert Banner */}
+      {isOffline && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs sm:text-sm font-semibold shadow-xs">
+          <WifiOff className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div className="flex-1">
+            <span className="font-bold">Offline Mode Active:</span> You are browsing 23 cached examinations offline. Bookmarking, search, and recommendation filters work seamlessly and will synchronize to your account when reconnected.
+          </div>
+        </div>
+      )}
 
       {/* =========================================================
           PERSONALIZED SPOTLIGHT SECTION

@@ -3,7 +3,7 @@
   - Next.js chunk handling to prevent chunk load errors
   - Request queue for offline POST/PUT/DELETE with background sync
 */
-const VERSION = 'v10';
+const VERSION = 'v11';
 const APP_SHELL_CACHE = `glp-shell-${VERSION}`;
 const STATIC_CACHE = `glp-static-${VERSION}`;
 const DATA_CACHE = `glp-data-${VERSION}`;
@@ -80,6 +80,7 @@ const APP_ROUTES = [
   '/student/new-dashboard',
   '/student/quiz',
   '/student/quiz/results',
+  '/student/exams',
   '/student/search',
   '/student/study-buddy',
   '/subjects',
