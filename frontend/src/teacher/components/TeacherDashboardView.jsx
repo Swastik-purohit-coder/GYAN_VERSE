@@ -299,7 +299,7 @@ export default function TeacherDashboardView({ defaultView = "principal", forced
                 </div>
                 <div>
                   <div className="font-bold text-sm text-slate-900 group-hover:text-amber-700">Monthly Contests</div>
-                  <div className="text-xs text-slate-500">Hackathons, Olympiads &amp; Medals</div>
+                  <div className="text-xs text-slate-500">School Olympiads, Science Fairs &amp; Medals</div>
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 transition-transform group-hover:translate-x-1" />

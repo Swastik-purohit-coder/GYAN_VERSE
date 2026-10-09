@@ -47,7 +47,6 @@ import SkillTrackCard from '../components/SkillTrackCard';
 import FloatingGyanBot from '../components/FloatingGyanBot';
 import MyDoubtSessionsSection from '../components/MyDoubtSessionsSection';
 import MyMentorCard from '../components/MyMentorCard';
-import MyGroupSection from '../components/MyGroupSection';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -550,14 +549,14 @@ export default function DashboardV2({ user = {} }) {
             </div>
           </div>
 
-          {/* Card 4: Quizzes */}
+          {/* Card 4: Lessons Completed */}
           <div className="p-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
-            <div className="w-8 h-8 rounded-full bg-[#FFF8E7] text-[#F59E0B] flex items-center justify-center mb-2">
-              <Trophy className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-full bg-[#ECFDF3] text-[#10B981] flex items-center justify-center mb-2">
+              <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
             </div>
             <div>
               <span className="text-[11px] font-semibold text-[#64748B] block">
-                Quizzes
+                Lessons
               </span>
               <span className="text-lg font-black text-[#172033] tracking-tight block">
                 {totalQuizzesCompleted}
@@ -651,28 +650,17 @@ export default function DashboardV2({ user = {} }) {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E2E8F0]">
+                    <div className="pt-2 border-t border-[#E2E8F0]">
                       <Button
                         size="sm"
-                        className="bg-[#635BFF] hover:bg-[#5148E5] text-white font-semibold text-xs h-9 rounded-xl shadow-xs"
+                        className="w-full bg-[#635BFF] hover:bg-[#5148E5] text-white font-semibold text-xs h-9 rounded-xl shadow-xs"
                         asChild
                       >
                         <Link
                           href={`/student/courses?subject=${encodeURIComponent(subj.name)}`}
                           prefetch
                         >
-                          Start Learning
-                        </Link>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-[#E2E8F0] text-[#172033] font-semibold text-xs h-9 rounded-xl hover:bg-slate-50"
-                        asChild
-                      >
-                        <Link href="/student/quiz" prefetch className="gap-1.5">
-                          <Trophy className="w-3.5 h-3.5 text-[#F59E0B]" />
-                          Quiz
+                          Explore Lessons →
                         </Link>
                       </Button>
                     </div>
@@ -827,13 +815,6 @@ export default function DashboardV2({ user = {} }) {
         <div className="pt-2">
           <MyDoubtSessionsSection />
         </div>
-
-        {/* =========================================
-            MY GROUP & PEER COLLABORATION
-           ========================================= */}
-        <div className="pt-2">
-          <MyGroupSection />
-        </div>
       </div>
 
       {/* =========================================
@@ -921,11 +902,6 @@ export default function DashboardV2({ user = {} }) {
         </Card>
 
         {/* =========================================
-            MY GROUP (CLASS PEER CHAT & NOTES)
-           ========================================= */}
-        <MyGroupSection />
-
-        {/* =========================================
             3. ACHIEVEMENTS & LEADERBOARD TWIN CARDS
            ========================================= */}
         <div className="grid grid-cols-2 gap-3.5">
@@ -974,10 +950,10 @@ export default function DashboardV2({ user = {} }) {
               </h4>
             </div>
             <Link
-              href="/student/quiz"
+              href="/student/courses"
               className="text-xs font-bold text-[#635BFF] hover:text-[#5148E5]"
             >
-              View All →
+              View Lessons →
             </Link>
           </div>
 
@@ -994,7 +970,7 @@ export default function DashboardV2({ user = {} }) {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-[#172033] truncate">
-                        {item.quizTitle || item.subject || 'Quiz Session'}
+                        {item.quizTitle || item.subject || 'Lesson Activity'}
                       </p>
                       <p className="text-[10px] text-[#64748B]">
                         {formatRelativeTime(item.submittedAt || item.completed_at)}
@@ -1007,13 +983,13 @@ export default function DashboardV2({ user = {} }) {
                     className="h-7 px-2.5 text-[11px] font-semibold rounded-lg shrink-0 border-[#E2E8F0] text-[#172033] hover:bg-slate-50"
                     asChild
                   >
-                    <Link href="/student/quiz">View</Link>
+                    <Link href="/student/courses">View</Link>
                   </Button>
                 </div>
               ))
             ) : (
               <div className="text-center py-4 text-xs text-[#64748B]">
-                No recent activity yet. Start a quiz to track progress!
+                No recent activity yet. Explore lessons to track progress!
               </div>
             )}
           </div>

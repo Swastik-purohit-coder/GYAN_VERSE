@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { supabase, run, runSingle } from "../../_utils/supabase";
+import { supabase, run, runSingle, requireUserRole, ensureTeacher } from "../../_utils/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

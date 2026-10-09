@@ -36,7 +36,7 @@ function extractGradeNumber(classStr) {
 
 const CATEGORY_MAP = {
   study_circle: { label: "Study Circle", color: "bg-blue-50 text-blue-700 border-blue-200", icon: BookOpen },
-  hackathon_team: { label: "Hackathon Squad", color: "bg-purple-50 text-purple-700 border-purple-200", icon: Trophy },
+  hackathon_team: { label: "Project Squad", color: "bg-purple-50 text-purple-700 border-purple-200", icon: Trophy },
   olympiad_squad: { label: "Olympiad Team", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Star },
   science_club: { label: "Science & Tech Club", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: Sparkles },
   peer_tutoring: { label: "Peer Revision Pod", color: "bg-indigo-50 text-indigo-700 border-indigo-200", icon: Users },
@@ -368,7 +368,7 @@ export default function StudentGroupsPage() {
               Senior Peer Squads Unlocked (Class {gradeNumber})
             </p>
             <p className="text-slate-600 leading-relaxed">
-              You have authorization to launch personal study circles, build hackathon squads with your peers, and assign collaboration topics across {studentClass}.
+              You have authorization to launch personal study circles, build project squads with your peers, and assign collaboration topics across {studentClass}.
             </p>
           </div>
         </div>
@@ -420,7 +420,7 @@ export default function StudentGroupsPage() {
           >
             <option value="all">All Categories</option>
             <option value="study_circle">Study Circles</option>
-            <option value="hackathon_team">Hackathon Squads</option>
+            <option value="hackathon_team">Project Squads</option>
             <option value="olympiad_squad">Olympiad Cohorts</option>
             <option value="science_club">Science & Tech Clubs</option>
             <option value="peer_tutoring">Peer Tutoring</option>
@@ -698,7 +698,7 @@ export default function StudentGroupsPage() {
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#635BFF]/30 font-medium"
                   >
                     <option value="study_circle">Study Circle</option>
-                    <option value="hackathon_team">Hackathon Squad</option>
+                    <option value="hackathon_team">Project Squad</option>
                     <option value="olympiad_squad">Olympiad Prep</option>
                     <option value="science_club">Science & Robotics Club</option>
                     <option value="peer_tutoring">Peer Revision Pod</option>

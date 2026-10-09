@@ -27,8 +27,8 @@ function aiRateGuard(ip) {
   }
 }
 
-async function callDeepBot(question, userContext = {}) {
-  const formattedPrompt = formatPromptWithContext(question, userContext);
+async function callDeepBot(question, userContext = {}, mode = "answer") {
+  const formattedPrompt = formatPromptWithContext(question, userContext, mode);
   
   const response = await fetch(DEEPBOT_API_URL, {
     method: "POST",
@@ -64,7 +64,7 @@ function withLatestVariant(model) {
   return [normalized, `${normalized}-latest`];
 }
 
-async function callGemini(question, mode, history = []) {
+async function callGemini(question, mode = "answer", history = []) {
   if (!GEMINI_API_KEY) {
     const err = new Error("Gemini API key not configured");
     err.statusCode = 503;
@@ -73,11 +73,15 @@ async function callGemini(question, mode, history = []) {
 
   const prefixMap = {
     answer:
-      "At its core, the role of an AI assistant in an adaptive learning environment is to act as a personalized tutor — guiding, assessing, and supporting each learner based on their unique pace, strengths, and weaknesses. Provide a direct answer first, then a short explanation.",
+      "At its core, the role of an AI assistant in an adaptive learning environment is to act as a personalized tutor — guiding, assessing, and supporting each learner based on their unique pace, strengths, and weaknesses. Provide a direct, structured answer first, then a short explanation and key takeaways.",
     explain:
-      "At its core, the role of an AI assistant in an adaptive learning environment is to act as a personalized tutor — guiding, assessing, and supporting each learner based on their unique pace, strengths, and weaknesses. Explain the concept step-by-step with a simple analogy.",
+      "At its core, the role of an AI assistant in an adaptive learning environment is to act as a personalized tutor — guiding, assessing, and supporting each learner based on their unique pace, strengths, and weaknesses. Explain the concept step-by-step with a vivid, simple real-world analogy and clear bullet points.",
     practice:
-      "At its core, the role of an AI assistant in an adaptive learning environment is to act as a personalized tutor — guiding, assessing, and supporting each learner based on their unique pace, strengths, and weaknesses. Provide the solution then 2 follow-up practice questions (hide answers after a label like Answer: ).",
+      "At its core, the role of an AI assistant in an adaptive learning environment is to act as a personalized tutor — guiding, assessing, and supporting each learner based on their unique pace, strengths, and weaknesses. Provide the solution or overview, followed by 2-3 interactive follow-up practice questions with hints.",
+    socratic:
+      "You are a warm, encouraging Socratic AI tutor. Do NOT give away the complete answer immediately. Instead, break down the core concept, ask guiding questions, provide relatable clues, and invite the student to think through the next step themselves.",
+    exam:
+      "You are an expert exam preparation coach. Provide high-yield exam revision notes: key definitions, essential formulas, common pitfalls and mistakes students make in tests, and a high-yield summary table or checklist.",
     remediation:
       "At its core, the role of an AI assistant in an adaptive learning environment is to act as a personalized tutor — guiding, assessing, and supporting each learner based on their unique pace, strengths, and weaknesses. Recommend ONE high-quality YouTube learning resource. Respond ONLY with compact minified JSON using keys \"searchQuery\", \"titleHint\", and \"summary\". The searchQuery must contain 4-8 focused keywords we can pass to the YouTube Data API. Keep summary under 200 characters. Do not include any URLs, markdown, code fences, or commentary outside the JSON.",
   };
@@ -355,13 +359,18 @@ export async function POST(request) {
 
     let answer = null;
     try {
-      answer = await callDeepBot(trimmed, userContext);
+      answer = await callDeepBot(trimmed, userContext, mode);
     } catch (deepBotErr) {
       console.warn("[DeepBot API warn] DeepBot call failed, attempting fallback:", deepBotErr.message);
       if (GEMINI_API_KEY) {
-        answer = await callGemini(trimmed, mode, Array.isArray(history) ? history : []);
+        try {
+          answer = await callGemini(trimmed, mode, Array.isArray(history) ? history : []);
+        } catch (geminiErr) {
+          console.warn("[Gemini API warn] Gemini call failed:", geminiErr.message);
+          answer = getEducationalFallback(trimmed, mode, userContext);
+        }
       } else {
-        throw deepBotErr;
+        answer = getEducationalFallback(trimmed, mode, userContext);
       }
     }
 
@@ -387,4 +396,60 @@ export async function POST(request) {
       { status: error.statusCode || 502 }
     );
   }
+}
+
+function getEducationalFallback(question, mode = "answer", context = {}) {
+  const q = String(question || "").toLowerCase();
+
+  if (q.includes("photo") || q.includes("plant") || q.includes("leaf")) {
+    return `### 🌱 Photosynthesis Explained Simply
+
+Photosynthesis is how green plants produce their food using sunlight!
+
+- **Equation:** $6\\text{CO}_2 + 6\\text{H}_2\\text{O} + \\text{Light} \\longrightarrow \\text{C}_6\\text{H}_{12}\\text{O}_6 + 6\\text{O}_2$
+- **Where it happens:** Inside the **chloroplasts** of plant cells using the green pigment **chlorophyll**.
+- **Key Inputs:** Sunlight, Carbon Dioxide (from air), Water (from soil).
+- **Key Outputs:** Glucose (energy for plant) + Oxygen (released for us to breathe).
+
+> **💡 Real-world Analogy:** Think of a solar-powered kitchen inside leaves. The sun powers the oven, water and carbon dioxide are ingredients, and glucose is the baked bread!`;
+  }
+
+  if (q.includes("pythagor") || q.includes("triangle")) {
+    return `### 📐 The Pythagorean Theorem ($a^2 + b^2 = c^2$)
+
+In any **right-angled triangle**, the square of the longest side (the hypotenuse $c$) equals the sum of squares of the other two sides ($a$ and $b$):
+
+$$a^2 + b^2 = c^2$$
+
+- **Example:** If side $a = 3$ and side $b = 4$:
+  - $3^2 + 4^2 = 9 + 16 = 25$
+  - $\\sqrt{25} = 5$
+  - Hypotenuse $c = 5$
+
+> **💡 Everyday Application:** Builders use the 3-4-5 triangle trick to make sure walls meet at a perfect 90-degree angle!`;
+  }
+
+  if (q.includes("fraction") || q.includes("numerator")) {
+    return `### 🍕 Understanding Fractions
+
+A fraction represents equal parts of a whole object or group.
+
+- **Numerator (top):** How many parts you have.
+- **Denominator (bottom):** Total number of equal parts in the whole.
+
+**Quick Rules:**
+1. **Adding with same denominator:** $\\frac{1}{4} + \\frac{2}{4} = \\frac{3}{4}$
+2. **Multiplying fractions:** Multiply tops, multiply bottoms! $\\frac{2}{3} \\times \\frac{4}{5} = \\frac{8}{15}$
+3. **Equivalent fractions:** $\\frac{1}{2} = \\frac{2}{4} = \\frac{4}{8}$`;
+  }
+
+  return `### 🎓 Gyan-Bot Study Guide: ${question}
+
+Here is a structured breakdown to help you master this topic:
+
+1. **Core Concept:** Break down complex topics into smaller, foundational ideas first.
+2. **Step-by-Step Understanding:** Understand *why* it works before memorizing formulas or dates.
+3. **Key Takeaway:** Connect this topic to real-world examples or everyday experiences.
+
+*Would you like me to quiz you on this topic, explain it with a fun analogy, or provide practice questions?*`;
 }

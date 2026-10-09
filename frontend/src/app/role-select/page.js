@@ -37,14 +37,14 @@ import {
 const schoolClasses = Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`);
 
 const studentInterestOptions = [
-  { id: "ai", label: "AI & Prompt Engineering", icon: Cpu },
-  { id: "coding", label: "Python & Web Coding", icon: Code },
-  { id: "math", label: "Math Olympiad Prep", icon: Calculator },
-  { id: "science", label: "Science & Robotics", icon: FlaskConical },
-  { id: "design", label: "UI/UX & Design", icon: Palette },
-  { id: "hackathon", label: "Monthly Hackathons", icon: Trophy },
-  { id: "finance", label: "Financial Literacy", icon: TrendingUp },
+  { id: "math", label: "Mathematics & Olympiad", icon: Calculator },
+  { id: "science", label: "Science & Experiments", icon: FlaskConical },
+  { id: "competitions", label: "School Competitions & Quiz", icon: Trophy },
+  { id: "arts", label: "Creative Arts & Drawing", icon: Palette },
   { id: "debate", label: "Public Speaking & Debate", icon: Mic },
+  { id: "gk", label: "General Knowledge & Social Studies", icon: TrendingUp },
+  { id: "digital", label: "Computer & Digital Basics", icon: Cpu },
+  { id: "language", label: "Language & Story Writing", icon: Sparkles },
 ];
 
 const teacherDepartments = [
