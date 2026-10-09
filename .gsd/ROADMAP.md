@@ -82,3 +82,18 @@ updated: 2026-10-09T15:55:00+05:30
 **Plans:**
 - [x] Plan 5.1: Resolve Route Loading Blocker & Add Public Access
 - [x] Plan 5.2: Execute Verification Test Suites & Production Build
+
+---
+
+### Phase 6: Multi-Media Lesson Engine (Video & Audio OR-Support)
+**Status:** ✅ Complete
+**Objective:** Extend teacher lesson authoring and student playback experience to support audio lectures alongside video lessons with an OR/Both model (video-only, audio-only, or both video and audio with a live player switcher).
+**Depends on:** Phase 5
+**Requirements:** REQ-DUAL-MEDIA, REQ-TEACHER-AUDIO, REQ-STUDENT-PLAYER
+
+**Plans:**
+- [x] Plan 6.1: Backend APIs & Storage Engine for Dual Video & Audio
+- [x] Plan 6.2: Teacher Module Management (Video & Audio Authoring)
+- [x] Plan 6.3: Student Experience & Unified Media Player (Live Switcher & OR-Play)
+- [x] Plan 6.4: Verification, Integration Testing & End-to-End Validation
+

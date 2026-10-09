@@ -30,11 +30,11 @@ export async function GET(request, context) {
     try {
       const { data, error } = await supabase
         .from("lessons")
-        .select("id, module_id, title, description, video_path, video_url, video_type, duration, order_index, is_required, published, created_at, updated_at")
+        .select("id, module_id, title, description, video_path, video_url, video_type, audio_path, audio_url, duration, order_index, is_required, published, created_at, updated_at")
         .eq("module_id", moduleId)
         .order("order_index", { ascending: true });
 
-      if (error && (error.code === "42703" || error.message?.includes("video_type"))) {
+      if (error && (error.code === "42703" || error.message?.includes("video_type") || error.message?.includes("audio"))) {
         const { data: fallbackData } = await supabase
           .from("lessons")
           .select("id, module_id, title, description, video_path, video_url, duration, order_index, is_required, published, created_at, updated_at")
@@ -44,6 +44,8 @@ export async function GET(request, context) {
         lessons = (fallbackData || []).map((l) => ({
           ...l,
           video_type: l.video_url?.includes("youtube") || l.video_url?.includes("youtu.be") ? "youtube" : "uploaded",
+          audio_url: l.audio_url || null,
+          audio_path: l.audio_path || null,
         }));
       } else {
         lessons = data || [];
@@ -99,6 +101,8 @@ export async function POST(request, context) {
       videoPath,
       videoUrl,
       videoType,
+      audioPath,
+      audioUrl,
       duration = 0,
       orderIndex,
       isRequired = true,
@@ -128,6 +132,8 @@ export async function POST(request, context) {
     const now = nowIso();
 
     const resolvedVideoType = videoType || (videoUrl?.includes("youtube") || videoUrl?.includes("youtu.be") ? "youtube" : "uploaded");
+    const resolvedAudioPath = (audioPath || body?.audio_path) ? String(audioPath || body?.audio_path).trim() : null;
+    const resolvedAudioUrl = (audioUrl || body?.audio_url) ? String(audioUrl || body?.audio_url).trim() : null;
 
     const lessonDoc = {
       id: lessonId,
@@ -137,6 +143,8 @@ export async function POST(request, context) {
       video_path: videoPath ? String(videoPath).trim() : null,
       video_url: videoUrl ? String(videoUrl).trim() : null,
       video_type: resolvedVideoType,
+      audio_path: resolvedAudioPath,
+      audio_url: resolvedAudioUrl,
       duration: Number(duration) || 0,
       order_index: finalOrderIndex,
       is_required: Boolean(isRequired),
@@ -148,14 +156,16 @@ export async function POST(request, context) {
     let inserted = null;
     const { error: insErr, data: insData } = await supabase.from("lessons").insert(lessonDoc).select().maybeSingle();
 
-    if (insErr && (insErr.code === "42703" || insErr.message?.includes("video_type"))) {
+    if (insErr && (insErr.code === "42703" || insErr.message?.includes("video_type") || insErr.message?.includes("audio"))) {
       const fallbackDoc = { ...lessonDoc };
       delete fallbackDoc.video_type;
+      delete fallbackDoc.audio_path;
+      delete fallbackDoc.audio_url;
       const { data: fbData, error: fbErr } = await supabase.from("lessons").insert(fallbackDoc).select().maybeSingle();
       if (fbErr) {
         throw new Error(fbErr.message);
       }
-      inserted = fbData;
+      inserted = { ...fbData, audio_path: resolvedAudioPath, audio_url: resolvedAudioUrl };
     } else if (insErr) {
       throw new Error(insErr.message);
     } else {

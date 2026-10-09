@@ -63,6 +63,7 @@ export default function StudentLearningModules({ studentClass: propClass, school
 
   const [activeVideoLesson, setActiveVideoLesson] = useState(null);
   const [activeVideoModule, setActiveVideoModule] = useState(null);
+  const [playerMode, setPlayerMode] = useState("video");
   const [activeAudioLesson, setActiveAudioLesson] = useState(null);
   const [offlineBlobUrl, setOfflineBlobUrl] = useState(null);
   const [expandedModules, setExpandedModules] = useState({});
@@ -132,7 +133,8 @@ export default function StudentLearningModules({ studentClass: propClass, school
     }
   };
 
-  const openVideoPlayer = async (lesson, module) => {
+  const openVideoPlayer = async (lesson, module, mode = "video") => {
+    setPlayerMode(mode);
     setActiveVideoLesson(lesson);
     setActiveVideoModule(module);
     setOfflineBlobUrl(null);
@@ -365,6 +367,8 @@ export default function StudentLearningModules({ studentClass: propClass, school
                         const isCompleted = lesson.progress?.completed;
                         const dState = downloadStates[lesson.id];
                         const vType = getVideoType(lesson);
+                        const hasVideo = Boolean(lesson.video_url || lesson.video_path || lesson.videoUrl);
+                        const hasAudio = Boolean(lesson.audio_url || lesson.audio_path || lesson.audioUrl);
 
                         return (
                           <div
@@ -400,9 +404,19 @@ export default function StudentLearningModules({ studentClass: propClass, school
                                       Required
                                     </Badge>
                                   )}
+                                  {hasVideo && (
+                                    <Badge variant="outline" className="text-[10px] text-indigo-600 border-indigo-200 bg-indigo-50">
+                                      📹 Video
+                                    </Badge>
+                                  )}
+                                  {hasAudio && (
+                                    <Badge variant="outline" className="text-[10px] text-purple-600 border-purple-200 bg-purple-50">
+                                      🎧 Audio
+                                    </Badge>
+                                  )}
                                 </div>
                                 <h4
-                                  onClick={() => openVideoPlayer(lesson, mod)}
+                                  onClick={() => openVideoPlayer(lesson, mod, hasVideo ? "video" : "audio")}
                                   className="text-sm font-semibold text-[#172033] hover:text-[#635BFF] cursor-pointer truncate"
                                 >
                                   {lesson.title}
@@ -417,26 +431,42 @@ export default function StudentLearningModules({ studentClass: propClass, school
                                 <span>{formatDuration(lesson.duration)}</span>
                               </div>
 
-                              {/* Audio button if lesson has audio */}
-                              {(lesson.audio_url || lesson.audio_path) && (
+                              {/* OR Operation: Video or Audio or Both */}
+                              {hasVideo && hasAudio ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openVideoPlayer(lesson, mod, "audio")}
+                                    className="text-[#635BFF] border-[#635BFF]/30 hover:bg-[#F1EEFF] text-xs gap-1 h-8"
+                                  >
+                                    <Headphones className="w-3.5 h-3.5" /> Listen Audio
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => openVideoPlayer(lesson, mod, "video")}
+                                    className="bg-[#635BFF] hover:bg-[#5148E5] text-white font-medium shadow-xs gap-1.5 text-xs h-8"
+                                  >
+                                    <Play className="w-3.5 h-3.5 fill-current" /> Watch Video
+                                  </Button>
+                                </>
+                              ) : hasAudio ? (
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() => setActiveAudioLesson(lesson)}
-                                  className="text-[#635BFF] border-[#635BFF]/30 hover:bg-[#F1EEFF] text-xs gap-1"
+                                  onClick={() => openVideoPlayer(lesson, mod, "audio")}
+                                  className="bg-[#635BFF] hover:bg-[#5148E5] text-white font-medium shadow-xs gap-1.5 text-xs h-8"
                                 >
                                   <Headphones className="w-3.5 h-3.5" /> Listen Audio
                                 </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => openVideoPlayer(lesson, mod, "video")}
+                                  className="bg-[#635BFF] hover:bg-[#5148E5] text-white font-medium shadow-xs gap-1.5 text-xs h-8"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" /> Watch Video
+                                </Button>
                               )}
-
-                              <Button
-                                size="sm"
-                                onClick={() => openVideoPlayer(lesson, mod)}
-                                className="bg-[#635BFF] hover:bg-[#5148E5] text-white font-medium shadow-xs gap-1.5 text-xs"
-                              >
-                                <Play className="w-3.5 h-3.5 fill-current" />
-                                Watch Video
-                              </Button>
                             </div>
                           </div>
                         );
@@ -528,6 +558,7 @@ export default function StudentLearningModules({ studentClass: propClass, school
         <VideoPlayer
           lesson={activeVideoLesson}
           module={activeVideoModule}
+          initialMode={playerMode}
           offlineBlobUrl={offlineBlobUrl}
           onClose={closeVideoPlayer}
           onComplete={(e) => handleToggleCompletion(e, activeVideoLesson, activeVideoModule)}

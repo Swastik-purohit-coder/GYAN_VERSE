@@ -30,6 +30,7 @@ import {
   X,
   BookOpen,
   GraduationCap,
+  Headphones,
 } from "lucide-react";
 import { SOURCE_TYPES } from "@/lib/resourceAccess";
 import {
@@ -39,6 +40,7 @@ import {
   removeOfflineVideo,
 } from "@/lib/offlineVideoManager";
 import LessonVideoPlayer from "@/components/media/LessonVideoPlayer";
+import LessonAudioPlayer from "@/components/media/LessonAudioPlayer";
 import { parseYouTubeVideoId } from "@/lib/videoHelpers";
 
 /**
@@ -60,6 +62,10 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
 
   const videoId = item?.id || item?.lessonId || item?.slug || "lecture_media";
   const rawVideoUrl = item?.url || item?.video_url || item?.video_path || "";
+  const rawAudioUrl = item?.audio_url || item?.audioUrl || item?.audio_path || "";
+  const hasVideo = Boolean(rawVideoUrl);
+  const hasAudio = Boolean(rawAudioUrl);
+  const [mediaMode, setMediaMode] = useState(hasVideo ? "video" : hasAudio ? "audio" : "video");
   const ytVideoId = useMemo(() => (rawVideoUrl ? parseYouTubeVideoId(rawVideoUrl) : null), [rawVideoUrl]);
 
   // Monitor network status
@@ -222,6 +228,36 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
 
           {/* Header Right: Menu & Action Options */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Live Media Switcher when both Video & Audio exist */}
+            {hasVideo && hasAudio && (
+              <div className="flex items-center gap-1 bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setMediaMode("video")}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-all ${
+                    mediaMode === "video"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Play className="w-3 h-3" />
+                  <span>Video</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMediaMode("audio")}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-all ${
+                    mediaMode === "audio"
+                      ? "bg-violet-600 text-white shadow-xs"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Headphones className="w-3 h-3" />
+                  <span>Audio</span>
+                </button>
+              </div>
+            )}
+
             {/* Low Data Mode Toggle (Clean pill button, never overflows) */}
             <button
               onClick={() => setDataSaver((prev) => !prev)}
@@ -303,8 +339,20 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
 
             {/* Video Player Render Canvas - Big 16:9 View */}
             <div className="w-full h-full max-h-full aspect-video flex items-center justify-center relative bg-black shadow-2xl rounded-xl overflow-hidden border border-slate-900">
-              {/* Scenario 1: Offline with Cached Blob */}
-              {isOfflineNow && offlineBlobUrl ? (
+              {mediaMode === "audio" && rawAudioUrl ? (
+                <div className="w-full h-full aspect-video flex items-center justify-center p-6 bg-slate-950">
+                  <div className="w-full max-w-lg">
+                    <LessonAudioPlayer
+                      src={rawAudioUrl}
+                      lessonId={videoId}
+                      audioId={videoId}
+                      title={item?.title || "Audio Lecture"}
+                      autoPlay={true}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              ) : isOfflineNow && offlineBlobUrl ? (
                 <LessonVideoPlayer
                   src={offlineBlobUrl}
                   lessonId={videoId}
