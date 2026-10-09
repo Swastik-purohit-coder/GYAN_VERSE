@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@teacher/components/ui/dialog";
 import { Badge } from "@teacher/components/ui/badge";
 import { Button } from "@teacher/components/ui/button";
 import {
   Play,
-  Pause,
   Clock,
   Download,
   CheckCircle2,
@@ -21,12 +21,15 @@ import {
   WifiOff,
   Trash2,
   Loader2,
-  ShieldCheck,
   AlertCircle,
   HardDrive,
-  Sliders,
-  Sparkles,
-  Info,
+  PanelRightClose,
+  PanelRightOpen,
+  Maximize2,
+  Minimize2,
+  X,
+  BookOpen,
+  GraduationCap,
 } from "lucide-react";
 import { SOURCE_TYPES } from "@/lib/resourceAccess";
 import {
@@ -39,34 +42,12 @@ import LessonVideoPlayer from "@/components/media/LessonVideoPlayer";
 import { parseYouTubeVideoId } from "@/lib/videoHelpers";
 
 /**
- * Extracts YouTube embed URL from various YouTube link formats
- */
-export function getYoutubeEmbedUrl(url) {
-  if (!url) return null;
-  try {
-    const trimmed = String(url).trim();
-    const patterns = [
-      /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
-    ];
-    for (const pattern of patterns) {
-      const match = trimmed.match(pattern);
-      if (match && match[1]) {
-        const videoId = match[1];
-        return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
-      }
-    }
-  } catch (err) {
-    console.error("Failed to parse YouTube embed", err);
-  }
-  return null;
-}
-
-/**
- * InbuiltVideoPlayer Component with Offline Storage & Chunk-Optimized Low Data Mode
+ * InbuiltVideoPlayer Component with Expanded Theatre Layout & Collapsible Right-Side Menu
  */
 export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'notes' | 'stream_info'
   const [copied, setCopied] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Streaming & Offline Mode States
   const [dataSaver, setDataSaver] = useState(false);
@@ -102,7 +83,7 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
   useEffect(() => {
     let mounted = true;
     async function checkOfflineStatus() {
-      if (!item || !rawVideoUrl || ytVideoId) {
+      if (!item || !rawVideoUrl) {
         setIsOfflineReady(false);
         setOfflineBlobUrl(null);
         return;
@@ -130,15 +111,11 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
     return () => {
       mounted = false;
     };
-  }, [isOpen, item, videoId, rawVideoUrl, ytVideoId]);
+  }, [isOpen, item, videoId, rawVideoUrl]);
 
-  // Handle Offline Download
+  // Handle Offline Download (Supports both direct MP4s and bundled companion videos)
   const handleDownloadOffline = async () => {
     if (!rawVideoUrl || downloading) return;
-    if (ytVideoId) {
-      alert("Offline chunk download is optimized for uploaded faculty lectures. YouTube streams can be watched directly online.");
-      return;
-    }
 
     setDownloading(true);
     setDownloadProgress(0);
@@ -151,6 +128,7 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
           videoUrl: rawVideoUrl,
           title: item.title,
           studentClass: item.target_grade_min ? `Class ${item.target_grade_min}` : "General",
+          videoType: ytVideoId ? "youtube" : "html5",
         },
         (pct) => setDownloadProgress(pct)
       );
@@ -191,77 +169,205 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
 
   const itemSource = item.source_type || "teacher";
   const sourceDef = SOURCE_TYPES[itemSource] || SOURCE_TYPES.teacher;
+  const isOfflineNow = !isOnline || (typeof navigator !== "undefined" && !navigator.onLine);
 
   // Active stream URL (prioritize cached offline blob url if available or when offline)
   const activeStreamSource = offlineBlobUrl || rawVideoUrl;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl w-[95vw] p-0 overflow-hidden bg-slate-950 text-white border border-slate-800 rounded-2xl shadow-2xl z-50">
-        <div className="flex flex-col lg:flex-row h-full max-h-[90vh]">
-          {/* Main Video Stream Container (Left 65%) */}
-          <div className="flex-1 bg-black flex flex-col justify-between relative min-h-[300px] sm:min-h-[420px] lg:min-h-[500px]">
-            {/* Top Bar over Video */}
-            <div className="absolute top-0 inset-x-0 p-3 bg-gradient-to-b from-black/80 to-transparent z-30 flex items-center justify-between pointer-events-auto">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge className={`text-[10px] font-bold uppercase tracking-wider border px-2.5 py-0.5 ${sourceDef.badgeColor}`}>
-                  {sourceDef.badgeText}
-                </Badge>
-                
-                {isOfflineReady ? (
-                  <Badge className="bg-emerald-600/90 text-white text-[10px] flex items-center gap-1 border border-emerald-500/40">
-                    <CheckCircle2 className="w-3 h-3" /> Offline Cached (0 KB Data)
-                  </Badge>
-                ) : dataSaver ? (
-                  <Badge className="bg-amber-600/90 text-white text-[10px] flex items-center gap-1 border border-amber-500/40">
-                    <Zap className="w-3 h-3" /> Chunk Saver Active (70% Less Data)
-                  </Badge>
-                ) : (
-                  <span className="text-xs text-slate-300 font-medium bg-black/40 px-2 py-0.5 rounded backdrop-blur-xs flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-400" /> {item.duration || "20 mins"}
-                  </span>
-                )}
-              </div>
+      <DialogContent className="max-w-7xl w-[96vw] max-h-[92vh] h-[90vh] p-0 overflow-hidden bg-slate-950 text-white border border-slate-800/90 rounded-2xl shadow-2xl z-50 flex flex-col [&>button:last-child]:hidden">
+        {/* =========================================================================
+            TOP HEADER BAR: Clean Metadata, Lesson Title, and Right-Side Controls
+           ========================================================================= */}
+        <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur-md shrink-0 z-20 gap-3">
+          {/* Header Left: Badges & Title */}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <Badge className={`text-[10px] font-bold uppercase tracking-wider border px-2 py-0.5 ${sourceDef.badgeColor}`}>
+                {sourceDef.badgeText}
+              </Badge>
 
-              {/* Data Saver Mode Toggle Button on Top Right of Player */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setDataSaver((prev) => !prev)}
-                  className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium backdrop-blur-md ${
-                    dataSaver
-                      ? "bg-amber-500 text-slate-950 border-amber-400 font-bold shadow-sm"
-                      : "bg-black/60 text-slate-300 hover:text-white border-slate-700 hover:border-slate-500"
-                  }`}
-                  title="Toggle low data chunk-based memory mode"
-                >
-                  <Gauge className="w-3.5 h-3.5" />
-                  <span>{dataSaver ? "Low Data Mode: ON" : "Low Data Mode"}</span>
-                </button>
-              </div>
+              {item.target_grade_min && (
+                <Badge variant="outline" className="text-[10px] font-semibold border-slate-700 text-slate-300 hidden md:inline-flex bg-slate-800/60">
+                  Class {item.target_grade_min}{item.target_grade_max ? `–${item.target_grade_max}` : ""}
+                </Badge>
+              )}
+
+              {item.duration && (
+                <span className="text-[11px] text-slate-400 font-medium hidden lg:inline-flex items-center gap-1 bg-slate-800/60 px-2 py-0.5 rounded border border-slate-700">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  {item.duration}
+                </span>
+              )}
+
+              {isOfflineReady ? (
+                <Badge className="bg-emerald-600/90 text-white text-[10px] hidden sm:inline-flex items-center gap-1 border border-emerald-500/40">
+                  <CheckCircle2 className="w-3 h-3" /> Offline Ready
+                </Badge>
+              ) : isOfflineNow ? (
+                <Badge className="bg-amber-600/90 text-white text-[10px] inline-flex items-center gap-1 border border-amber-500/40">
+                  <WifiOff className="w-3 h-3" /> Offline Mode
+                </Badge>
+              ) : null}
             </div>
 
-            {/* Video Player Render Engine */}
-            <div className="w-full h-full flex items-center justify-center relative">
-              {ytVideoId ? (
+            {/* Video Title */}
+            <DialogTitle asChild>
+              <h2 className="text-sm sm:text-base font-bold text-white truncate max-w-lg lg:max-w-xl cursor-default" title={item.title}>
+                {item.title}
+              </h2>
+            </DialogTitle>
+          </div>
+
+          {/* Header Right: Menu & Action Options */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Low Data Mode Toggle (Clean pill button, never overflows) */}
+            <button
+              onClick={() => setDataSaver((prev) => !prev)}
+              className={`flex items-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 rounded-lg border transition-all font-medium ${
+                dataSaver
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-xs"
+                  : "bg-slate-800/90 text-slate-300 hover:text-white border-slate-700 hover:border-slate-600"
+              }`}
+              title="Toggle low data mode (saves up to 70% mobile bandwidth)"
+            >
+              <Gauge className={`w-3.5 h-3.5 ${dataSaver ? "text-amber-400" : "text-slate-400"}`} />
+              <span className="hidden sm:inline">{dataSaver ? "Data Saver: ON" : "Data Saver"}</span>
+              {dataSaver && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
+            </button>
+
+            {/* Share Button */}
+            <button
+              onClick={handleShare}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-700 bg-slate-800/90 text-slate-300 hover:text-white hover:border-slate-600 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              title="Share lecture link"
+            >
+              <Share2 className="w-3.5 h-3.5 text-slate-400" />
+              <span className="hidden md:inline">{copied ? "Copied!" : "Share"}</span>
+            </button>
+
+            {/* Right-Side Menu Toggle Option */}
+            <button
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              className={`flex items-center gap-1.5 text-xs px-2.5 sm:px-3 py-1.5 rounded-lg border transition-all font-medium ${
+                sidebarOpen
+                  ? "bg-violet-600/25 text-violet-300 border-violet-500/60 shadow-xs"
+                  : "bg-slate-800/90 text-slate-300 hover:text-white border-slate-700 hover:border-slate-600"
+              }`}
+              title={sidebarOpen ? "Hide right-side menu (Expand video to full width)" : "Open right-side menu"}
+            >
+              {sidebarOpen ? (
+                <PanelRightClose className="w-3.5 h-3.5 text-violet-400" />
+              ) : (
+                <PanelRightOpen className="w-3.5 h-3.5 text-slate-400" />
+              )}
+              <span className="hidden sm:inline">{sidebarOpen ? "Hide Menu" : "Side Menu"}</span>
+            </button>
+
+            {/* Dedicated Header Close Button */}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg border border-slate-700 bg-slate-800/90 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors ml-1"
+              title="Close player"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        {/* =========================================================================
+            MAIN THEATRE BODY: Expanded Video Area (Left) + Collapsible Side Menu (Right)
+           ========================================================================= */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 bg-black">
+          {/* Main Video Stream Container (Expands to 100% when sidebar is closed) */}
+          <div className="flex-1 bg-black flex flex-col items-center justify-center relative overflow-hidden min-h-[300px] sm:min-h-[420px] lg:min-h-0 h-full p-2 sm:p-4">
+            {/* Status Overlay Banners */}
+            {isOfflineNow && (
+              <div className="absolute top-4 left-4 z-30 pointer-events-none">
+                <div className="flex items-center gap-1.5 bg-black/85 backdrop-blur-md text-amber-300 text-[11px] font-medium px-3 py-1 rounded-full border border-amber-500/40 shadow-lg">
+                  <WifiOff className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Offline Playback Active</span>
+                </div>
+              </div>
+            )}
+
+            {dataSaver && (
+              <div className="absolute bottom-4 left-4 z-30 pointer-events-none">
+                <div className="flex items-center gap-1.5 bg-black/85 backdrop-blur-md text-amber-300 text-[11px] font-medium px-2.5 py-1 rounded-full border border-amber-500/40 shadow-lg">
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>70% Bandwidth Saver</span>
+                </div>
+              </div>
+            )}
+
+            {/* Video Player Render Canvas - Big 16:9 View */}
+            <div className="w-full h-full max-h-full aspect-video flex items-center justify-center relative bg-black shadow-2xl rounded-xl overflow-hidden border border-slate-900">
+              {/* Scenario 1: Offline with Cached Blob */}
+              {isOfflineNow && offlineBlobUrl ? (
+                <LessonVideoPlayer
+                  src={offlineBlobUrl}
+                  lessonId={videoId}
+                  videoId={videoId}
+                  title={item.title}
+                  autoPlay={true}
+                  isOffline={true}
+                  className="w-full h-full max-h-full aspect-video"
+                />
+              ) : ytVideoId && isOnline ? (
+                /* Scenario 2: Online YouTube Stream */
                 <iframe
                   src={`https://www.youtube-nocookie.com/embed/${ytVideoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
                   title={item.title}
-                  className="w-full aspect-video h-full border-0"
+                  className="w-full h-full aspect-video border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                 />
+              ) : ytVideoId && !isOnline && offlineBlobUrl ? (
+                /* Scenario 3: Offline YouTube Lesson with Companion Video Available */
+                <LessonVideoPlayer
+                  src={offlineBlobUrl}
+                  lessonId={videoId}
+                  videoId={videoId}
+                  title={item.title}
+                  autoPlay={true}
+                  isOffline={true}
+                  className="w-full h-full max-h-full aspect-video"
+                />
+              ) : ytVideoId && !isOnline ? (
+                /* Scenario 4: Offline YouTube Lesson without Cached Copy */
+                <div className="w-full h-full aspect-video flex flex-col items-center justify-center p-6 text-center bg-slate-950">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-3 border border-amber-500/30">
+                    <WifiOff className="w-7 h-7" />
+                  </div>
+                  <h3 className="font-bold text-base text-white mb-1">Internet Disconnected</h3>
+                  <p className="text-xs text-slate-400 max-w-md mb-4">
+                    This YouTube lecture requires an internet connection or a saved offline companion copy.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={handleDownloadOffline}
+                    disabled={downloading}
+                    className="text-xs bg-violet-600 hover:bg-violet-700 text-white font-medium flex items-center gap-2"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Cache Companion Video for Offline</span>
+                  </Button>
+                </div>
               ) : activeStreamSource ? (
+                /* Scenario 5: Direct Uploaded / HLS / Faculty Lecture Stream */
                 <LessonVideoPlayer
                   src={activeStreamSource}
                   lessonId={videoId}
                   videoId={videoId}
                   title={item.title}
                   autoPlay={true}
-                  className="w-full h-full"
+                  isOffline={Boolean(offlineBlobUrl)}
+                  className="w-full h-full max-h-full aspect-video"
                 />
               ) : (
-                /* Fallback Inbuilt Embed / Frame */
-                <div className="w-full aspect-video h-full flex flex-col items-center justify-center p-6 text-center bg-slate-900">
+                /* Scenario 6: Placeholder / Fallback */
+                <div className="w-full h-full aspect-video flex flex-col items-center justify-center p-6 text-center bg-slate-950">
                   <div className="w-16 h-16 rounded-2xl bg-violet-600/20 text-violet-400 flex items-center justify-center mb-3 border border-violet-500/30">
                     <Play className="w-8 h-8" />
                   </div>
@@ -274,238 +380,240 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Side Panel: Lecture Info, Contributor Profile & Offline Controls (Right 35%) */}
-          <div className="w-full lg:w-96 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col justify-between overflow-y-auto max-h-[450px] lg:max-h-[500px]">
-            {/* Header & Tabs */}
-            <div className="p-5 pb-3 border-b border-slate-800">
-              <h2 className="text-base font-bold text-white leading-snug line-clamp-2">
-                {item.title}
-              </h2>
-
-              <div className="flex items-center gap-1.5 mt-3 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                <button
-                  onClick={() => setActiveTab("overview")}
-                  className={`flex-1 py-1 text-xs font-semibold rounded-md transition-colors ${
-                    activeTab === "overview" ? "bg-violet-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Overview
-                </button>
-                <button
-                  onClick={() => setActiveTab("stream_info")}
-                  className={`flex-1 py-1 text-xs font-semibold rounded-md transition-colors flex items-center justify-center gap-1 ${
-                    activeTab === "stream_info" ? "bg-violet-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  <Gauge className="w-3 h-3" /> Data & Offline
-                </button>
-                <button
-                  onClick={() => setActiveTab("notes")}
-                  className={`flex-1 py-1 text-xs font-semibold rounded-md transition-colors ${
-                    activeTab === "notes" ? "bg-violet-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Notes
-                </button>
+          {/* =========================================================================
+              RIGHT-SIDE MENU PANEL: Contributor Profile, Tabs, Offline Manager & Notes
+             ========================================================================= */}
+          {sidebarOpen && (
+            <aside className="w-full lg:w-[380px] xl:w-[420px] shrink-0 bg-slate-900/95 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col justify-between overflow-y-auto max-h-[420px] lg:max-h-full">
+              {/* Tab Navigation */}
+              <div className="p-4 pb-3 border-b border-slate-800 shrink-0">
+                <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => setActiveTab("overview")}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      activeTab === "overview" ? "bg-violet-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Overview
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("stream_info")}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                      activeTab === "stream_info" ? "bg-violet-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <Gauge className="w-3 h-3" /> Data & Offline
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("notes")}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      activeTab === "notes" ? "bg-violet-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Notes
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Tab Content */}
-            <div className="p-5 flex-1 overflow-y-auto space-y-4">
-              {activeTab === "overview" && (
-                <>
-                  {/* Contributor Profile */}
-                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-violet-600/30 border border-violet-500/40 text-violet-300 font-bold text-base flex items-center justify-center shrink-0">
-                      {item.author_avatar || item.author_name?.[0] || "A"}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-white truncate">{item.author_name || "Faculty In-Charge"}</div>
-                      <div className="text-[11px] text-slate-400 truncate">{item.author_role || "Educator"}</div>
-                      <div className="text-[10px] text-emerald-400 font-medium mt-0.5">Verified Contributor</div>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-1.5">
-                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lesson Summary</div>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      {item.description || "Comprehensive educational lecture covering foundational principles, problem-solving techniques, and real-world examples."}
-                    </p>
-                  </div>
-
-                  {/* Target Grades & Tags */}
-                  <div className="space-y-2 pt-2 border-t border-slate-800">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>Target Level:</span>
-                      <span className="font-bold text-slate-200">
-                        Class {item.target_grade_min || 1}–{item.target_grade_max || 12}
-                      </span>
-                    </div>
-
-                    {Array.isArray(item.tags) && item.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {item.tags.map((tag, idx) => (
-                          <span key={idx} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md font-medium border border-slate-700">
-                            #{tag}
-                          </span>
-                        ))}
+              {/* Tab Content Body */}
+              <div className="p-4 sm:p-5 flex-1 overflow-y-auto space-y-4">
+                {activeTab === "overview" && (
+                  <>
+                    {/* Contributor Profile */}
+                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-600/30 border border-violet-500/40 text-violet-300 font-bold text-base flex items-center justify-center shrink-0">
+                        {item.author_avatar || item.author_name?.[0] || "A"}
                       </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Data & Offline Stream Management Tab */}
-              {activeTab === "stream_info" && (
-                <div className="space-y-4">
-                  {/* Offline Cache Box */}
-                  <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <HardDrive className="w-4 h-4 text-violet-400" />
-                        <span className="text-xs font-bold text-white">Offline Chunk Storage</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-white truncate">{item.author_name || "Mrs. Ananya Sen"}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{item.author_role || "Senior Faculty, Gyanaratna Academy"}</div>
+                        <div className="text-[10px] text-emerald-400 font-medium mt-0.5 flex items-center gap-1">
+                          <CheckCircle2 className="w-2.5 h-2.5" /> Verified Contributor
+                        </div>
                       </div>
-                      {isOfflineReady && (
-                        <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-semibold">
-                          Ready for Offline
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lesson Summary</div>
+                      <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                        {item.description || "Comprehensive educational lecture breaking down variable manipulation, balancing equations, and real-world word problems."}
+                      </p>
+                    </div>
+
+                    {/* Target Grades & Tags */}
+                    <div className="space-y-2 pt-2 border-t border-slate-800">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
+                        <span>Target Level:</span>
+                        <span className="font-bold text-slate-200">
+                          Class {item.target_grade_min || 1}–{item.target_grade_max || 12}
                         </span>
+                      </div>
+
+                      {Array.isArray(item.tags) && item.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {item.tags.map((tag, idx) => (
+                            <span key={idx} className="text-[10px] bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-md font-medium border border-slate-700">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
+                  </>
+                )}
 
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Download lesson video chunks into your browser storage. You can play this lecture anytime without internet connection.
-                    </p>
-
-                    {downloadError && (
-                      <div className="p-2.5 bg-rose-950/80 border border-rose-800 rounded-lg text-[11px] text-rose-300 flex items-center gap-1.5">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span>{downloadError}</span>
-                      </div>
-                    )}
-
-                    {downloading && (
-                      <div className="space-y-1.5 pt-1">
-                        <div className="flex justify-between text-[11px] text-slate-300">
-                          <span>Downloading media chunks...</span>
-                          <span className="font-bold text-violet-400">{downloadProgress}%</span>
+                {/* Data & Offline Stream Management Tab */}
+                {activeTab === "stream_info" && (
+                  <div className="space-y-4">
+                    {/* Offline Cache Box */}
+                    <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <HardDrive className="w-4 h-4 text-violet-400" />
+                          <span className="text-xs font-bold text-white">Offline Chunk Storage</span>
                         </div>
-                        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-violet-600 transition-all duration-200"
-                            style={{ width: `${downloadProgress}%` }}
-                          />
-                        </div>
+                        {isOfflineReady && (
+                          <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Ready for Offline
+                          </span>
+                        )}
                       </div>
-                    )}
 
-                    <div className="pt-1 flex items-center gap-2">
-                      {!isOfflineReady ? (
-                        <Button
-                          size="sm"
-                          disabled={downloading || ytVideoId}
-                          onClick={handleDownloadOffline}
-                          className="w-full text-xs bg-violet-600 hover:bg-violet-700 text-white font-medium flex items-center justify-center gap-1.5"
-                        >
-                          {downloading ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Downloading ({downloadProgress}%)</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-3.5 h-3.5" />
-                              <span>{ytVideoId ? "Online YouTube Stream" : "Save for Offline (Chunk Cache)"}</span>
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleRemoveOffline}
-                          className="w-full text-xs border-rose-900/60 text-rose-400 hover:bg-rose-950/50 hover:text-rose-300 flex items-center justify-center gap-1.5"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete Offline Copy
-                        </Button>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Download lecture video chunks into your browser storage to play anytime with zero internet connection.
+                      </p>
+
+                      {downloadError && (
+                        <div className="p-2.5 bg-rose-950/80 border border-rose-800 rounded-lg text-[11px] text-rose-300 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{downloadError}</span>
+                        </div>
                       )}
-                    </div>
-                  </div>
 
-                  {/* Low Data Use Mode Card */}
-                  <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-amber-400" />
-                        <span className="text-xs font-bold text-white">Low Data / Chunk Saver Mode</span>
+                      {downloading && (
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex justify-between text-[11px] text-slate-300">
+                            <span>Downloading media chunks...</span>
+                            <span className="font-bold text-violet-400">{downloadProgress}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-violet-600 transition-all duration-200"
+                              style={{ width: `${downloadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="pt-1 flex items-center gap-2">
+                        {!isOfflineReady ? (
+                          <Button
+                            size="sm"
+                            disabled={downloading}
+                            onClick={handleDownloadOffline}
+                            className="w-full text-xs bg-violet-600 hover:bg-violet-700 text-white font-medium flex items-center justify-center gap-1.5"
+                          >
+                            {downloading ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <span>Downloading ({downloadProgress}%)</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-3.5 h-3.5" />
+                                <span>Save for Offline (Chunk Cache)</span>
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleRemoveOffline}
+                            className="w-full text-xs border-rose-900/60 text-rose-400 hover:bg-rose-950/50 hover:text-rose-300 flex items-center justify-center gap-1.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete Offline Copy
+                          </Button>
+                        )}
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={dataSaver}
-                        onChange={(e) => setDataSaver(e.target.checked)}
-                        className="w-4 h-4 accent-amber-500 cursor-pointer"
-                      />
                     </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Restricts stream buffer window to 512KB–2MB chunks and purges played RAM memory. Reduces total mobile data consumption by up to 70%.
-                    </p>
-                  </div>
 
-                  {/* Diagnostics Info */}
-                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Network Status:</span>
-                      <span className={isOnline ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                        {isOnline ? "Online (Connected)" : "Offline Mode"}
-                      </span>
+                    {/* Low Data Mode Card */}
+                    <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs font-bold text-white">Low Data / Chunk Saver Mode</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={dataSaver}
+                          onChange={(e) => setDataSaver(e.target.checked)}
+                          className="w-4 h-4 accent-amber-500 cursor-pointer"
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Restricts stream buffer window to 512KB–2MB chunks and purges played RAM memory. Reduces total mobile data consumption by up to 70%.
+                      </p>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Stream Protocol:</span>
-                      <span className="text-slate-200">{ytVideoId ? "YouTube Player API" : "HTTP 206 Partial Chunk Stream"}</span>
+
+                    {/* Diagnostics Info */}
+                    <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400 space-y-1.5">
+                      <div className="flex justify-between">
+                        <span>Network Status:</span>
+                        <span className={isOnline ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                          {isOnline ? "Online (Connected)" : "Offline Mode"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Stream Protocol:</span>
+                        <span className="text-slate-200">{ytVideoId ? "YouTube Player API" : "HTTP 206 Partial Chunk Stream"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Playback Source:</span>
+                        <span className="text-slate-200 truncate max-w-[170px]">
+                          {offlineBlobUrl ? "IndexedDB / Cache Blob" : "Direct Edge Stream"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Playback Source:</span>
-                      <span className="text-slate-200 truncate max-w-[170px]">
-                        {offlineBlobUrl ? "IndexedDB / Cache Blob" : "Direct Edge Stream"}
-                      </span>
+                  </div>
+                )}
+
+                {/* Study Notes Tab */}
+                {activeTab === "notes" && (
+                  <div className="space-y-3">
+                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-violet-400" /> Interactive Study Notes
+                    </div>
+                    <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                      {item.body || item.description || "Take notes while watching the video lecture. All concepts are timestamped to help with revision."}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Study Notes Tab */}
-              {activeTab === "notes" && (
-                <div className="space-y-3">
-                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-violet-400" /> Interactive Study Notes
-                  </div>
-                  <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
-                    {item.body || item.description || "Take notes while watching the video lecture. All concepts are timestamped to help with revision."}
-                  </div>
-                </div>
-              )}
-            </div>
+              {/* Side Footer */}
+              <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleShare}
+                  className="text-xs border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-1.5"
+                >
+                  <Share2 className="w-3.5 h-3.5" /> {copied ? "Link Copied!" : "Share"}
+                </Button>
 
-            {/* Side Footer */}
-            <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleShare}
-                className="text-xs border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-1.5"
-              >
-                <Share2 className="w-3.5 h-3.5" /> {copied ? "Link Copied!" : "Share"}
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={onClose}
-                className="text-xs bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4"
-              >
-                Close Theatre
-              </Button>
-            </div>
-          </div>
+                <Button
+                  size="sm"
+                  onClick={onClose}
+                  className="text-xs bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4"
+                >
+                  Close Theatre
+                </Button>
+              </div>
+            </aside>
+          )}
         </div>
       </DialogContent>
     </Dialog>
