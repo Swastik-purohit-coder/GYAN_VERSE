@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole, saveUserRole } from "@/lib/users";
 import { getVideoType } from "@/lib/videoHelpers";
 import { useSubjects, useTeacherModules, useTeacherStudentProgress } from "@/hooks/useApi";
@@ -108,6 +108,7 @@ function ModuleManager() {
     setRoleLoading(true);
     fetchUserRole(user.id)
       .then((doc) => {
+        const roleVal = typeof doc === "string" ? doc : doc?.role;
         if (roleVal === "unassigned") {
           router.replace("/role-select");
           return;
@@ -129,7 +130,7 @@ function ModuleManager() {
     return () => {
       active = false;
     };
-  }, [isLoaded, isSignedIn, user?.id]);
+  }, [isLoaded, isSignedIn, user?.id, router]);
 
   const schoolId = roleDoc?.schoolId || roleDoc?.school_id || user?.unsafeMetadata?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null) || "default_school";
   const rawRole = typeof roleDoc === "string" ? roleDoc : roleDoc?.role;
@@ -1081,14 +1082,5 @@ function ModuleManager() {
 }
 
 export default function ModulesPage() {
-  return (
-    <>
-      <SignedIn>
-        <ModuleManager />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  return <ModuleManager />;
 }

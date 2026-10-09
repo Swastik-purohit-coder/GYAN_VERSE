@@ -1,6 +1,7 @@
 "use client";
 
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
+import OfflineSafeAuthGuard from "@/components/OfflineSafeAuthGuard";
 import { useEffect, useState } from "react";
 import { saveUserRole } from "@/lib/users";
 import { useTheme } from "@/components/ThemeProvider";
@@ -215,8 +216,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className={`min-h-screen ${t.pageBg} font-sans selection:bg-indigo-100 selection:text-indigo-900 py-6 sm:py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-150`}>
-      <SignedIn>
+    <OfflineSafeAuthGuard>
+      <div className={`min-h-screen ${t.pageBg} font-sans selection:bg-indigo-100 selection:text-indigo-900 py-6 sm:py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-150`}>
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Dynamic Profile Summary Header Card */}
           <div className={`${t.card} border rounded-2xl p-6 sm:p-7 shadow-xs relative overflow-hidden transition-colors`}>
@@ -831,10 +832,7 @@ export default function SettingsPage() {
             </div>
           </form>
         </div>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </div>
+      </div>
+    </OfflineSafeAuthGuard>
   );
 }

@@ -36,6 +36,31 @@ export default function RootLayout({ children }) {
           iframe.goog-te-banner-frame { display: none !important; visibility: hidden !important; height: 0 !important; }
           .goog-te-balloon-frame { display: none !important; visibility: hidden !important; height: 0 !important; }
         `}</style>
+        {/* Intercept and suppress Clerk ChunkLoadError / offline script errors before any bundle loads */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var isChunkErr = function(err, msg) {
+                  var text = ((msg || '') + ' ' + (err && err.message ? err.message : '') + ' ' + (err && err.name ? err.name : '')).toLowerCase();
+                  return text.indexOf('chunkloaderror') !== -1 || text.indexOf('loading chunk') !== -1 || text.indexOf('clerk.accounts.dev') !== -1 || text.indexOf('signin_clerk') !== -1;
+                };
+                window.addEventListener('error', function(e) {
+                  if (isChunkErr(e.error, e.message)) {
+                    e.preventDefault();
+                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                  }
+                }, true);
+                window.addEventListener('unhandledrejection', function(e) {
+                  if (isChunkErr(e.reason, e.reason && e.reason.message)) {
+                    e.preventDefault();
+                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                  }
+                }, true);
+              })();
+            `,
+          }}
+        />
         <Script id="gt-hide-banner" strategy="afterInteractive">
           {`
             (function(){

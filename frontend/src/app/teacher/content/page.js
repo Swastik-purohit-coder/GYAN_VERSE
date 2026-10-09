@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@teacher/components/ui/card";
 import { Input } from "@teacher/components/ui/input";
@@ -169,12 +169,12 @@ export default function TeacherContentPage() {
     });
   }, [materials, searchTerm, selectedSource]);
 
-  if (!isSignedIn && isLoaded) {
-    return (
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    );
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  if (!isSignedIn && isLoaded && !isOffline) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/sign-in";
+    }
+    return null;
   }
 
   return (

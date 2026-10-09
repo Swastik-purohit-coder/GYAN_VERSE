@@ -1,4 +1,4 @@
-import { db, getPendingSyncCount } from "./offlineDb";
+import { db, getPendingSyncCount } from "./offlineDb.js";
 
 export const SYNC_STATES = {
   ONLINE: "ONLINE",
@@ -159,6 +159,15 @@ export async function processSyncQueue(options = {}) {
             }
           } else if (queueItem.action === "SUBMIT_QUIZ_RESPONSE" && queueItem.payload?.attemptId) {
             await db.quizAttempts.update(queueItem.payload.attemptId, { syncStatus: "synced" });
+          } else if (queueItem.action === "CREATE_DOUBT" && queueItem.entityId) {
+            const localDoubt = await db.doubtSessions.get(queueItem.entityId);
+            if (localDoubt) {
+              await db.doubtSessions.update(queueItem.entityId, { syncStatus: "synced" });
+            }
+          } else if (queueItem.action === "ADD_DOUBT_MESSAGE" && queueItem.payload?.localMsgId) {
+            await db.doubtMessages.update(queueItem.payload.localMsgId, { syncStatus: "synced" });
+          } else if (queueItem.action === "SEND_GROUP_MESSAGE" && queueItem.payload?.localMsgId) {
+            await db.groupMessages.update(queueItem.payload.localMsgId, { syncStatus: "synced" });
           }
 
           // Remove completed task from syncQueue

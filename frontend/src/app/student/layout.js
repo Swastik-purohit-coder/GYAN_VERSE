@@ -1,5 +1,6 @@
 "use client";
-import { SignedIn, SignedOut, RedirectToSignIn, useClerk, useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
+import OfflineSafeAuthGuard from "@/components/OfflineSafeAuthGuard";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/student/components/ui/button";
@@ -103,8 +104,7 @@ export default function StudentLayout({ children }) {
   };
 
   return (
-    <>
-      <SignedIn>
+    <OfflineSafeAuthGuard>
         <div className="min-h-screen bg-[#F7F8FC] text-[#172033] transition-colors duration-200">
           {/* =========================================
               DESKTOP SIDEBAR
@@ -429,10 +429,6 @@ export default function StudentLayout({ children }) {
             </nav>
           </div>
         </div>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
+    </OfflineSafeAuthGuard>
   );
 }

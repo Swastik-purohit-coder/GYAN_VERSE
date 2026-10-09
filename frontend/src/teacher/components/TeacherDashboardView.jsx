@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import { useAdminOverview, useNoticeboard, useCompetitions } from "@/hooks/useDashboardFeatures";
 import { Card, CardContent, CardHeader, CardTitle } from "@teacher/components/ui/card";
@@ -134,12 +134,12 @@ export default function TeacherDashboardView({ defaultView = "principal", forced
     ];
   }, [overview?.subjectProficiency]);
 
-  if (!isSignedIn && isLoaded) {
-    return (
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    );
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  if (!isSignedIn && isLoaded && !isOffline) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/sign-in";
+    }
+    return null;
   }
 
   return (

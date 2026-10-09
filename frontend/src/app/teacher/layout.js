@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser, SignedIn, SignedOut, RedirectToSignIn } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
+import OfflineSafeAuthGuard from "@/components/OfflineSafeAuthGuard";
 import { fetchUserRole } from "@/lib/users";
 import TeacherSidebar from "@/teacher/components/TeacherSidebar";
 import { Menu } from "lucide-react";
@@ -15,8 +16,22 @@ export default function TeacherLayout({ children }) {
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
+    // When offline, check local role from IndexedDB/localStorage
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+      if (!localRole || ["teacher", "admin", "principal", "higher_body"].includes(localRole)) {
+        setAuthorized(true);
+        return;
+      }
+    }
+
     if (!isLoaded) return;
-    if (!isSignedIn || !user?.id) return;
+    if (!isSignedIn || !user?.id) {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setAuthorized(true);
+      }
+      return;
+    }
 
     // Check immediate Clerk unsafeMetadata for instant authorization
     const metaRole = user?.unsafeMetadata?.role;
@@ -46,7 +61,6 @@ export default function TeacherLayout({ children }) {
       })
       .catch(() => {
         if (!active) return;
-        // If query fails, default to authorized if role in local metadata
         setAuthorized(true);
       });
 
@@ -56,49 +70,64 @@ export default function TeacherLayout({ children }) {
   }, [isLoaded, isSignedIn, user?.id, user?.unsafeMetadata?.role, router]);
 
   return (
-    <>
-      <SignedIn>
-        {authorized ? (
-          <div className="min-h-screen w-full bg-[#FAF8F5] bg-grid-cream text-stone-900 selection:bg-stone-200 flex">
-            {/* Primary Sidebar (Desktop Sticky & Mobile Drawer) */}
-            <TeacherSidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+    <OfflineSafeAuthGuard>
+      {authorized ? (
+        <div className="flex h-screen bg-[#FAF8F5] text-slate-900 overflow-hidden font-sans">
+          {/* Mobile Overlay */}
+          {mobileOpen && (
+            <div
+              className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+              onClick={() => setMobileOpen(false)}
+            />
+          )}
 
-            {/* Main Content Area */}
-            <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-              {/* Mobile Header Bar (< lg screens) */}
-              <header className="lg:hidden sticky top-0 z-20 bg-[#0e1626] text-white px-4 py-3 flex items-center justify-between border-b border-slate-800 shadow-md">
+          {/* Desktop & Mobile Sidebar Drawer */}
+          <TeacherSidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+            {/* Top Navigation Bar */}
+            <header className="h-16 bg-white border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+              <div className="flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={() => setMobileOpen(true)}
-                  className="p-2 rounded-lg bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 transition-colors"
-                  aria-label="Open menu"
+                  className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  aria-label="Open navigation sidebar"
                 >
                   <Menu className="w-5 h-5" />
                 </button>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm tracking-tight text-white">GYANARATNA</span>
-                  <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[10px]">
-                    Faculty Portal
-                  </Badge>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">
+                    Gyanaratna
+                  </span>
+                  <span className="text-slate-300 hidden sm:inline">•</span>
+                  <h1 className="text-sm font-extrabold text-slate-800 tracking-tight">
+                    Faculty Workspace
+                  </h1>
                 </div>
-              </header>
+              </div>
 
-              {/* Dashboard Content Container */}
-              <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full max-w-7xl mx-auto">
-                {children}
-              </main>
-            </div>
+              <div className="flex items-center gap-3">
+                <Badge className="bg-indigo-50 text-[#635BFF] border-indigo-200/60 font-semibold text-xs px-2.5 py-0.5">
+                  Faculty Portal
+                </Badge>
+              </div>
+            </header>
+
+            {/* Dashboard Content Container */}
+            <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full max-w-7xl mx-auto">
+              {children}
+            </main>
           </div>
-        ) : (
-          <div className="min-h-screen w-full bg-[#FAF8F5] bg-grid-cream flex items-center justify-center">
-            <div className="text-slate-600 font-medium text-sm animate-pulse">
-              Verifying faculty authorization...
-            </div>
+        </div>
+      ) : (
+        <div className="min-h-screen w-full bg-[#FAF8F5] bg-grid-cream flex items-center justify-center">
+          <div className="text-slate-600 font-medium text-sm animate-pulse">
+            Verifying faculty authorization...
           </div>
-        )}
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
+        </div>
+      )}
+    </OfflineSafeAuthGuard>
   );
 }

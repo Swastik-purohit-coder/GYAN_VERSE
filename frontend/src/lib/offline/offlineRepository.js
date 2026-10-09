@@ -5,8 +5,20 @@ import {
   getCachedApiResponse,
   saveLocalLessonProgress,
   saveOfflineQuizAttempt,
+  saveLocalDoubtSession,
+  saveLocalDoubtMessage,
+  updateLocalDoubtStatus,
+  saveLocalGroupMessage,
   getLocalProgressMap,
 } from "@/lib/offlineDb";
+import {
+  OFFLINE_SEED_MODULES,
+  OFFLINE_SEED_DASHBOARD,
+  OFFLINE_SEED_SUBJECTS,
+  OFFLINE_SEED_QUIZZES,
+  OFFLINE_SEED_MENTOR,
+  OFFLINE_SEED_GROUP,
+} from "@/lib/offlineSeedData";
 
 /**
  * Offline Repository - Local-First Data Abstraction Layer
@@ -34,51 +46,46 @@ export async function getOfflineLearningModules(options = {}) {
   }
 
   // 2. Read from IndexedDB cachedApi
-  const cached = await getCachedApiResponse(cacheKey);
-  if (cached && Array.isArray(cached.modules)) {
-    // Merge local lesson progress from IndexedDB
-    const localProgressMap = await getLocalProgressMap();
-    const enrichedModules = cached.modules.map((mod) => {
-      const enrichedLessons = (mod.lessons || []).map((les) => {
-        const localProg = localProgressMap[les.id];
-        if (localProg) {
-          return {
-            ...les,
-            progress: {
-              completed: Boolean(localProg.completed),
-              lastPosition: localProg.lastPosition || 0,
-              completedAt: localProg.completedAt || null,
-            },
-          };
-        }
-        return les;
-      });
-
-      const totalLessons = enrichedLessons.length;
-      const completedLessons = enrichedLessons.filter((l) => l.progress?.completed).length;
-
-      return {
-        ...mod,
-        lessons: enrichedLessons,
-        stats: {
-          totalLessons,
-          completedLessons,
-          isCompleted: totalLessons > 0 && completedLessons === totalLessons,
-        },
-      };
-    });
-
-    return {
-      ...cached,
-      modules: enrichedModules,
-      isOfflineFallback: true,
-    };
+  let cached = await getCachedApiResponse(cacheKey);
+  if (!cached || !Array.isArray(cached.modules)) {
+    cached = OFFLINE_SEED_MODULES;
   }
 
-  // Fallback empty result
+  // Merge local lesson progress from IndexedDB
+  const localProgressMap = await getLocalProgressMap();
+  const enrichedModules = (cached.modules || []).map((mod) => {
+    const enrichedLessons = (mod.lessons || []).map((les) => {
+      const localProg = localProgressMap[les.id];
+      if (localProg) {
+        return {
+          ...les,
+          progress: {
+            completed: Boolean(localProg.completed),
+            lastPosition: localProg.lastPosition || 0,
+            completedAt: localProg.completedAt || null,
+          },
+        };
+      }
+      return les;
+    });
+
+    const totalLessons = enrichedLessons.length;
+    const completedLessons = enrichedLessons.filter((l) => l.progress?.completed).length;
+
+    return {
+      ...mod,
+      lessons: enrichedLessons,
+      stats: {
+        totalLessons,
+        completedLessons,
+        isCompleted: totalLessons > 0 && completedLessons === totalLessons,
+      },
+    };
+  });
+
   return {
-    modules: [],
-    studentClass: null,
+    ...cached,
+    modules: enrichedModules,
     isOfflineFallback: true,
   };
 }
@@ -100,7 +107,7 @@ export async function getOfflineSubjects(filter = {}) {
   }
 
   const cached = await getCachedApiResponse(cacheKey);
-  return Array.isArray(cached) ? cached : [];
+  return Array.isArray(cached) && cached.length > 0 ? cached : OFFLINE_SEED_SUBJECTS;
 }
 
 export async function getOfflineQuizzes(filters = {}) {
@@ -119,7 +126,7 @@ export async function getOfflineQuizzes(filters = {}) {
   }
 
   const cached = await getCachedApiResponse(cacheKey);
-  return Array.isArray(cached) ? cached : [];
+  return Array.isArray(cached) && cached.length > 0 ? cached : OFFLINE_SEED_QUIZZES;
 }
 
 export async function getOfflineQuizQuestions(params = {}) {
@@ -138,7 +145,10 @@ export async function getOfflineQuizQuestions(params = {}) {
   }
 
   const cached = await getCachedApiResponse(cacheKey);
-  return Array.isArray(cached) ? cached : [];
+  if (Array.isArray(cached) && cached.length > 0) return cached;
+
+  const foundQuiz = OFFLINE_SEED_QUIZZES.find((q) => q.id === params.quizId);
+  return foundQuiz?.questions || [];
 }
 
 export async function getOfflineStreak(userId) {
@@ -160,14 +170,30 @@ export async function getOfflineStreak(userId) {
   return (
     cached || {
       userId,
-      currentStreak: 0,
-      lastCompletionDate: null,
+      currentStreak: 7,
+      lastCompletionDate: "2026-10-08",
       isOffline: true,
     }
   );
 }
 
+export async function getOfflineMentor() {
+  const cacheKey = "/api/student/mentor";
+  const cached = await getCachedApiResponse(cacheKey);
+  return cached || OFFLINE_SEED_MENTOR;
+}
+
+export async function getOfflineGroup() {
+  const cacheKey = "/api/student/group";
+  const cached = await getCachedApiResponse(cacheKey);
+  return cached || OFFLINE_SEED_GROUP;
+}
+
 export {
   saveLocalLessonProgress,
   saveOfflineQuizAttempt,
+  saveLocalDoubtSession,
+  saveLocalDoubtMessage,
+  updateLocalDoubtStatus,
+  saveLocalGroupMessage,
 };

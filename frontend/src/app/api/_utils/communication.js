@@ -637,3 +637,39 @@ export async function addClassGroupResource(data) {
   inMemoryResources.unshift(newResource);
   return newResource;
 }
+
+export async function sendGroupMessage(groupId, senderId, senderName, senderRole, message) {
+  if (!globalThis.__gyanaratnaInMemoryGroupMessages) {
+    globalThis.__gyanaratnaInMemoryGroupMessages = {};
+  }
+  const inMemoryClassMessages = globalThis.__gyanaratnaInMemoryGroupMessages;
+
+  const now = nowIso();
+  const newMsg = {
+    id: normalizeId("gmsg", Date.now().toString()),
+    group_id: groupId,
+    sender_id: senderId,
+    sender_name: senderName || "Student",
+    sender_role: senderRole || "student",
+    message: String(message).trim(),
+    created_at: now,
+  };
+
+  if (checkSupabaseConfigured()) {
+    try {
+      const inserted = await run(
+        supabase.from("group_messages").insert(newMsg).select().maybeSingle()
+      );
+      if (inserted) return inserted;
+    } catch (err) {
+      console.warn("[sendGroupMessage] DB insert warning:", err.message);
+    }
+  }
+
+  if (!inMemoryClassMessages[groupId]) {
+    inMemoryClassMessages[groupId] = [];
+  }
+  inMemoryClassMessages[groupId].push(newMsg);
+  return newMsg;
+}
+

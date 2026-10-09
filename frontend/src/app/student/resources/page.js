@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import { useSchoolContent } from "@/hooks/useApi";
 import { useTheme } from "@/components/ThemeProvider";
@@ -178,12 +178,12 @@ export default function StudentResourcesPage() {
     setActiveMediaModal(item);
   };
 
-  if (!isSignedIn && isLoaded) {
-    return (
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    );
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  if (!isSignedIn && isLoaded && !isOffline) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/sign-in";
+    }
+    return null;
   }
 
   return (

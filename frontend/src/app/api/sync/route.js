@@ -1,9 +1,27 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { supabase, run, runSingle, nowIso, normalizeId } from "../_utils/supabase";
+import {
+  createDoubtSession,
+  addDoubtMessage,
+  updateDoubtStatus,
+  sendGroupMessage,
+} from "../_utils/communication";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+async function resolveUserId(request) {
+  try {
+    const authObj = await auth();
+    if (authObj?.userId) return authObj.userId;
+  } catch (err) {}
+  if (process.env.NODE_ENV !== "production") {
+    const headerId = request.headers.get("x-user-id") || request.headers.get("x-clerk-user-id");
+    if (headerId) return headerId;
+  }
+  return null;
+}
 
 /**
  * POST /api/sync
@@ -11,8 +29,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request) {
   try {
-    const authObj = await auth();
-    const userId = authObj?.userId;
+    const userId = await resolveUserId(request);
 
     if (!userId) {
       return NextResponse.json(
@@ -37,7 +54,7 @@ export async function POST(request) {
     const roleDoc = await runSingle(
       supabase
         .from("user_roles")
-        .select("class, school_id")
+        .select("class, school_id, name, role")
         .eq("user_id", userId)
         .maybeSingle()
     );
@@ -196,6 +213,78 @@ export async function POST(request) {
 
           processedIds.push(id);
           results.push({ id, quizId, status: "quiz_synced" });
+        }
+
+        // =========================================================================
+        // 3. CREATE_DOUBT
+        // =========================================================================
+        else if (action === "CREATE_DOUBT") {
+          const { subject, title, description, teacher_id, teacher_name } = payload || {};
+          if (title) {
+            await createDoubtSession({
+              student_id: userId,
+              student_name: roleDoc?.name || "Student",
+              student_class: roleDoc?.class || "Class 8",
+              teacher_id: teacher_id || "teacher_faculty_swastik",
+              teacher_name: teacher_name || "Swastik Kumar purohit",
+              subject: subject || "General",
+              title: title.trim(),
+              description: description ? description.trim() : "",
+            });
+          }
+          processedIds.push(id);
+          results.push({ id, status: "doubt_created_synced" });
+        }
+
+        // =========================================================================
+        // 4. ADD_DOUBT_MESSAGE
+        // =========================================================================
+        else if (action === "ADD_DOUBT_MESSAGE") {
+          const sessionId = entityId || payload?.session_id;
+          const { message, sender_role } = payload || {};
+          if (sessionId && message) {
+            await addDoubtMessage(
+              sessionId,
+              userId,
+              roleDoc?.name || "Student",
+              sender_role || "student",
+              message
+            );
+          }
+          processedIds.push(id);
+          results.push({ id, status: "doubt_message_synced" });
+        }
+
+        // =========================================================================
+        // 5. UPDATE_DOUBT_STATUS
+        // =========================================================================
+        else if (action === "UPDATE_DOUBT_STATUS") {
+          const sessionId = entityId || payload?.sessionId;
+          const status = payload?.status;
+          if (sessionId && status) {
+            await updateDoubtStatus(sessionId, status);
+          }
+          processedIds.push(id);
+          results.push({ id, status: "doubt_status_synced" });
+        }
+
+        // =========================================================================
+        // 6. SEND_GROUP_MESSAGE
+        // =========================================================================
+        else if (action === "SEND_GROUP_MESSAGE") {
+          const groupId = entityId || payload?.group_id;
+          const { message } = payload || {};
+          if (groupId && message) {
+            await sendGroupMessage(
+              groupId,
+              userId,
+              roleDoc?.name || "Student",
+              "student",
+              message
+            );
+          }
+          processedIds.push(id);
+          results.push({ id, status: "group_message_synced" });
         } else {
           // Unknown action -> mark processed so queue is not stuck
           processedIds.push(id);

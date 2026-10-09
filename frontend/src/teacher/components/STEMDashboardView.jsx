@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { fetchUserRole } from "@/lib/users";
 import {
   Card,
@@ -137,12 +137,10 @@ function DashboardContent() {
     []
   );
 
-  if (!isSignedIn) {
-    return (
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    );
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+  if (!isSignedIn && !isOffline) {
+    return null;
   }
 
   if (!loading && role && role !== "teacher" && role !== "admin") {
@@ -365,14 +363,5 @@ function DashboardContent() {
 }
 
 export default function STEMDashboardView() {
-  return (
-    <>
-      <SignedIn>
-        <DashboardContent />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  return <DashboardContent />;
 }

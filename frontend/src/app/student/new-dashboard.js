@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import LanguageToggle from "@/components/LanguageToggle";
 import OfflineNotice from "@/components/OfflineNotice";
 import { useRouter } from "next/navigation";
@@ -199,39 +199,37 @@ const StudentDashboard = () => {
   );
 
   return (
-    <SignedIn>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-4">
-                <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-                  Student Dashboard
-                </h1>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <OnlineBadge />
-                <LanguageToggle />
-              </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
+                Student Dashboard
+              </h1>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <OnlineBadge />
+              <LanguageToggle />
             </div>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <OfflineNotice />
-          
-          {currentView === 'subjects' && renderSubjectsView()}
-          {currentView === 'quizzes' && renderQuizzesView()}
-          {currentView === 'quiz' && renderQuizView()}
-        </main>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <OfflineNotice />
+        
+        {currentView === 'subjects' && renderSubjectsView()}
+        {currentView === 'quizzes' && renderQuizzesView()}
+        {currentView === 'quiz' && renderQuizView()}
+      </main>
 
-        {/* Footer Navigation */}
-        <FooterNav />
-      </div>
-    </SignedIn>
+      {/* Footer Navigation */}
+      <FooterNav />
+    </div>
   );
 };
 
@@ -339,14 +337,5 @@ const QuizCard = ({ quiz, onClick }) => {
 };
 
 export default function Page() {
-  return (
-    <>
-      <SignedIn>
-        <StudentDashboard />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  return <StudentDashboard />;
 }

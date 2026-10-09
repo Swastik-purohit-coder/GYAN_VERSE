@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/nextjs";
 import Link from "next/link";
 import styles from "./Adventures.module.css";
 import { FaBook, FaPuzzlePiece, FaGamepad, FaTrophy, FaArrowLeft, FaLightbulb } from "react-icons/fa";
@@ -119,14 +118,5 @@ function AdventuresUI() {
 }
 
 export default function AdventuresPage() {
-  return (
-    <>
-      <SignedIn>
-        <AdventuresUI />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  return <AdventuresUI />;
 }
