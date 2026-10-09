@@ -80,9 +80,12 @@ export default function Header() {
         <nav>
           {isWelcome ? (
             <div className="flex items-center gap-3">
-              <ul className="flex space-x-4">
+              <ul className="flex space-x-4 text-sm font-medium">
                 <li>
-                  <Link href="/contact">Contact</Link>
+                  <Link href="/exams" className="hover:text-indigo-600 transition-colors">Exams & Scholarships</Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="hover:text-indigo-600 transition-colors">Contact</Link>
                 </li>
               </ul>
               <ThemeToggle />
