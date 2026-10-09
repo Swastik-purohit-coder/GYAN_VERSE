@@ -357,8 +357,16 @@ class ApiClient {
     return this.request(`/student/dashboard?userId=${encodeURIComponent(userId)}`);
   }
 
-  async getStudentModules() {
-    return this.request('/student/modules');
+  async getStudentModules(options = {}) {
+    const params = new URLSearchParams();
+    if (typeof options === 'string') {
+      params.append('class', options);
+    } else if (options && typeof options === 'object') {
+      if (options.class) params.append('class', options.class);
+      if (options.schoolId) params.append('schoolId', options.schoolId);
+    }
+    const queryString = params.toString();
+    return this.request(`/student/modules${queryString ? '?' + queryString : ''}`);
   }
 
   async updateLessonProgress(lessonId, progressData) {
@@ -617,6 +625,7 @@ export const getLeaderboard = apiClient.getLeaderboard.bind(apiClient);
 export const askStudyBuddy = apiClient.askStudyBuddy.bind(apiClient);
 export const getUserRole = apiClient.getUserRole.bind(apiClient);
 export const getStudentDashboard = apiClient.getStudentDashboard.bind(apiClient);
+export const getStudentModules = apiClient.getStudentModules.bind(apiClient);
 export const setUserRole = apiClient.setUserRole.bind(apiClient);
 export const setupViews = apiClient.setupViews.bind(apiClient);
 export const getStudentsBySchool = apiClient.getStudentsBySchool.bind(apiClient);

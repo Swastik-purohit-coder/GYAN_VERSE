@@ -47,6 +47,7 @@ export default function LessonVideoPlayer({
   className = "",
   autoPlay = false,
   dataSaverMode: initialDataSaver = false,
+  offlineBlobUrl = null,
 }) {
   const effectiveId = lessonId || videoId || "default";
   const videoRef = useRef(null);
@@ -78,8 +79,14 @@ export default function LessonVideoPlayer({
   // Check if src is a YouTube URL
   const ytVideoId = src ? parseYouTubeVideoId(src) : null;
 
+  const isOffline = networkStatus === "offline" || (typeof navigator !== "undefined" && !navigator.onLine);
+
   // Determine media URL
   const mediaUrl = React.useMemo(() => {
+    if (offlineBlobUrl) return offlineBlobUrl;
+    if (isOffline && (ytVideoId || !src)) {
+      return "/home.mp4";
+    }
     if (!src && videoId) {
       return `/api/media/video/${encodeURIComponent(videoId)}`;
     }
@@ -87,7 +94,7 @@ export default function LessonVideoPlayer({
       return `/api/media/video/${encodeURIComponent(src)}`;
     }
     return src;
-  }, [src, videoId, ytVideoId]);
+  }, [src, videoId, ytVideoId, isOffline, offlineBlobUrl]);
 
   // Read saved local position on initial mount
   const getSavedPosition = useCallback(() => {
@@ -159,7 +166,8 @@ export default function LessonVideoPlayer({
   // Initialize Video & HLS (Low memory configuration)
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !mediaUrl || ytVideoId) return;
+    if (!video || !mediaUrl) return;
+    if (ytVideoId && !isOffline) return;
 
     setError(null);
     setIsLoading(true);
@@ -452,8 +460,8 @@ export default function LessonVideoPlayer({
     return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
-  // YouTube Fallback Render
-  if (ytVideoId) {
+  // YouTube Render (when online)
+  if (ytVideoId && !isOffline) {
     return (
       <div className={`relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-lg ${className}`}>
         <iframe
@@ -463,6 +471,16 @@ export default function LessonVideoPlayer({
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
+        <div className="absolute top-3 right-3 z-20">
+          <button
+            onClick={() => setNetworkStatus("offline")}
+            className="px-2.5 py-1 text-[11px] font-medium bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md transition-colors flex items-center gap-1.5"
+            title="Switch to offline companion stream"
+          >
+            <WifiOff className="w-3 h-3 text-amber-400" />
+            <span>Play Offline</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -495,10 +513,18 @@ export default function LessonVideoPlayer({
       />
 
       {/* Network / Offline Banner */}
-      {networkStatus === "offline" && (
-        <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600/90 text-white text-xs font-semibold backdrop-blur-md">
+      {isOffline && (
+        <div className="absolute top-3 left-3 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/95 text-white text-xs font-semibold backdrop-blur-md shadow-md">
           <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline - Using Local Chunk Buffer</span>
+          <span>Offline Mode • Playing Core Lesson Video</span>
+          {ytVideoId && (
+            <button
+              onClick={() => setNetworkStatus("online")}
+              className="ml-2 text-[10px] underline hover:text-white"
+            >
+              Try Online
+            </button>
+          )}
         </div>
       )}
 

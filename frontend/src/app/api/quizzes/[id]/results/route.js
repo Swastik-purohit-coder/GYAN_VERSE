@@ -18,9 +18,9 @@ export async function GET(request, context) {
       supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle()
     );
 
-    if (!caller || !["teacher", "admin"].includes(caller.role)) {
+    if (!caller || !["teacher", "admin", "principal", "higher_body"].includes(caller.role)) {
       return NextResponse.json(
-        { error: "Forbidden: Teacher privileges required to view quiz results" },
+        { error: "Forbidden: Teacher or administrative privileges required to view quiz results" },
         { status: 403 }
       );
     }

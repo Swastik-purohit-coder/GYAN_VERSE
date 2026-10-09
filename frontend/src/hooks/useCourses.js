@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import apiClient from "@/lib/api";
+import { getOfflineCourses } from "@/lib/offline/offlineRepository";
+import { saveLocalLessonProgress } from "@/lib/offlineDb";
 
 export function useCourses() {
   const [data, setData] = useState({
@@ -14,15 +16,15 @@ export function useCourses() {
     try {
       setLoading(true);
       setError(null);
-      const res = await apiClient.getCourses();
+      const res = await getOfflineCourses();
       setData({
-        studentClass: res.studentClass || null,
-        canonicalClassName: res.canonicalClassName || res.studentClass || null,
-        subjects: Array.isArray(res.subjects) ? res.subjects : [],
-        message: res.message || null,
+        studentClass: res?.studentClass || null,
+        canonicalClassName: res?.canonicalClassName || res?.studentClass || null,
+        subjects: Array.isArray(res?.subjects) ? res.subjects : [],
+        message: res?.message || null,
       });
     } catch (err) {
-      console.error("useCourses fetch error:", err);
+      console.warn("useCourses fetch error, using empty state:", err);
       setError(err?.message || "Failed to load courses");
     } finally {
       setLoading(false);
@@ -35,7 +37,7 @@ export function useCourses() {
 
   const updateVideoProgress = useCallback(
     async ({ videoId, lastPosition = 0, duration = 0, completed = false }) => {
-      // Optimistic update in local state
+      // 1. Optimistic update in local state
       setData((prev) => {
         if (!prev?.subjects) return prev;
 
@@ -79,16 +81,30 @@ export function useCourses() {
         return { ...prev, subjects: updatedSubjects };
       });
 
-      // Background network sync
+      // 2. Persist in local IndexedDB first
       try {
-        await apiClient.saveCourseVideoProgress({
-          videoId,
-          lastPosition,
-          duration,
+        await saveLocalLessonProgress({
+          lessonId: videoId,
           completed,
+          lastPosition,
+          action: "complete",
         });
-      } catch (err) {
-        console.warn("Failed to persist course video progress:", err);
+      } catch (localErr) {
+        console.warn("Could not save course progress locally:", localErr);
+      }
+
+      // 3. Sync with network if online
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        try {
+          await apiClient.saveCourseVideoProgress({
+            videoId,
+            lastPosition,
+            duration,
+            completed,
+          });
+        } catch (err) {
+          console.warn("Failed to persist course video progress over network:", err);
+        }
       }
     },
     []

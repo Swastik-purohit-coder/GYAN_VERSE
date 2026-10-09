@@ -94,18 +94,40 @@ function DashboardContent() {
     (async () => {
       try {
         if (!user?.id) return;
+        const metaRole = user?.unsafeMetadata?.role;
+        const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+        let cookieRole = null;
+        if (typeof document !== "undefined") {
+          const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+          if (match) cookieRole = decodeURIComponent(match[1]);
+        }
+        const fallbackRole =
+          (metaRole && metaRole !== "unassigned" ? metaRole : null) ||
+          (localRole && localRole !== "unassigned" ? localRole : null) ||
+          (cookieRole && cookieRole !== "unassigned" ? cookieRole : null);
+
+        if (["teacher", "principal", "higher_body", "admin"].includes(fallbackRole)) {
+          if (mounted) setRole(fallbackRole);
+        }
+
         const r = await fetchUserRole(user.id).catch(() => null);
         const roleValue = typeof r === "string" ? r : r?.role;
         if (!mounted) return;
-        if (roleValue === "unassigned") {
-          router.replace("/role-select");
-          return;
-        }
-        if (roleValue === "student") {
+        const finalRole = (roleValue && roleValue !== "unassigned") ? roleValue : fallbackRole;
+
+        if (finalRole === "student") {
           router.replace("/student/dashboard");
           return;
         }
-        setRole(roleValue || null);
+        if (["teacher", "principal", "higher_body", "admin"].includes(finalRole)) {
+          setRole(finalRole);
+          return;
+        }
+        if (finalRole === "unassigned" || !finalRole) {
+          router.replace("/role-select");
+          return;
+        }
+        setRole(finalRole);
       } finally {
         if (mounted) setLoading(false);
       }

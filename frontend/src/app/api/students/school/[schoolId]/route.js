@@ -14,9 +14,9 @@ export async function GET(_request, context) {
     const caller = await runSingle(
       supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle()
     );
-    if (!caller || !["teacher", "admin"].includes(caller.role)) {
+    if (!caller || !["teacher", "admin", "principal", "higher_body"].includes(caller.role)) {
       return NextResponse.json(
-        { error: "Forbidden: Teacher privileges required" },
+        { error: "Forbidden: Teacher or administrative privileges required" },
         { status: 403 }
       );
     }

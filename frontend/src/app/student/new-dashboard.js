@@ -336,6 +336,13 @@ const QuizCard = ({ quiz, onClick }) => {
   );
 };
 
+import StudentAuthGuard from "@/student/components/StudentAuthGuard";
+
 export default function Page() {
-  return <StudentDashboard />;
+  return (
+    <StudentAuthGuard>
+      <StudentDashboard />
+    </StudentAuthGuard>
+  );
 }
+

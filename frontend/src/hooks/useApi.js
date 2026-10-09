@@ -7,6 +7,9 @@ import {
   getOfflineSubjects,
   getOfflineQuizzes,
   getOfflineQuizQuestions,
+  getOfflineStudentDashboard,
+  getOfflineStudentProgress,
+  getOfflineSchoolContent,
 } from '@/lib/offline/offlineRepository';
 
 // Custom hook for subjects data
@@ -411,10 +414,10 @@ export function useStudentProgress(studentId) {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getStudentProgress(studentId);
+      const data = await getOfflineStudentProgress(studentId);
       setProgress(data);
     } catch (err) {
-      console.error('Failed to fetch student progress:', err);
+      console.warn('Failed to fetch student progress from network/offline:', err);
       setError(err.message);
       setProgress(null);
     } finally {
@@ -513,23 +516,18 @@ export function useStudentsBySchool(schoolId) {
 export function useSchoolContent(schoolId, options = {}) {
   const { type = null, limit = null } = options;
   const [content, setContent] = useState([]);
-  const [loading, setLoading] = useState(Boolean(schoolId));
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchContent = useCallback(async () => {
-    if (!schoolId) {
-      setContent([]);
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getSchoolContent(schoolId, { type, limit });
+      const targetSchoolId = schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null) || "all";
+      const data = await getOfflineSchoolContent(targetSchoolId, { type, limit });
       setContent(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Failed to fetch school content:', err);
+      console.warn('Failed to fetch school content from network/offline:', err);
       setError(err.message);
       setContent([]);
     } finally {
@@ -601,10 +599,10 @@ export function useStudentDashboard(studentId) {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getStudentDashboard(studentId);
+      const data = await getOfflineStudentDashboard(studentId);
       setDashboardData(data);
     } catch (err) {
-      console.error('Failed to fetch student dashboard:', err);
+      console.warn('Failed to fetch student dashboard from network/offline:', err);
       setError(err.message);
       setDashboardData(null);
     } finally {
@@ -708,11 +706,19 @@ export function useStudentModules(options = {}) {
       setLoading(true);
       setError(null);
 
-      const res = await getOfflineLearningModules();
+      const targetClass =
+        options?.class ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("studentClass") || localStorage.getItem("student_class")
+          : null) ||
+        "Class 8";
+      const targetSchool = options?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null);
+
+      const res = await getOfflineLearningModules({ ...options, class: targetClass, schoolId: targetSchool });
       setData({
-        modules: res.modules || [],
-        studentClass: res.studentClass || null,
-        schoolId: res.schoolId || null,
+        modules: res?.modules || [],
+        studentClass: res?.studentClass || targetClass,
+        schoolId: res?.schoolId || targetSchool,
       });
     } catch (err) {
       console.warn('Failed to load learning modules from network/offline:', err.message);
@@ -720,7 +726,7 @@ export function useStudentModules(options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [enabled]);
+  }, [enabled, options]);
 
   useEffect(() => {
     fetchModules();

@@ -165,7 +165,7 @@ export default function DashboardV2({ user = {} }) {
   const [roleError, setRoleError] = useState(null);
   const { theme = 'light' } = useTheme();
 
-  const studentId = clerkUser?.id || null;
+  const studentId = clerkUser?.id || (typeof window !== "undefined" ? localStorage.getItem("studentId") || localStorage.getItem("userId") : null) || "student";
   const { dashboardData } = useStudentDashboard(studentId);
   const {
     progress: quizProgress,
@@ -186,8 +186,31 @@ export default function DashboardV2({ user = {} }) {
   const [userRoleDoc, setUserRoleDoc] = useState(null);
 
   useEffect(() => {
+    const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+
+    // In offline mode, immediately populate from local storage if available
+    if (isOffline) {
+      const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+      const localClass = typeof window !== "undefined" ? (localStorage.getItem("studentClass") || localStorage.getItem("student_class")) : null;
+      const localSchool = typeof window !== "undefined" ? localStorage.getItem("schoolId") : null;
+      setUserRoleDoc({
+        role: localRole || "student",
+        class: localClass || "Class 8",
+        schoolId: localSchool || "School",
+        isOffline: true,
+      });
+      setSchoolId(localSchool || null);
+      setRoleError(null);
+      return;
+    }
+
     if (!userLoaded) return;
     if (!clerkUser?.id) {
+      // Check local role even if Clerk isn't ready
+      const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+      if (localRole === "student") {
+        setUserRoleDoc({ role: "student" });
+      }
       setSchoolId(null);
       setRoleError(null);
       return;
@@ -196,20 +219,42 @@ export default function DashboardV2({ user = {} }) {
     fetchUserRole(clerkUser.id)
       .then((doc) => {
         if (!active) return;
-        let roleVal = typeof doc === 'string' ? doc : doc?.role;
-        if (!roleVal || roleVal === 'unassigned') {
+        const roleVal = typeof doc === "string" ? doc : doc?.role;
+        const metaRole = clerkUser?.unsafeMetadata?.role;
+        const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+        let cookieRole = null;
+        if (typeof document !== "undefined") {
+          const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+          if (match) cookieRole = decodeURIComponent(match[1]);
+        }
+        const effectiveRole =
+          (roleVal && roleVal !== "unassigned" ? roleVal : null) ||
+          (metaRole && metaRole !== "unassigned" ? metaRole : null) ||
+          (localRole && localRole !== "unassigned" ? localRole : null) ||
+          (cookieRole && cookieRole !== "unassigned" ? cookieRole : null);
+
+        if (!effectiveRole || effectiveRole === 'unassigned') {
+          // If offline, do not kick to role-select; default to student
+          if (typeof navigator !== "undefined" && !navigator.onLine) {
+            setUserRoleDoc({ role: "student" });
+            return;
+          }
           router.replace('/role-select');
           return;
         }
-        setUserRoleDoc(doc);
-        const school = doc?.schoolId || doc?.school_id || null;
-        setSchoolId(school);
+        setUserRoleDoc(doc || { role: effectiveRole });
+        const school = doc?.schoolId || doc?.school_id || clerkUser?.unsafeMetadata?.schoolId || (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null);
+        if (school) setSchoolId(school);
         setRoleError(null);
       })
       .catch((error) => {
         if (!active) return;
-        setSchoolId(null);
-        setRoleError(error?.message || 'Unable to load profile data');
+        const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : "student";
+        const localSchool = typeof window !== "undefined" ? localStorage.getItem("schoolId") : null;
+        const localClass = typeof window !== "undefined" ? (localStorage.getItem("studentClass") || localStorage.getItem("student_class")) : null;
+        setUserRoleDoc({ role: localRole || "student", school_id: localSchool, class: localClass });
+        if (localSchool) setSchoolId(localSchool);
+        setRoleError(null);
       });
     return () => {
       active = false;
@@ -220,12 +265,14 @@ export default function DashboardV2({ user = {} }) {
     dashboardData?.student?.schoolId ||
     userRoleDoc?.school_id ||
     userRoleDoc?.schoolId ||
+    (typeof window !== "undefined" ? localStorage.getItem("schoolId") : null) ||
     'School Not Set';
 
   const studentClassDisplay =
     dashboardData?.student?.class ||
     userRoleDoc?.class ||
-    'Class Not Set';
+    (typeof window !== "undefined" ? localStorage.getItem("studentClass") || localStorage.getItem("student_class") : null) ||
+    'Class 8';
 
   const profileImageUrl = clerkUser?.imageUrl || clerkUser?.profileImageUrl || null;
 
@@ -697,7 +744,7 @@ export default function DashboardV2({ user = {} }) {
                 </div>
               )}
 
-              {schoolId && !roleError && (
+              {!roleError && (
                 <div className="space-y-5">
                   {contentError && (
                     <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3.5">

@@ -25,11 +25,13 @@ import {
   LogOut,
   Bell,
   Users,
+  WifiOff,
 } from "lucide-react";
 import { Input } from "@/student/components/ui/input";
 import { useI18n } from "@/i18n/useI18n";
 import { useRef, useState, useEffect } from "react";
 import { useTheme } from "@/components/ThemeProvider";
+import SyncStatusBadge from "@/components/SyncStatusBadge";
 
 const makeNavItems = (t) => [
   { href: "/student", label: t?.nav?.dashboard ? t.nav.dashboard() : "Dashboard", icon: Home },
@@ -66,17 +68,49 @@ export default function StudentLayout({ children }) {
     } catch {}
   }, []);
 
+  // Offline detection & cached session state
+  const [isOffline, setIsOffline] = useState(false);
+  const [hasOfflineSession, setHasOfflineSession] = useState(false);
+
   useEffect(() => {
+    const updateOfflineState = () => {
+      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      const cachedRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+      setIsOffline(offline);
+      setHasOfflineSession(cachedRole === "student" || Boolean(localStorage.getItem("userName")));
+    };
+
+    updateOfflineState();
+    window.addEventListener("online", updateOfflineState);
+    window.addEventListener("offline", updateOfflineState);
+    return () => {
+      window.removeEventListener("online", updateOfflineState);
+      window.removeEventListener("offline", updateOfflineState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return; // Do not perform online role redirect checks when offline
+    }
     if (!user?.id) return;
+    const metaRole = user?.unsafeMetadata?.role;
+    const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+    if (metaRole === "student" || localRole === "student") {
+      return;
+    }
+
     let active = true;
     import("@/lib/users")
       .then(({ fetchUserRole }) => fetchUserRole(user.id))
       .then((data) => {
         if (!active) return;
         const role = typeof data === "string" ? data : data?.role;
-        if (role === "teacher") {
+        if (["principal", "higher_body", "admin"].includes(role)) {
+          router.replace("/principal");
+        } else if (role === "teacher") {
           router.replace("/teacher/dashboard");
-        } else if (role === "unassigned") {
+        } else if (role === "unassigned" && !metaRole && !localRole && navigator.onLine) {
           router.replace("/role-select");
         }
       })
@@ -84,7 +118,7 @@ export default function StudentLayout({ children }) {
     return () => {
       active = false;
     };
-  }, [user?.id, router]);
+  }, [user?.id, user?.unsafeMetadata?.role, router]);
 
   const toggleDesktopSidebar = () => {
     setSidebarOpen((prev) => {
@@ -377,8 +411,9 @@ export default function StudentLayout({ children }) {
                   </div>
                 </div>
 
-                {/* Right controls: Notifications bell only (Dark Mode & Language are in the main top header) */}
+                {/* Right controls: Sync status badge & Notifications */}
                 <div className="flex items-center gap-2">
+                  <SyncStatusBadge />
                   <Link
                     href="/student/adventures"
                     className="relative flex items-center justify-center w-9 h-9 rounded-full text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF] transition-colors"
@@ -392,6 +427,16 @@ export default function StudentLayout({ children }) {
                 </div>
               </div>
             </header>
+
+            {/* Offline Alert Banner */}
+            {isOffline && (
+              <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center justify-center gap-2 font-medium">
+                <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  <strong>Offline Mode:</strong> You are browsing cached lessons, courses, and resources. Practice activities will be saved locally and synced once you reconnect.
+                </span>
+              </div>
+            )}
 
             {/* Main Application Body */}
             <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -429,6 +474,6 @@ export default function StudentLayout({ children }) {
             </nav>
           </div>
         </div>
-    </OfflineSafeAuthGuard>
-  );
-}
+      </OfflineSafeAuthGuard>
+    );
+  }

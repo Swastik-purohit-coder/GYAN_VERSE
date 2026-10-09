@@ -13,9 +13,9 @@ export const runtime = "nodejs";
 
 const ALLOWED_TYPES = new Set(["quiz", "article", "video", "material"]);
 
-export async function PUT(request, { params }) {
+export async function PUT(request, context) {
   try {
-    const id = params?.id;
+    const { id } = await context.params;
     if (!id) {
       return NextResponse.json({ error: "Content id is required" }, { status: 400 });
     }
@@ -130,9 +130,9 @@ export async function PUT(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request, context) {
   try {
-    const id = params?.id;
+    const { id } = await context.params;
     if (!id) {
       return NextResponse.json({ error: "Content id is required" }, { status: 400 });
     }

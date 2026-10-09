@@ -46,7 +46,7 @@ export async function GET(request, context) {
     }
 
     const isStudent = userRole?.role === "student" || (!userRole?.role || userRole.role === "unassigned");
-    const isTeacher = userRole?.role === "teacher" || userRole?.role === "admin";
+    const isTeacher = ["teacher", "admin", "principal", "higher_body"].includes(userRole?.role);
 
     // Enforce server-side security check for students
     if (!isTeacher && userId) {

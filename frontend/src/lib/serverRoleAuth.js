@@ -13,27 +13,38 @@ let lastOfflineErrorTimestamp = 0;
 
 /**
  * Fetches the user's role record directly from the `user_roles` table in Supabase.
- * Returns { role: "student" | "teacher" | "admin" | "unassigned", school_id, class, ... } or null.
+ * Returns { role: "student" | "teacher" | "principal" | "higher_body" | "admin" | "unassigned", school_id, class, ... } or null.
  * 
  * Offline compatible: Once resolved, will never fail when offline.
  *
  * @param {string} userId - Clerk user ID
- * @param {string} [hintRole] - Optional fallback role from cookie/headers
+ * @param {string|object} [hintRoleOrOptions] - Optional fallback role string, or options object { forceFresh }
+ * @param {object} [options] - Optional options { forceFresh?: boolean }
  * @returns {Promise<{ role: string, user_id?: string, school_id?: string, class?: string, offline?: boolean } | null>}
  */
-export async function getServerUserRole(userId, hintRole = null) {
+export async function getServerUserRole(userId, hintRoleOrOptions = null, options = {}) {
   if (!userId) return null;
+
+  let hintRole = null;
+  let forceFresh = false;
+
+  if (typeof hintRoleOrOptions === "object" && hintRoleOrOptions !== null) {
+    forceFresh = Boolean(hintRoleOrOptions.forceFresh);
+  } else {
+    hintRole = typeof hintRoleOrOptions === "string" ? hintRoleOrOptions : null;
+    forceFresh = Boolean(options?.forceFresh);
+  }
 
   const now = Date.now();
   const cached = roleCache.get(userId);
 
   // 1. Return fresh cached data if still within TTL
-  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+  if (!forceFresh && cached && now - cached.timestamp < CACHE_TTL_MS) {
     return cached.data;
   }
 
   // 2. If recent network error occurred (offline mode), return cached data without attempting fetch
-  if (cached && now - lastOfflineErrorTimestamp < OFFLINE_BACKOFF_MS) {
+  if (!forceFresh && cached && now - lastOfflineErrorTimestamp < OFFLINE_BACKOFF_MS) {
     return cached.data;
   }
 
@@ -93,14 +104,31 @@ export async function getServerUserRole(userId, hintRole = null) {
 
     const rows = await res.json();
     if (!Array.isArray(rows) || rows.length === 0) {
-      const missing = { role: hintRole || "unassigned", provisional: true, user_id: userId };
-      roleCache.set(userId, { data: missing, timestamp: now });
-      return missing;
+      // NEVER cache unassigned or missing roles so freshly onboarding users are recognized immediately
+      roleCache.delete(userId);
+      return { role: hintRole || "unassigned", provisional: true, user_id: userId };
     }
 
     const roleDoc = rows[0];
-    roleCache.set(userId, { data: roleDoc, timestamp: now });
-    return roleDoc;
+    let resolvedRole = roleDoc.role;
+    if (roleDoc.class?.startsWith("role:")) {
+      resolvedRole = roleDoc.class.replace("role:", "").trim().toLowerCase();
+    } else if (["principal", "higher_body", "admin"].includes(roleDoc.class)) {
+      resolvedRole = roleDoc.class;
+    }
+
+    const finalDoc = {
+      ...roleDoc,
+      role: resolvedRole,
+      class: roleDoc.class?.startsWith("role:") ? null : roleDoc.class,
+    };
+
+    if (finalDoc.role === "unassigned") {
+      roleCache.delete(userId);
+    } else {
+      roleCache.set(userId, { data: finalDoc, timestamp: now });
+    }
+    return finalDoc;
   } catch (err) {
     // Network failure / Offline detected
     lastOfflineErrorTimestamp = Date.now();

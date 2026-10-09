@@ -43,7 +43,14 @@ export async function POST(request, context) {
         .maybeSingle()
     );
 
-    const studentClass = roleDoc?.class || null;
+    let studentClass = roleDoc?.class || null;
+    if (!studentClass) {
+      try {
+        const { currentUser } = await import("@clerk/nextjs/server");
+        const clerkUser = await currentUser();
+        studentClass = clerkUser?.unsafeMetadata?.class || clerkUser?.publicMetadata?.class || null;
+      } catch {}
+    }
 
     // Student class is REQUIRED for authorization. Missing student class must never bypass authorization.
     if (!studentClass) {

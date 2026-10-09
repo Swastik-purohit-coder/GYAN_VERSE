@@ -30,8 +30,16 @@ export async function GET(request) {
       roleErr = e;
     }
 
-    const studentClass = roleDoc?.class || null;
+    let studentClass = roleDoc?.class || null;
     const schoolId = roleDoc?.school_id || null;
+
+    if (!studentClass) {
+      try {
+        const { currentUser } = await import("@clerk/nextjs/server");
+        const clerkUser = await currentUser();
+        studentClass = clerkUser?.unsafeMetadata?.class || clerkUser?.publicMetadata?.class || null;
+      } catch {}
+    }
 
     console.log("===== MODULE FETCH DEBUG =====");
     console.log("authenticatedUserId:", userId);

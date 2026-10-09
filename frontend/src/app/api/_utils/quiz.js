@@ -65,7 +65,7 @@ export async function recordQuizCompletionInternal(
     };
 
     try {
-      await run(supabase.from("quiz_responses").insert(responseDoc));
+      await run(supabase.from("quiz_responses").upsert(responseDoc, { onConflict: "id" }));
     } catch (responseError) {
       console.error("Failed to record quiz response snapshot", responseError);
     }
@@ -308,15 +308,14 @@ export async function canStudentAccessQuiz({ studentId, quizId, userRoleDoc = nu
 
   const totalLessons = Array.isArray(activeLessons) ? activeLessons.length : 0;
 
-  // Rule 26: If 0 lessons, DO NOT unlock (prevents 0/0 = 100% security hole)
+  // Standalone assessment / curriculum quiz with no video lesson prerequisites
   if (totalLessons === 0) {
     return {
-      allowed: false,
-      reason: "NO_LESSONS",
-      error: "Quiz is locked. No lessons are published for this module yet.",
+      allowed: true,
+      reason: "STANDALONE_ASSESSMENT",
       completedLessons: 0,
       totalLessons: 0,
-      progress: 0,
+      progress: 100,
       quiz: {
         id: quiz.id,
         title: quiz.title,

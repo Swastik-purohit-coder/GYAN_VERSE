@@ -94,11 +94,10 @@ export default function TeacherSidebar({ mobileOpen = false, setMobileOpen = () 
 
   const isHigherBody = ["principal", "admin", "higher_body"].includes(resolvedRole);
 
-  // Filter sections and items
+  // Filter sections and items: Principals & Higher Body have access to all faculty & executive sections
   const filteredNavSections = rawNavSections
     .filter((section) => {
       if (section.higherBodyOnly && !isHigherBody) return false;
-      if (section.facultyOnly && isHigherBody) return false;
       return true;
     })
     .map((section) => ({

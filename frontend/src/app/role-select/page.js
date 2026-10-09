@@ -108,13 +108,30 @@ export default function RoleSelectPage() {
       setName(user.fullName || user.firstName || "");
     }
     if (user?.id) {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("edit") === "true" || params.get("change") === "true") {
+          return;
+        }
+      }
       const metaRole = user?.unsafeMetadata?.role;
-      if (metaRole === "student") {
-        router.replace("/student");
-      } else if (["principal", "admin", "higher_body"].includes(metaRole)) {
+      const localRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+      let cookieRole = null;
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(/(?:^|;\s*)gyan_user_role=([^;]+)/);
+        if (match) cookieRole = decodeURIComponent(match[1]);
+      }
+      const effectiveRole =
+        (metaRole && metaRole !== "unassigned" ? metaRole : null) ||
+        (localRole && localRole !== "unassigned" ? localRole : null) ||
+        (cookieRole && cookieRole !== "unassigned" ? cookieRole : null);
+
+      if (effectiveRole === "student") {
+        router.replace("/student/dashboard");
+      } else if (["principal", "admin", "higher_body"].includes(effectiveRole)) {
         router.replace("/principal");
-      } else if (metaRole === "teacher") {
-        router.replace("/teacher");
+      } else if (effectiveRole === "teacher") {
+        router.replace("/teacher/dashboard");
       }
     }
   }, [isLoaded, user, router, name]);
@@ -172,6 +189,46 @@ export default function RoleSelectPage() {
         onboardingCompleted: true,
       };
 
+      // 1. If student, register profile with full parental details into student directory
+      if (normalizedRole === "student") {
+        try {
+          await fetch("/api/students", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              studentId: user.id,
+              userId: user.id,
+              name: name.trim() || user.fullName || user.firstName || "Student",
+              class: selectedClass,
+              schoolId: schoolName.trim() || "default_school",
+              dob,
+              fatherName,
+              parentPhone,
+              parentEmail,
+              studentPhone,
+              address,
+              section,
+              rollNumber,
+              mediumLanguage,
+              parentalControl,
+            }),
+          });
+        } catch (stdErr) {
+          console.warn("[completeOnboarding] Student directory registration:", stdErr);
+        }
+      }
+
+      // 2. Persist directly to Supabase user_roles and LocalStorage
+      await saveUserRole({
+        userId: user.id,
+        role: normalizedRole,
+        name: name.trim() || user.fullName || user.firstName || "User",
+        schoolId: schoolName.trim() || "default_school",
+        class: role === "student" ? selectedClass : (normalizedRole === "principal" ? "role:principal" : undefined),
+        ...profileMetadata,
+      });
+
+      // 3. Sync to Clerk user metadata
       try {
         await user.update({
           unsafeMetadata: {
@@ -182,24 +239,25 @@ export default function RoleSelectPage() {
             ...profileMetadata,
           },
         });
-        if (user.reload) {
-          await user.reload().catch(() => {});
-        }
       } catch (e) {
         console.warn("Clerk unsafeMetadata update:", e);
       }
 
-      await saveUserRole({
-        userId: user.id,
-        role: normalizedRole,
-        name: name.trim(),
-        schoolId: schoolName.trim() || "default_school",
-        class: role === "student" ? selectedClass : undefined,
-        ...profileMetadata,
-      });
-      router.replace(
-        role === "student" ? "/student" : role === "principal" ? "/principal" : "/teacher"
-      );
+      // 4. Immediate clean navigation to role portal
+      const targetPath =
+        normalizedRole === "student"
+          ? "/student/dashboard"
+          : normalizedRole === "principal"
+          ? "/principal"
+          : "/teacher/dashboard";
+
+      if (typeof window !== "undefined") {
+        document.cookie = `gyan_user_role=${normalizedRole}; path=/; max-age=604800; SameSite=Lax`;
+        localStorage.setItem("userRole", normalizedRole);
+        window.location.replace(targetPath);
+      } else {
+        router.replace(targetPath);
+      }
     } catch (err) {
       console.error("Onboarding error:", err);
       alert(err.message || "Failed to save profile");

@@ -117,6 +117,13 @@ function AdventuresUI() {
   );
 }
 
+import StudentAuthGuard from "@/student/components/StudentAuthGuard";
+
 export default function AdventuresPage() {
-  return <AdventuresUI />;
+  return (
+    <StudentAuthGuard>
+      <AdventuresUI />
+    </StudentAuthGuard>
+  );
 }
+

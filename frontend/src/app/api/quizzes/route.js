@@ -119,14 +119,14 @@ export async function GET(request) {
         const modLessonIds = modId && lessonsByModule[modId] ? lessonsByModule[modId] : [];
         const totalLessons = modLessonIds.length;
         const completedLessons = modLessonIds.filter((id) => completedSet.has(id)).length;
-        const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-        const isUnlocked = totalLessons > 0 && completedLessons === totalLessons;
+        const isUnlocked = totalLessons === 0 || completedLessons >= totalLessons;
+        const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 100;
 
         let state = "UNLOCKED";
         let message = null;
         if (totalLessons === 0) {
-          state = "NO_LESSONS";
-          message = "No lessons published for this module yet.";
+          state = "UNLOCKED";
+          message = "Open curriculum assessment.";
         } else if (!isUnlocked) {
           state = "LESSONS_INCOMPLETE";
           message = `Complete all ${totalLessons} lessons to unlock the quiz.`;

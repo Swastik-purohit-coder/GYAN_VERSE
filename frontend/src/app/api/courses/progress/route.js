@@ -55,12 +55,17 @@ export async function POST(request) {
 
     let dbError = null;
     try {
-      const { error } = await supabase
+      let { error } = await supabase
         .from("course_video_progress")
         .upsert(record, { onConflict: "student_id,video_id" });
 
       if (error) {
-        dbError = error.message;
+        const fallbackRes = await supabase
+          .from("course_video_progress")
+          .upsert(record, { onConflict: "id" });
+        if (fallbackRes.error) {
+          dbError = fallbackRes.error.message;
+        }
       }
     } catch (e) {
       dbError = e.message;

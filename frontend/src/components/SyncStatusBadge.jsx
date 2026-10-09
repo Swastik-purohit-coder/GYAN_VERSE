@@ -19,7 +19,8 @@ import {
 import { getPendingSyncCount } from "@/lib/offlineDb";
 
 export default function SyncStatusBadge() {
-  const [syncState, setSyncState] = useState(getSyncState());
+  const [mounted, setMounted] = useState(false);
+  const [syncState, setSyncState] = useState(SYNC_STATES.SYNCED);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncError, setSyncError] = useState(null);
   const [syncDetails, setSyncDetails] = useState({});
@@ -27,6 +28,9 @@ export default function SyncStatusBadge() {
   const [recentlySynced, setRecentlySynced] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setSyncState(getSyncState());
+
     // 1. Subscribe to SyncEngine state transitions
     const unsubscribe = subscribeToSyncStatus((newState, details) => {
       setSyncState(newState);
@@ -48,6 +52,8 @@ export default function SyncStatusBadge() {
 
     return () => unsubscribe();
   }, []);
+
+  if (!mounted) return null;
 
   const isOffline = syncState === SYNC_STATES.OFFLINE;
   const isSyncing = syncState === SYNC_STATES.SYNCING;

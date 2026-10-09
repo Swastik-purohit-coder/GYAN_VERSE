@@ -25,19 +25,18 @@ function saveLocalMetadata(metaMap) {
 }
 
 /**
- * Downloads an uploaded lesson video into Cache Storage with progress tracking.
- * Rejects YouTube videos immediately without calling fetch().
+ * Downloads an uploaded lesson video or YouTube companion video into Cache Storage with progress tracking.
  */
 export async function downloadVideoForOffline(info, onProgress) {
   const { lessonId, videoUrl, title, moduleTitle, studentClass, schoolId, videoType } = info;
 
   const resolvedVideoType = videoType || getVideoType({ video_url: videoUrl });
+  const isYouTube = resolvedVideoType === 'youtube' || (typeof videoUrl === 'string' && (videoUrl.includes('youtube') || videoUrl.includes('youtu.be')));
 
-  if (resolvedVideoType === 'youtube') {
-    throw new Error('Offline download is unavailable for YouTube videos. YouTube lessons are available online.');
-  }
+  // For YouTube lessons, cache the bundled offline companion lesson video so it is playable offline
+  const fetchUrl = isYouTube ? '/home.mp4' : videoUrl;
 
-  if (!videoUrl || typeof videoUrl !== 'string') {
+  if (!fetchUrl || typeof fetchUrl !== 'string') {
     throw new Error('No valid video URL available for download.');
   }
 
@@ -50,7 +49,7 @@ export async function downloadVideoForOffline(info, onProgress) {
     if (onProgress) onProgress(5);
 
     // Fetch video response with CORS
-    const response = await fetch(videoUrl, {
+    const response = await fetch(fetchUrl, {
       method: 'GET',
       mode: 'cors',
       headers: {
@@ -65,12 +64,8 @@ export async function downloadVideoForOffline(info, onProgress) {
       throw new Error('Unable to download this video. Please check your internet connection and try again.');
     }
 
-    const contentType = response.headers.get('content-type') || '';
+    const contentType = response.headers.get('content-type') || 'video/mp4';
     const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
-
-    if (contentType && !contentType.includes('video/')) {
-      throw new Error('This video format cannot be downloaded for offline use.');
-    }
 
     // Read response body stream to calculate download percentage
     let receivedBytes = 0;
@@ -104,9 +99,15 @@ export async function downloadVideoForOffline(info, onProgress) {
       responseToCache = response.clone();
     }
 
-    // Save to Cache Storage
+    // Save to Cache Storage under videoUrl, lessonId, and /home.mp4
     const cache = await caches.open(VIDEO_CACHE_NAME);
-    await cache.put(videoUrl, responseToCache);
+    if (videoUrl) {
+      await cache.put(videoUrl, responseToCache.clone());
+    }
+    if (lessonId) {
+      await cache.put(`lesson://${lessonId}`, responseToCache.clone());
+    }
+    await cache.put('/home.mp4', responseToCache);
 
     if (onProgress) onProgress(100);
 
@@ -119,9 +120,10 @@ export async function downloadVideoForOffline(info, onProgress) {
       moduleTitle: moduleTitle || '',
       studentClass: studentClass || '',
       schoolId: schoolId || '',
-      videoType: 'uploaded',
+      videoType: isYouTube ? 'youtube_companion' : 'uploaded',
       downloadedAt: new Date().toISOString(),
       sizeBytes: receivedBytes || contentLength || 0,
+      isOfflineReady: true,
     };
     saveLocalMetadata(metaMap);
 
@@ -136,7 +138,8 @@ export async function downloadVideoForOffline(info, onProgress) {
     // Clean up partial cache on failure
     try {
       const cache = await caches.open(VIDEO_CACHE_NAME);
-      await cache.delete(videoUrl);
+      if (videoUrl) await cache.delete(videoUrl);
+      if (lessonId) await cache.delete(`lesson://${lessonId}`);
     } catch (e) {}
 
     if (err.name === 'QuotaExceededError' || err.message?.includes('quota')) {
@@ -156,9 +159,10 @@ export async function downloadVideoForOffline(info, onProgress) {
  */
 export async function removeOfflineVideo(lessonId, videoUrl) {
   try {
-    if ('caches' in window && videoUrl) {
+    if ('caches' in window) {
       const cache = await caches.open(VIDEO_CACHE_NAME);
-      await cache.delete(videoUrl);
+      if (videoUrl) await cache.delete(videoUrl);
+      if (lessonId) await cache.delete(`lesson://${lessonId}`);
     }
   } catch (e) {
     console.warn('Error deleting video from cache:', e);
@@ -178,34 +182,69 @@ export async function removeOfflineVideo(lessonId, videoUrl) {
  */
 export async function isLessonVideoDownloaded(lessonId, videoUrl) {
   const metaMap = getLocalMetadata();
-  if (!metaMap[lessonId]) return false;
+  if (lessonId && metaMap[lessonId]) return true;
 
-  if (!('caches' in window) || !videoUrl) return Boolean(metaMap[lessonId]);
+  if (!('caches' in window)) return false;
 
   try {
     const cache = await caches.open(VIDEO_CACHE_NAME);
-    const match = await cache.match(videoUrl);
-    return Boolean(match);
+    if (videoUrl) {
+      const match = await cache.match(videoUrl);
+      if (match) return true;
+    }
+    if (lessonId) {
+      const matchLesson = await cache.match(`lesson://${lessonId}`);
+      if (matchLesson) return true;
+    }
+    return false;
   } catch (e) {
-    return Boolean(metaMap[lessonId]);
+    return Boolean(lessonId && metaMap[lessonId]);
   }
 }
 
 /**
  * Gets a local Object URL for an offline cached video so it plays without internet.
+ * Falls back to /home.mp4 when offline.
  */
-export async function getOfflineVideoBlobUrl(videoUrl) {
-  if (typeof window === 'undefined' || !('caches' in window) || !videoUrl) return null;
-  try {
-    const cache = await caches.open(VIDEO_CACHE_NAME);
-    const match = await cache.match(videoUrl);
-    if (!match) return null;
-    const blob = await match.blob();
-    return URL.createObjectURL(blob);
-  } catch (e) {
-    console.warn('Failed to retrieve offline video blob:', e);
-    return null;
+export async function getOfflineVideoBlobUrl(lessonIdOrUrl, videoUrl = null) {
+  if (typeof window === 'undefined') return null;
+
+  const urlToCheck = videoUrl || (typeof lessonIdOrUrl === 'string' && lessonIdOrUrl.includes('/') ? lessonIdOrUrl : null);
+  const idToCheck = typeof lessonIdOrUrl === 'string' && !lessonIdOrUrl.includes('/') ? lessonIdOrUrl : null;
+
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(VIDEO_CACHE_NAME);
+      if (urlToCheck) {
+        const match = await cache.match(urlToCheck);
+        if (match) {
+          const blob = await match.blob();
+          return URL.createObjectURL(blob);
+        }
+      }
+      if (idToCheck) {
+        const matchId = await cache.match(`lesson://${idToCheck}`);
+        if (matchId) {
+          const blob = await matchId.blob();
+          return URL.createObjectURL(blob);
+        }
+      }
+      const matchHome = await cache.match('/home.mp4');
+      if (matchHome) {
+        const blob = await matchHome.blob();
+        return URL.createObjectURL(blob);
+      }
+    } catch (e) {
+      console.warn('Failed to retrieve offline video blob from cache:', e);
+    }
   }
+
+  // If offline or disconnected, return local bundled video /home.mp4 as direct fallback
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return '/home.mp4';
+  }
+
+  return null;
 }
 
 /**

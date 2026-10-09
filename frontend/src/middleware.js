@@ -9,6 +9,11 @@ const isPlaceholderKey =
   publishableKey.includes("example") ||
   !publishableKey.startsWith("pk_");
 
+const isPrincipalRoute = createRouteMatcher([
+  "/principal",
+  "/principal/(.*)",
+]);
+
 const isTeacherRoute = createRouteMatcher([
   "/teacher",
   "/teacher/(.*)",
@@ -47,7 +52,7 @@ export default isPlaceholderKey
           : null);
       const pathname = request.nextUrl.pathname;
 
-      // 1. Protect Teacher APIs server-side
+      // 1. Protect Teacher & Executive APIs server-side
       if (isTeacherApi(request)) {
         if (!effectiveUserId) {
           return NextResponse.json(
@@ -57,9 +62,10 @@ export default isPlaceholderKey
         }
         const userDoc = await getServerUserRole(effectiveUserId);
         const role = userDoc?.role;
-        if (!role || (role !== "teacher" && role !== "admin")) {
+        const allowedRoles = ["teacher", "admin", "principal", "higher_body"];
+        if (!role || !allowedRoles.includes(role)) {
           return NextResponse.json(
-            { error: "Forbidden: Teacher privileges required" },
+            { error: "Forbidden: Faculty or executive privileges required" },
             { status: 403 }
           );
         }
@@ -68,7 +74,12 @@ export default isPlaceholderKey
 
       // 2. Unauthenticated user handling for protected pages
       if (!effectiveUserId) {
-        if (isTeacherRoute(request) || isStudentRoute(request) || isRoleSelectRoute(request)) {
+        if (
+          isPrincipalRoute(request) ||
+          isTeacherRoute(request) ||
+          isStudentRoute(request) ||
+          isRoleSelectRoute(request)
+        ) {
           // Allow offline mode to browse and use website normally via IndexedDB
           const isOfflineCookie = request.cookies.get("gyan_offline")?.value === "true";
           const isOfflineHeader = request.headers.get("x-offline") === "true";
@@ -84,17 +95,33 @@ export default isPlaceholderKey
       }
 
       // 3. User is authenticated with Clerk - fetch their source-of-truth role from user_roles
-      const cookieRole = request.cookies.get("gyan_role")?.value;
-      const userDoc = await getServerUserRole(effectiveUserId, cookieRole);
-      const role = userDoc?.role || cookieRole || "unassigned";
+      const rawCookieRole =
+        request.cookies.get("gyan_user_role")?.value ||
+        request.cookies.get("gyan_role")?.value;
+      const cookieRole =
+        rawCookieRole && rawCookieRole !== "unassigned" ? rawCookieRole : null;
+
+      let userDoc = await getServerUserRole(effectiveUserId, cookieRole);
+      let dbRole = userDoc?.role && userDoc.role !== "unassigned" ? userDoc.role : null;
+
+      // If database returned unassigned, check for immediate client cookie and try a force-fresh fetch
+      if (!dbRole && cookieRole) {
+        userDoc = await getServerUserRole(effectiveUserId, cookieRole, { forceFresh: true });
+        dbRole = userDoc?.role && userDoc.role !== "unassigned" ? userDoc.role : null;
+      }
+
+      const role = dbRole || cookieRole || "unassigned";
 
       // 4. If visiting root "/" or auth pages while logged in: redirect to their role dashboard
       if (pathname === "/" || isAuthRoute(request)) {
         if (role === "student") {
           return NextResponse.redirect(new URL("/student/dashboard", request.url));
         }
-        if (role === "teacher" || role === "admin") {
+        if (role === "teacher") {
           return NextResponse.redirect(new URL("/teacher/dashboard", request.url));
+        }
+        if (["principal", "higher_body", "admin"].includes(role)) {
+          return NextResponse.redirect(new URL("/principal", request.url));
         }
         if (role === "unassigned") {
           return NextResponse.redirect(new URL("/role-select", request.url));
@@ -103,16 +130,44 @@ export default isPlaceholderKey
 
       // 5. If user is visiting /role-select but already has an assigned role: redirect to their dashboard
       if (isRoleSelectRoute(request)) {
+        if (
+          request.nextUrl.searchParams.get("edit") === "true" ||
+          request.nextUrl.searchParams.get("change") === "true"
+        ) {
+          return NextResponse.next();
+        }
         if (role === "student") {
           return NextResponse.redirect(new URL("/student/dashboard", request.url));
         }
-        if (role === "teacher" || role === "admin") {
+        if (role === "teacher") {
           return NextResponse.redirect(new URL("/teacher/dashboard", request.url));
+        }
+        if (["principal", "higher_body", "admin"].includes(role)) {
+          return NextResponse.redirect(new URL("/principal", request.url));
         }
         return NextResponse.next();
       }
 
-      // 6. Protect Teacher routes (/teacher/*)
+      // 6. Protect Principal & Executive routes (/principal/*)
+      if (isPrincipalRoute(request)) {
+        if (role === "student") {
+          // Block students from accessing principal routes
+          return NextResponse.redirect(new URL("/student/dashboard", request.url));
+        }
+        if (role === "teacher") {
+          // Block teachers from accessing exclusive principal command center
+          return NextResponse.redirect(new URL("/teacher/dashboard", request.url));
+        }
+        if (role === "unassigned") {
+          return NextResponse.redirect(new URL("/role-select", request.url));
+        }
+        if (["principal", "higher_body", "admin"].includes(role)) {
+          return NextResponse.next();
+        }
+        return NextResponse.redirect(new URL("/student/dashboard", request.url));
+      }
+
+      // 7. Protect Teacher routes (/teacher/*)
       if (isTeacherRoute(request)) {
         if (role === "student") {
           // Reject student attempting to access teacher routes and redirect to student dashboard
@@ -121,18 +176,20 @@ export default isPlaceholderKey
         if (role === "unassigned") {
           return NextResponse.redirect(new URL("/role-select", request.url));
         }
-        if (role === "teacher" || role === "admin") {
+        if (["teacher", "principal", "higher_body", "admin"].includes(role)) {
           return NextResponse.next();
         }
         // Fallback safety
         return NextResponse.redirect(new URL("/student/dashboard", request.url));
       }
 
-      // 7. Protect Student routes (/student/*)
+      // 8. Protect Student routes (/student/*)
       if (isStudentRoute(request)) {
         if (role === "teacher") {
-          // Redirect teacher to teacher dashboard
           return NextResponse.redirect(new URL("/teacher/dashboard", request.url));
+        }
+        if (["principal", "higher_body"].includes(role)) {
+          return NextResponse.redirect(new URL("/principal", request.url));
         }
         if (role === "unassigned") {
           return NextResponse.redirect(new URL("/role-select", request.url));

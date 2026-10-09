@@ -79,25 +79,27 @@ export async function POST(request) {
     let existing = null;
     try {
       existing = await runSingle(
-        supabase.from("user_roles").select("*").eq("user_id", targetUserId).maybeSingle()
+        supabase.from("user_roles").select("user_id, role, name, school_id, class").eq("user_id", targetUserId).maybeSingle()
       );
     } catch (err) {
       console.warn("[/api/users/role] Existing user fetch warning:", err.message);
     }
 
-    const mergedMetadata = {
-      ...(existing?.metadata || {}),
-      ...extraProfile,
-    };
+    // Map role to valid DB check constraint column values
+    let dbRole = role;
+    let dbClass = klass;
+    if (["principal", "higher_body", "admin"].includes(role)) {
+      dbRole = "teacher";
+      dbClass = `role:${role}`;
+    }
 
-    const finalPayload = {
+    const dbPayload = {
       user_id: targetUserId,
-      role,
+      role: dbRole,
       provisional: false,
       name: name ?? existing?.name ?? null,
       school_id: schoolId || existing?.school_id || null,
-      class: klass ?? existing?.class ?? null,
-      metadata: mergedMetadata,
+      class: dbClass ?? existing?.class ?? null,
       created_at: existing?.created_at ?? nowIso(),
       updated_at: nowIso(),
     };
@@ -105,26 +107,10 @@ export async function POST(request) {
     let saved = null;
     try {
       saved = await runSingle(
-        supabase.from("user_roles").upsert(finalPayload, { onConflict: "user_id" }).select().maybeSingle()
+        supabase.from("user_roles").upsert(dbPayload, { onConflict: "user_id" }).select().maybeSingle()
       );
     } catch (upsertErr) {
-      const fallbackPayload = {
-        user_id: targetUserId,
-        role,
-        provisional: false,
-        name: name ?? existing?.name ?? null,
-        school_id: schoolId || existing?.school_id || null,
-        class: klass ?? existing?.class ?? null,
-        created_at: existing?.created_at ?? nowIso(),
-        updated_at: nowIso(),
-      };
-      try {
-        saved = await runSingle(
-          supabase.from("user_roles").upsert(fallbackPayload, { onConflict: "user_id" }).select().maybeSingle()
-        );
-      } catch (e) {
-        console.warn("[/api/users/role] Supabase fallback upsert warning:", e.message);
-      }
+      console.warn("[/api/users/role] Supabase upsert error:", upsertErr.message);
     }
 
     try {
@@ -132,7 +118,23 @@ export async function POST(request) {
       invalidateServerUserRoleCache(targetUserId);
     } catch {}
 
-    return NextResponse.json({ success: true, user: saved ?? finalPayload });
+    const returnUser = {
+      user_id: targetUserId,
+      role,
+      name: name ?? existing?.name ?? null,
+      school_id: schoolId || existing?.school_id || null,
+      class: klass ?? null,
+      provisional: false,
+      ...extraProfile,
+    };
+
+    const response = NextResponse.json({ success: true, user: returnUser });
+    response.cookies.set("gyan_user_role", role, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: "lax",
+    });
+    return response;
   } catch (error) {
     console.warn("[/api/users/role] Error caught, gracefully falling back:", error.message);
     const fallbackPayload = {
@@ -145,6 +147,12 @@ export async function POST(request) {
       created_at: nowIso(),
       updated_at: nowIso(),
     };
-    return NextResponse.json({ success: true, user: fallbackPayload, fallback: true });
+    const response = NextResponse.json({ success: true, user: fallbackPayload, fallback: true });
+    response.cookies.set("gyan_user_role", role || "student", {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: "lax",
+    });
+    return response;
   }
 }

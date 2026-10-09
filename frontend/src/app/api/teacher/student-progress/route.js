@@ -66,11 +66,15 @@ export async function GET(request) {
     let modules = [];
     let lessons = [];
     try {
-      const { data: modData } = await supabase
+      let modQuery = supabase
         .from("learning_modules")
-        .select("id, title, class, subject_id")
-        .eq("school_id", schoolId);
+        .select("id, title, class, subject_id");
 
+      if (schoolId && schoolId !== "default_school") {
+        modQuery = modQuery.or(`school_id.eq.${schoolId},school_id.is.null,school_id.eq.default_school`);
+      }
+
+      const { data: modData } = await modQuery;
       modules = modData || [];
     } catch (e) {
       console.warn("[/api/teacher/student-progress] modules query error:", e.message);

@@ -179,12 +179,15 @@ export default function StudentResourcesPage() {
   };
 
   const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
-  if (!isSignedIn && isLoaded && !isOffline) {
+  const hasCachedRole = typeof window !== "undefined" && (localStorage.getItem("userRole") === "student" || Boolean(localStorage.getItem("userName")));
+
+  if (!isSignedIn && isLoaded && !isOffline && !hasCachedRole) {
     if (typeof window !== "undefined") {
       window.location.href = "/sign-in";
     }
     return null;
   }
+
 
   return (
     <div className="space-y-6 pb-12">

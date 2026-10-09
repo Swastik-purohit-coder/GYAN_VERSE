@@ -127,7 +127,7 @@ export async function POST(request) {
 
     const assignedClass = klass || className || "Class 8";
     const generatedId = (studentId && String(studentId).trim())
-      ? String(studentId).trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_")
+      ? String(studentId).trim().replace(/[^a-zA-Z0-9_-]/g, "_")
       : `std_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     const metadata = {

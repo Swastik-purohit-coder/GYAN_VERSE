@@ -13,7 +13,7 @@ export const runtime = "nodejs";
  */
 export async function POST() {
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
@@ -117,10 +117,15 @@ export async function POST() {
 
       CREATE TABLE IF NOT EXISTS user_roles (
         user_id TEXT PRIMARY KEY,
-        role TEXT CHECK (role IN ('teacher', 'student', 'unassigned')),
+        role TEXT CHECK (role IN ('teacher', 'student', 'principal', 'admin', 'higher_body', 'unassigned')),
         name TEXT,
+        email TEXT,
+        phone TEXT,
+        parent_email TEXT,
+        parent_phone TEXT,
         class TEXT,
         school_id TEXT,
+        metadata JSONB DEFAULT '{}'::jsonb,
         provisional BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
