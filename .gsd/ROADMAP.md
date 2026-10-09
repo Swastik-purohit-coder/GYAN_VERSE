@@ -1,12 +1,12 @@
 ---
 milestone: Class-Wise Examination Information & Recommendation System
 version: 1.0.0
-updated: 2026-10-09T15:33:00+05:30
+updated: 2026-10-09T15:43:00+05:30
 ---
 
 # Roadmap
 
-> **Current Phase:** Phase 4 - Offline Synchronization & Mobile Parity
+> **Current Phase:** Phase 5 - Verification, Empirical Validation & Documentation
 > **Status:** in_progress
 
 ## Must-Haves (from SPEC)
@@ -18,7 +18,7 @@ updated: 2026-10-09T15:33:00+05:30
 - [x] 3-step "Find My Perfect Exams" Recommendation Wizard.
 - [x] "My Tracked Exams" bookmarking & deadline countdown tracker.
 - [x] Navigation integration into student sidebar and header.
-- [ ] Mobile app alignment with shared schema.
+- [x] Webapp local-first Dexie IndexedDB caching, Service Worker shell precaching, and offline sync queue.
 
 ---
 
@@ -60,15 +60,15 @@ updated: 2026-10-09T15:33:00+05:30
 
 ---
 
-### Phase 4: Offline Synchronization & Mobile Parity
-**Status:** ⬜ Not Started
-**Objective:** Establish mobile app parity with shared types, exam viewing screen, and offline SQLite caching so rural students can access exam information without active internet.
+### Phase 4: Offline Synchronization (Web Application)
+**Status:** ✅ Complete
+**Objective:** Establish web application local-first persistence with Dexie v4 stores (`examsCache`, `trackedExams`, `examRecommendations`), service worker shell precaching (`sw.js` v11), offline sync queue for tracking mutations (`/api/sync`), and live offline indicators.
 **Depends on:** Phase 3
-**Requirements:** REQ-MOBILE-EXAMS, REQ-OFFLINE-CACHE
+**Requirements:** REQ-OFFLINE-CACHE, REQ-TRACKER
 
 **Plans:**
-- [ ] Plan 4.1: Mobile Exam Screen Component & Shared Type Binding
-- [ ] Plan 4.2: Offline Cache Repository for Exam Data
+- [x] Plan 4.1: Dexie IndexedDB v4 Schema & Offline Repository Layer
+- [x] Plan 4.2: Service Worker Pre-caching, Offline UI Indicators & Sync Queueing
 
 ---
 
