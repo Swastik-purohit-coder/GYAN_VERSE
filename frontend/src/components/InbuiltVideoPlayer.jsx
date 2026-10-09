@@ -35,6 +35,7 @@ import {
 import { SOURCE_TYPES } from "@/lib/resourceAccess";
 import {
   downloadVideoForOffline,
+  autoCacheVideoOnPlay,
   isLessonVideoDownloaded,
   getOfflineVideoBlobUrl,
   removeOfflineVideo,
@@ -98,12 +99,27 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
         const downloaded = await isLessonVideoDownloaded(videoId, rawVideoUrl);
         if (mounted) {
           setIsOfflineReady(downloaded);
-          if (downloaded) {
-            const blobUrl = await getOfflineVideoBlobUrl(rawVideoUrl);
+          if (downloaded || !navigator.onLine) {
+            const blobUrl = await getOfflineVideoBlobUrl(videoId, rawVideoUrl);
             if (mounted && blobUrl) setOfflineBlobUrl(blobUrl);
           } else {
             setOfflineBlobUrl(null);
           }
+        }
+
+        // Auto-cache in background when online
+        if (navigator.onLine && rawVideoUrl) {
+          autoCacheVideoOnPlay({
+            lessonId: videoId,
+            videoUrl: rawVideoUrl,
+            audioUrl: rawAudioUrl,
+            title: item.title,
+            videoType: ytVideoId ? "youtube" : "html5",
+          }).then((res) => {
+            if (mounted && res?.isOfflineReady) {
+              setIsOfflineReady(true);
+            }
+          }).catch(() => {});
         }
       } catch (err) {
         console.warn("Offline video check:", err);
@@ -114,10 +130,23 @@ export default function InbuiltVideoPlayer({ item, isOpen, onClose }) {
       checkOfflineStatus();
     }
 
+    const handleCached = (e) => {
+      if (e.detail?.lessonId === videoId || e.detail?.videoUrl === rawVideoUrl) {
+        setIsOfflineReady(true);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("offline-video-cached", handleCached);
+    }
+
     return () => {
       mounted = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("offline-video-cached", handleCached);
+      }
     };
-  }, [isOpen, item, videoId, rawVideoUrl]);
+  }, [isOpen, item, videoId, rawVideoUrl, rawAudioUrl, ytVideoId]);
 
   // Handle Offline Download (Supports both direct MP4s and bundled companion videos)
   const handleDownloadOffline = async () => {

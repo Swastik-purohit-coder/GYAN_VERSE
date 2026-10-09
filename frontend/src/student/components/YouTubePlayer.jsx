@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getYouTubeVideoId } from "@/lib/videoHelpers";
 import { saveLocalLessonProgress } from "@/lib/offlineDb";
-import { WifiOff, Play, Pause, RotateCcw } from "lucide-react";
+import {
+  autoCacheVideoOnPlay,
+  getOfflineVideoBlobUrl,
+  isLessonVideoDownloaded,
+} from "@/lib/offlineVideoManager";
+import { WifiOff, Play, Pause, RotateCcw, CheckCircle2, Zap } from "lucide-react";
 
 export default function YouTubePlayer({
   url,
@@ -22,8 +27,11 @@ export default function YouTubePlayer({
   const [isOffline, setIsOffline] = useState(
     typeof navigator !== "undefined" ? !navigator.onLine : false
   );
+  const [offlineVideoSrc, setOfflineVideoSrc] = useState("/home.mp4");
+  const [isStoredOffline, setIsStoredOffline] = useState(false);
 
   const videoId = getYouTubeVideoId(url);
+  const effectiveId = lessonId || courseVideoId;
 
   // Monitor network connectivity
   useEffect(() => {
@@ -31,6 +39,7 @@ export default function YouTubePlayer({
     const handleOffline = () => setIsOffline(true);
 
     if (typeof window !== "undefined") {
+      setIsOffline(!navigator.onLine);
       window.addEventListener("online", handleOnline);
       window.addEventListener("offline", handleOffline);
     }
@@ -41,6 +50,63 @@ export default function YouTubePlayer({
       }
     };
   }, []);
+
+  // Check offline storage and resolve cached blob URL
+  useEffect(() => {
+    let active = true;
+
+    async function checkOfflineAvailability() {
+      try {
+        const stored = await isLessonVideoDownloaded(effectiveId, url);
+        if (active) setIsStoredOffline(Boolean(stored));
+
+        if (isOffline || stored) {
+          const blobUrl = await getOfflineVideoBlobUrl(effectiveId, url);
+          if (active && blobUrl) {
+            setOfflineVideoSrc(blobUrl);
+          }
+        }
+      } catch (e) {
+        console.warn("[YouTubePlayer] Offline check notice:", e);
+      }
+    }
+
+    checkOfflineAvailability();
+
+    const handleCachedEvent = (e) => {
+      if (e.detail?.lessonId === effectiveId || e.detail?.videoUrl === url) {
+        setIsStoredOffline(true);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("offline-video-cached", handleCachedEvent);
+    }
+
+    return () => {
+      active = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("offline-video-cached", handleCachedEvent);
+      }
+    };
+  }, [effectiveId, url, isOffline]);
+
+  // Auto-cache offline companion video in background when playing online
+  useEffect(() => {
+    if (isOffline || !url) return;
+
+    // Trigger auto-cache once online player is engaged
+    autoCacheVideoOnPlay({
+      lessonId: effectiveId,
+      videoUrl: url,
+      title: "Lesson Video",
+      videoType: "youtube",
+    }).then((res) => {
+      if (res?.isOfflineReady) {
+        setIsStoredOffline(true);
+      }
+    }).catch(() => {});
+  }, [effectiveId, url, isOffline]);
 
   useEffect(() => {
     if (!videoId || isOffline) return;
@@ -93,6 +159,15 @@ export default function YouTubePlayer({
             onStateChange: (event) => {
               if (event.data === window.YT.PlayerState.PLAYING) {
                 setIsPlaying(true);
+                // Also trigger background auto-cache when user begins playback
+                autoCacheVideoOnPlay({
+                  lessonId: effectiveId,
+                  videoUrl: url,
+                  title: "Lesson Video",
+                  videoType: "youtube",
+                }).then((r) => {
+                  if (r?.isOfflineReady) setIsStoredOffline(true);
+                });
               } else {
                 setIsPlaying(false);
               }
@@ -127,7 +202,7 @@ export default function YouTubePlayer({
         playerRef.current = null;
       }
     };
-  }, [videoId, autoPlay, dataSaver, courseVideoId, onProgress, onEnded, isOffline]);
+  }, [videoId, autoPlay, dataSaver, effectiveId, courseVideoId, onProgress, onEnded, isOffline, url]);
 
   // Track playback position periodically when online with YouTube player
   useEffect(() => {
@@ -207,13 +282,13 @@ export default function YouTubePlayer({
     return <div className="p-4 text-white">Invalid YouTube URL</div>;
   }
 
-  // Offline HTML5 Player Fallback
+  // Offline HTML5 Player Fallback (Cached video playback without internet)
   if (isOffline) {
     return (
       <div className="w-full h-full relative bg-slate-950 flex flex-col items-center justify-center">
         <video
           ref={videoElemRef}
-          src="/home.mp4"
+          src={offlineVideoSrc}
           controls
           autoPlay={autoPlay}
           playsInline
@@ -221,9 +296,9 @@ export default function YouTubePlayer({
           onEnded={handleOfflineEnded}
           className="w-full h-full object-contain"
         />
-        <div className="absolute top-3 left-3 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/90 text-white text-xs font-semibold backdrop-blur-md shadow-md">
+        <div className="absolute top-3 left-3 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600/95 text-white text-xs font-semibold backdrop-blur-md shadow-md">
           <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline Mode • Playing Core Lesson Video</span>
+          <span>Offline Mode • Playing Stored Lesson Video (No Internet Needed)</span>
           <button
             onClick={() => setIsOffline(false)}
             className="ml-2 text-[10px] underline hover:text-white"
@@ -238,6 +313,20 @@ export default function YouTubePlayer({
   return (
     <div className="w-full h-full relative">
       <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+      {/* Offline Stored Badge when Online */}
+      {isStoredOffline && (
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/80 text-emerald-400 text-[11px] font-medium backdrop-blur-md border border-slate-700 shadow-md">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          <span>Stored for Offline Replay</span>
+          <button
+            onClick={() => setIsOffline(true)}
+            className="ml-1 text-[10px] text-slate-300 hover:text-white underline"
+            title="Preview offline replay mode"
+          >
+            Play Offline
+          </button>
+        </div>
+      )}
     </div>
   );
 }

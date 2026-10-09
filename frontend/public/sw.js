@@ -377,35 +377,57 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle Video requests and Range headers from Cache Storage (glp-videos-v1)
-  const isVideoUrl = url.pathname.endsWith('.mp4') || url.pathname.endsWith('.webm') || request.headers.get('accept')?.includes('video');
+  // Handle Video and Audio media requests and Range headers from Cache Storage (glp-videos-v1)
+  const isMediaUrl =
+    url.pathname.endsWith('.mp4') ||
+    url.pathname.endsWith('.webm') ||
+    url.pathname.endsWith('.mp3') ||
+    url.pathname.endsWith('.wav') ||
+    url.pathname.endsWith('.m4a') ||
+    url.pathname.endsWith('.aac') ||
+    url.pathname.includes('/api/media/') ||
+    request.headers.get('accept')?.includes('video') ||
+    request.headers.get('accept')?.includes('audio');
   const hasRangeHeader = Boolean(request.headers.get('range'));
 
-  if (isVideoUrl || hasRangeHeader) {
+  if (isMediaUrl || hasRangeHeader) {
     event.respondWith(
       (async () => {
         try {
           const videoCache = await caches.open(VIDEO_CACHE);
-          const cachedMatch = await videoCache.match(request.url) || await videoCache.match(request);
-          
+          const cachedMatch =
+            (await videoCache.match(request.url)) ||
+            (await videoCache.match(request)) ||
+            (await videoCache.match(url.origin + url.pathname)) ||
+            (await videoCache.match(url.pathname));
+
           if (cachedMatch) {
             return await handleVideoRangeRequest(request, cachedMatch);
           }
 
           // Try network
           const netRes = await fetch(request);
+          if (netRes.status === 200 && request.method === 'GET') {
+            try {
+              await videoCache.put(request.url, netRes.clone());
+              await videoCache.put(url.pathname, netRes.clone());
+            } catch (cacheErr) {}
+          }
           return netRes;
         } catch (err) {
-          // If network fails (offline), try match without query parameters
+          // If network fails (offline), try match without query parameters or fallback
           try {
             const videoCache = await caches.open(VIDEO_CACHE);
-            const cachedUrlMatch = await videoCache.match(url.origin + url.pathname);
+            const cachedUrlMatch =
+              (await videoCache.match(url.origin + url.pathname)) ||
+              (await videoCache.match(url.pathname)) ||
+              (await videoCache.match('/home.mp4'));
             if (cachedUrlMatch) {
               return await handleVideoRangeRequest(request, cachedUrlMatch);
             }
           } catch (e) {}
 
-          return new Response('Video unavailable offline. Download for offline first.', {
+          return new Response('Media unavailable offline. Stream once online to store for offline playback.', {
             status: 503,
             headers: { 'Content-Type': 'text/plain' },
           });

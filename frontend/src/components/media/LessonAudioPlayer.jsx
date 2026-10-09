@@ -13,7 +13,13 @@ import {
   Loader2,
   Headphones,
   Sparkles,
+  WifiOff,
+  CheckCircle2,
 } from "lucide-react";
+import {
+  autoCacheVideoOnPlay,
+  getOfflineAudioBlobUrl,
+} from "@/lib/offlineVideoManager";
 
 const AUDIO_POS_PREFIX = "gyan_aud_pos_";
 
@@ -53,12 +59,47 @@ export default function LessonAudioPlayer({
   const [isBuffering, setIsBuffering] = useState(false);
   const [error, setError] = useState(null);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [resolvedAudioBlob, setResolvedAudioBlob] = useState(null);
+  const [isStoredOffline, setIsStoredOffline] = useState(false);
 
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
   const lastSavedPositionRef = useRef(0);
   const progressTimerRef = useRef(null);
   const completedTriggeredRef = useRef(false);
 
+  // Check offline cache and auto-cache in background
+  useEffect(() => {
+    let active = true;
+    async function checkOfflineAudio() {
+      try {
+        const audBlob = await getOfflineAudioBlobUrl(effectiveId, src);
+        if (active && audBlob) {
+          setResolvedAudioBlob(audBlob);
+          setIsStoredOffline(true);
+        }
+
+        if (!isOffline && (src || audioId)) {
+          autoCacheVideoOnPlay({
+            lessonId: effectiveId,
+            audioUrl: src,
+            title,
+          }).then((res) => {
+            if (active && res?.isOfflineReady) {
+              setIsStoredOffline(true);
+            }
+          }).catch(() => {});
+        }
+      } catch (err) {}
+    }
+
+    checkOfflineAudio();
+    return () => {
+      active = false;
+    };
+  }, [effectiveId, src, audioId, title, isOffline]);
+
   const mediaUrl = React.useMemo(() => {
+    if (resolvedAudioBlob) return resolvedAudioBlob;
     if (!src && audioId) {
       return `/api/media/audio/${encodeURIComponent(audioId)}`;
     }
@@ -66,7 +107,7 @@ export default function LessonAudioPlayer({
       return `/api/media/audio/${encodeURIComponent(src)}`;
     }
     return src;
-  }, [src, audioId]);
+  }, [src, audioId, resolvedAudioBlob]);
 
   const getSavedPosition = useCallback(() => {
     if (typeof window === "undefined") return initialPosition || 0;
