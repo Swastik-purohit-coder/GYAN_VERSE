@@ -40,6 +40,7 @@ const makeNavItems = (t) => [
   { href: "/student", label: t?.nav?.dashboard ? t.nav.dashboard() : "Dashboard", icon: Home },
   { href: "/student/learn-with-ai", label: "Learn with AI", icon: Brain },
   { href: "/student/courses", label: t?.nav?.courses ? t.nav.courses() : "Courses", icon: BookOpen },
+  { href: "/student/quiz", label: t?.nav?.quizzes ? t.nav.quizzes() : "Quizzes", icon: ClipboardList },
   { href: "/student/skills", label: "Skill Tracks", icon: Sparkles },
   { href: "/student/exams", label: "Exams & Scholarships", icon: GraduationCap },
   { href: "/student/achievements", label: t?.nav?.achievements ? t.nav.achievements() : "Achievements", icon: Star },
@@ -195,7 +196,11 @@ export default function StudentLayout({ children }) {
                   (item.href === "/student/learn-with-ai" &&
                     (pathname === "/student/learn-with-ai" ||
                       pathname === "/student/study-buddy" ||
-                      pathname === "/learn-with-ai"));
+                      pathname === "/learn-with-ai")) ||
+                  (item.href === "/student/courses" &&
+                    pathname?.startsWith("/student/courses")) ||
+                  (item.href === "/student/quiz" &&
+                    pathname?.startsWith("/student/quiz"));
                 return (
                   <Link
                     key={item.href}
@@ -326,7 +331,11 @@ export default function StudentLayout({ children }) {
                   (item.href === "/student/learn-with-ai" &&
                     (pathname === "/student/learn-with-ai" ||
                       pathname === "/student/study-buddy" ||
-                      pathname === "/learn-with-ai"));
+                      pathname === "/learn-with-ai")) ||
+                  (item.href === "/student/courses" &&
+                    pathname?.startsWith("/student/courses")) ||
+                  (item.href === "/student/quiz" &&
+                    pathname?.startsWith("/student/quiz"));
                 return (
                   <Link
                     key={item.href}
@@ -444,9 +453,23 @@ export default function StudentLayout({ children }) {
                   </div>
                 </div>
 
-                {/* Right controls: Sync status badge & Notifications */}
+                {/* Right controls: Sync status badge, Quick Quiz button & Notifications */}
                 <div className="flex items-center gap-2">
                   <SyncStatusBadge inline />
+                  <Link
+                    href="/student/quiz"
+                    prefetch={false}
+                    className={cn(
+                      "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-2xs",
+                      pathname?.startsWith("/student/quiz")
+                        ? "bg-[#635BFF] text-white shadow-xs"
+                        : "bg-[#F1EEFF] text-[#635BFF] hover:bg-[#E5E0FF] border border-[#635BFF]/20"
+                    )}
+                    title="Take a Quiz"
+                  >
+                    <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                    <span>Quiz</span>
+                  </Link>
                   <Link
                     href="/student/adventures"
                     className="relative flex items-center justify-center w-9 h-9 rounded-full text-[#64748B] hover:text-[#172033] hover:bg-[#F1EEFF] transition-colors"
@@ -478,28 +501,32 @@ export default function StudentLayout({ children }) {
 
             {/* Mobile Bottom Navigation Bar (< md screens) */}
             <nav className="md:hidden fixed bottom-0 inset-x-0 border-t bg-white/95 border-[#E2E8F0] text-[#64748B] backdrop-blur-lg z-40 pb-safe shadow-lg">
-              <div className="grid grid-cols-5">
+              <div className="grid grid-cols-6">
                 {[
                   { href: "/student", label: "Dashboard", icon: Home },
                   { href: "/student/learn-with-ai", label: "AI Tutor", icon: Brain },
                   { href: "/student/courses", label: "Courses", icon: BookOpen },
+                  { href: "/student/quiz", label: "Quiz", icon: ClipboardList },
                   { href: "/student/games", label: "Games", icon: Gamepad2 },
                   { href: "/settings", label: "Profile", icon: Settings },
                 ].map(({ href, label, icon: Icon }) => {
-                  const active = pathname === href;
+                  const active =
+                    pathname === href ||
+                    (href === "/student" && (pathname === "/student/dashboard" || pathname === "/student/dashboard-v2")) ||
+                    (href === "/student/quiz" && pathname?.startsWith("/student/quiz"));
                   return (
                     <Link
                       key={href}
                       href={href}
                       className={cn(
-                        "flex flex-col items-center justify-center py-2.5 text-[10px] font-medium transition-colors",
+                        "flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors",
                         active
                           ? "text-[#635BFF] font-bold"
                           : "text-[#64748B] hover:text-[#172033]"
                       )}
                     >
-                      <Icon className={cn("w-5 h-5 mb-1", active && "scale-110 transition-transform")} />
-                      <span>{label}</span>
+                      <Icon className={cn("w-4 h-4 mb-0.5", active && "scale-110 transition-transform")} />
+                      <span className="truncate">{label}</span>
                     </Link>
                   );
                 })}
