@@ -35,8 +35,11 @@ export async function downloadVideoForOffline(info, onProgress) {
     resolvedVideoType === 'youtube' ||
     (typeof videoUrl === 'string' && (videoUrl.includes('youtube') || videoUrl.includes('youtu.be')));
 
-  // For YouTube lessons, cache the bundled offline companion lesson video so it is playable offline
-  const fetchUrl = isYouTube ? '/home.mp4' : videoUrl;
+  // For YouTube lessons, route through the dedicated YouTube download & stream API endpoint
+  const ytId = parseYouTubeVideoId(videoUrl);
+  const fetchUrl = isYouTube
+    ? `/api/media/youtube/${encodeURIComponent(ytId || lessonId || 'video')}?url=${encodeURIComponent(videoUrl)}`
+    : videoUrl;
 
   if (!fetchUrl || typeof fetchUrl !== 'string') {
     throw new Error('No valid video URL available for download.');
@@ -200,8 +203,9 @@ export async function autoCacheVideoOnPlay(info = {}) {
     // 1. Process Video Asset
     if (videoUrl) {
       if (isYouTube) {
-        // For YouTube lessons, auto-cache the companion offline lesson video so students can replay offline
-        const companionRes = await fetch('/home.mp4', { cache: 'force-cache' });
+        const ytId = parseYouTubeVideoId(videoUrl);
+        const ytFetchUrl = `/api/media/youtube/${encodeURIComponent(ytId || lessonId || 'video')}?url=${encodeURIComponent(videoUrl)}`;
+        const companionRes = await fetch(ytFetchUrl, { cache: 'force-cache' });
         if (companionRes.ok) {
           const companionBlob = await companionRes.blob();
           const cachedResponse = new Response(companionBlob, {
@@ -213,7 +217,6 @@ export async function autoCacheVideoOnPlay(info = {}) {
           if (videoUrl) await cache.put(videoUrl, cachedResponse.clone());
           if (lessonId) await cache.put(`lesson://${lessonId}`, cachedResponse.clone());
 
-          const ytId = parseYouTubeVideoId(videoUrl);
           if (ytId) {
             await cache.put(`youtube://${ytId}`, cachedResponse.clone());
           }
@@ -478,3 +481,16 @@ export async function getOfflineAudioBlobUrl(lessonId, audioUrl = null) {
 export function getAllOfflineVideosMetadata() {
   return getLocalMetadata();
 }
+
+/**
+ * Returns a direct browser download URL for students to save a YouTube lesson MP4 to their device.
+ */
+export function getYouTubeDownloadUrl(videoUrl, lessonId = '', forceDownload = true) {
+  const ytId = parseYouTubeVideoId(videoUrl);
+  const targetId = ytId || lessonId || 'video';
+  const query = new URLSearchParams();
+  if (videoUrl) query.set('url', videoUrl);
+  if (forceDownload) query.set('download', '1');
+  return `/api/media/youtube/${encodeURIComponent(targetId)}?${query.toString()}`;
+}
+
