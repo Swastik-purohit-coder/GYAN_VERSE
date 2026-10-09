@@ -24,6 +24,7 @@ export const translations = {
     nav: {
       dashboard: "Dashboard",
       courses: "Courses",
+      quizzes: "Quizzes",
       achievements: "Achievements",
       leaderboard: "Leaderboard",
       search: "Search",
@@ -178,6 +179,7 @@ export const translations = {
     nav: {
       dashboard: "ଡ୍ୟାଶବୋର୍ଡ",
       courses: "ପାଠ୍ୟକ୍ରମ",
+      quizzes: "ପ୍ରଶ୍ନୋତ୍ତର",
       achievements: "ଉପଲବ୍ଧି",
       leaderboard: "ଶ୍ରେଷ୍ଠତା ସୂଚୀ",
       search: "ଖୋଜନ୍ତୁ",
@@ -332,6 +334,7 @@ export const translations = {
     nav: {
       dashboard: "डैशबोर्ड",
       courses: "पाठ्यक्रम",
+      quizzes: "क्विज़",
       achievements: "उपलब्धियाँ",
       leaderboard: "लीडरबोर्ड",
       search: "खोज",
