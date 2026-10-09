@@ -323,7 +323,7 @@ export async function POST(request) {
         const inserted = await run(
           supabase.from("skill_courses").insert(newCourse).select().maybeSingle()
         );
-        if (inserted) {
+        if (inserted && typeof inserted === "object" && !Array.isArray(inserted) && inserted.id) {
           inMemorySkills = [inserted, ...inMemorySkills];
           return NextResponse.json(inserted, { status: 201 });
         }

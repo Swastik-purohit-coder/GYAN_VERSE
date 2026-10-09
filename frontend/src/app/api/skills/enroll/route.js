@@ -101,7 +101,7 @@ export async function POST(request) {
             .select()
             .maybeSingle()
         );
-        if (saved) {
+        if (saved && typeof saved === "object" && !Array.isArray(saved) && saved.id) {
           return NextResponse.json({ success: true, enrollment: saved });
         }
       } catch (err) {
